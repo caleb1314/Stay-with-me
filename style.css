@@ -26,14 +26,18 @@ input:-webkit-autofill:active{
 body {
     background-color: #e8e9eb;
     width: 100vw;
-    height: 100vh;
+    height: 100vh; /* 强制占满视口 */
     overflow: hidden;
     display: flex;
     flex-direction: column;
     color: #333;
     background-position: center;
     background-repeat: no-repeat;
+    background-size: cover; /* 确保覆盖全屏 */
     transition: background-image 0.3s ease, background-size 0.3s ease;
+    /* 这一行很重要，让背景延伸到安全区域外 */
+    padding-top: env(safe-area-inset-top); 
+    margin: 0;
 }
 
 /* 暗色模式变量 */
