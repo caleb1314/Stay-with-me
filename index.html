@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="mobile-web-app-capable" content="yes">
-    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#e8e9eb">
     <title>iOS Minimalist Home - Hajimi Edition</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -213,7 +212,7 @@
         <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeSettings()"></div></div>
     </div>
 
-    <!-- 壁纸界面 -->
+    <!-- NEW: 壁纸界面 -->
     <div id="wallpaperScreen" class="settings-base-screen">
         <div class="settings-nav-bar">
             <div class="nav-btn back-btn" onclick="closeWallpaperScreen()" style="display: flex; align-items: center; margin-left: -8px;">
@@ -239,12 +238,14 @@
         <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeWallpaperScreen()"></div></div>
     </div>
 
-    <!-- 主界面美化页面 -->
+    <!-- NEW: 主界面美化页面 -->
     <div id="beautifyScreen" class="settings-base-screen">
         <div class="settings-nav-bar">
-            <div class="nav-btn save-btn" onclick="saveBeautification()" style="font-weight: 600; font-size: 17px; color: #8e8e93; margin-left: 8px; cursor: pointer;">Save</div>
+            <div class="nav-btn back-btn" onclick="closeBeautifyScreen()" style="display: flex; align-items: center; margin-left: -8px;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            </div>
             <div class="nav-title">主界面美化</div>
-            <div class="nav-btn" onclick="closeBeautifyScreen()" style="font-weight: 600; font-size: 17px; color: #8e8e93; cursor: pointer;">Done</div>
+            <div class="nav-btn save-btn" onclick="saveBeautification()" style="font-weight: 700; font-size: 17px; color: #8e8e93;">Save</div>
         </div>
         <div class="settings-scroll-area">
             
@@ -460,18 +461,5 @@
     <input type="file" id="importFileInput" hidden accept=".json">
 
     <script src="script.js" defer></script>
-    
-    <!-- 注册 Service Worker 激活 PWA 安装 -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').then(registration => {
-                    console.log('SW registered: ', registration);
-                }).catch(registrationError => {
-                    console.log('SW registration failed: ', registrationError);
-                });
-            });
-        }
-    </script>
 </body>
 </html>
