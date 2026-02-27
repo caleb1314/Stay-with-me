@@ -1,8 +1,17 @@
-// sw.js - 仅用于满足 PWA 安装条件
-self.addEventListener('install', (e) => {
+// 完整的 Service Worker，满足 Chrome 的安装审查
+self.addEventListener('install', (event) => {
     self.skipWaiting();
 });
 
-self.addEventListener('fetch', (e) => {
-    // 默认放行所有请求，不做离线缓存，避免影响你后续更新代码
+self.addEventListener('activate', (event) => {
+    event.waitUntil(clients.claim());
+});
+
+self.addEventListener('fetch', (event) => {
+    // 拦截请求，让浏览器认为我们具备离线能力
+    event.respondWith(
+        fetch(event.request).catch(() => {
+            return new Response('Offline');
+        })
+    );
 });
