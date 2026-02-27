@@ -824,3 +824,24 @@ select.char-grid-input { appearance: none; -webkit-appearance: none; text-align-
     font-size: 15px; line-height: 1.6; color: var(--text-main); background: transparent; padding: 0; overflow-y: auto;
 }
 .char-fixed-textarea::placeholder { color: #c7c7cc; }
+/* ========================================= */
+/* === 细节修复与优化 === */
+/* ========================================= */
+
+/* 1. 减小微信列表卡片圆角和内边距，更 iOS */
+.wx-group-block {
+    border-radius: 12px !important;
+}
+.wx-chat-row {
+    padding: 10px 14px !important;
+}
+
+/* 2. 彻底干掉浏览器自动填充的难看底色 */
+.char-add-wrap input:-webkit-autofill,
+.char-add-wrap input:-webkit-autofill:hover, 
+.char-add-wrap input:-webkit-autofill:focus, 
+.char-add-wrap input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px var(--content-bg) inset !important;
+    -webkit-text-fill-color: var(--text-main) !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
