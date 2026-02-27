@@ -95,7 +95,7 @@ body.dark-mode {
     letter-spacing: -0.5px; 
 }
 .time-decorator {
-    width: var(--time-dec-size); height: var(--time-dec-size); margin-top: 3px;
+    width: var(--time-dec-size); height: var(--time-dec-size); margin-top: 8px;
     background-size: contain; background-position: center; background-repeat: no-repeat;
 }
 .status-icons { display: flex; align-items: center; gap: 7px; padding-top: 4px; pointer-events: auto; }
@@ -271,8 +271,8 @@ body.dark-mode {
     background: #f2f2f7; z-index: 10;
 }
 .nav-btn { font-size: 16px; color: #007aff; cursor: pointer; min-width: 50px; }
-.nav-btn.back-btn { text-align: left; margin-left: 8px;}
-.nav-btn.save-btn { text-align: right; font-weight: 600; margin-left: 8px;}
+.nav-btn.back-btn { text-align: left; }
+.nav-btn.save-btn { text-align: right; font-weight: 600; }
 .nav-title { font-size: 17px; font-weight: 600; color: #000; position: absolute; left: 50%; transform: translateX(-50%); }
 
 .settings-scroll-area { flex: 1; overflow-y: auto; padding-bottom: 80px; }
