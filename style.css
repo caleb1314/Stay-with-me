@@ -1,870 +1,721 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#e8e9eb">
-    <title>iOS Minimalist Home - Hajimi Edition</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="https://file.uhsea.com/2602/70da4faf682de2817a4b430809e0bce3NN.jpg">
-    
-    <!-- 微信界面专属 CSS (直接内嵌，方便使用) -->
-    <style>
-        /* ========================================= */
-        /* === Wechat 界面样式 (独立命名空间 wx-) === */
-        /* ========================================= */
+/* 全局 CSS 变量 */
+:root {
+    --font-scale: 1;
+    --time-dec-size: 18px;
+}
 
-        .app-screen-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: #f2f2f7;
-            background-image: linear-gradient(180deg, #eef1f5 0%, #e6e9ef 100%);
-            z-index: 5000; /* 保证在主页之上 */
-            display: flex; flex-direction: column;
-            transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
-        }
-        .app-screen-overlay.active { transform: translateY(0); }
+/* 全局重置 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+}
 
-        /* 头部区域 */
-        .wx-header-area {
-            padding: 55px 16px 0; /* 避开状态栏 */
-            display: flex; flex-direction: column; gap: 10px;
-            background: transparent;
-        }
+/* 修复 Input 自动填充背景色问题 */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active{
+    -webkit-box-shadow: 0 0 0 30px #fff inset !important;
+    box-shadow: 0 0 0 30px #fff inset !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
 
-        .wx-nav-bar { display: flex; justify-content: space-between; align-items: center; height: 44px; }
+body {
+    background-color: #e8e9eb;
+    width: 100vw;
+    height: 100vh; /* 强制占满视口 */
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    color: #333;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover; /* 确保覆盖全屏 */
+    transition: background-image 0.3s ease, background-size 0.3s ease;
+    /* 这一行很重要，让背景延伸到安全区域外 */
+    padding-top: env(safe-area-inset-top); 
+    margin: 0;
+}
 
-        .wx-star-btn {
-            width: 36px; height: 36px; border-radius: 50%;
-            background: rgba(255, 255, 255, 0.6);
-            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-            display: flex; justify-content: center; align-items: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            border: 0.5px solid rgba(255,255,255,0.8);
-            transition: transform 0.2s; cursor: pointer;
-        }
-        .wx-star-btn:active { transform: scale(0.9); }
-        .wx-star-btn svg { width: 18px; height: 18px; fill: #333; }
+/* 暗色模式变量 */
+body.dark-mode {
+    --card-bg-opacity: 1;
+    --card-base-color: 28, 28, 30;
+    --text-main: #ffffff;
+    --text-sub: #98989d;
+}
 
-        .wx-page-title { font-size: 17px; font-weight: 600; color: #000; }
+/* 编辑状态 */
+[contenteditable="true"] { outline: none; transition: all 0.3s ease; cursor: text; }
+[contenteditable="true"]:focus { background: rgba(255, 255, 255, 0.9); border-radius: 4px; padding: 0 2px; }
 
-        /* 搜索栏 */
-        .wx-search-container { margin-top: 5px; }
-        .wx-search-input {
-            width: 100%; height: 36px;
-            background: rgba(118, 118, 128, 0.12);
-            border-radius: 10px;
-            display: flex; align-items: center; justify-content: center; gap: 6px;
-        }
-        .wx-search-input svg { width: 16px; height: 16px; fill: #8e8e93; }
-        .wx-search-input span { font-size: 17px; color: #8e8e93; }
+/* 图片上传目标 */
+.img-upload-target {
+    cursor: pointer;
+    background-size: cover !important; 
+    background-position: center center !important;
+    background-repeat: no-repeat !important;
+    transition: opacity 0.2s ease;
+    background-color: rgba(255, 255, 255, 0.3);
+}
+.img-upload-target:active { opacity: 0.7; }
 
-        /* 分组 Tab */
-        .wx-tab-row {
-            display: flex; align-items: center; gap: 24px;
-            padding: 15px 4px 10px; margin-bottom: 5px;
-            overflow-x: auto; scrollbar-width: none;
-        }
-        .wx-tab-row::-webkit-scrollbar { display: none; }
+/* 状态栏 - 强制修复 */
+.status-bar {
+    height: env(safe-area-inset-top, 44px);
+    min-height: 48px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 22px;
+    z-index: 99999; 
+    position: fixed; 
+    width: 100%;
+    top: 0;
+    left: 0;
+    transition: opacity 0.3s;
+    pointer-events: none; 
+    /* 强制使用系统字体，忽略自定义字体 */
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif !important;
+}
+/* 强制子元素也忽略全局字体设置 */
+.status-bar * {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif !important;
+}
 
-        .wx-text-tab {
-            font-size: 15px; font-weight: 600; color: #8e8e93;
-            position: relative; transition: color 0.3s; white-space: nowrap; cursor: pointer;
-        }
-        .wx-text-tab.active { color: #000; font-size: 16px; font-weight: 700; }
-        .wx-text-tab.active::after {
-            content: ''; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%);
-            width: 16px; height: 3px; background: #007aff; border-radius: 2px;
-        }
+.time-container { display: flex; align-items: center; gap: 6px; pointer-events: auto; }
+.time { 
+    /* 强制固定大小，忽略 --font-scale */
+    font-size: 17px !important; 
+    font-weight: 680; 
+    margin-top: 4px; 
+    letter-spacing: -0.5px; 
+}
+.time-decorator {
+    width: var(--time-dec-size); height: var(--time-dec-size); margin-top: 3px;
+    background-size: contain; background-position: center; background-repeat: no-repeat;
+}
+.status-icons { display: flex; align-items: center; gap: 7px; padding-top: 4px; pointer-events: auto; }
 
-        /* 滚动内容区 */
-        .wx-scroll-content {
-            flex: 1; overflow-y: auto; padding-bottom: 120px;
-            -webkit-overflow-scrolling: touch; scrollbar-width: none;
-        }
-        .wx-scroll-content::-webkit-scrollbar { display: none; }
+/* 翻页容器 */
+.pages-container {
+    flex: 1;
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding-top: 48px; 
+}
+.pages-container::-webkit-scrollbar { display: none; }
 
-        /* 电脑登录提示 */
-        .wx-mac-login-bar {
-            margin: 0 16px 15px 16px; padding: 12px 16px;
-            background: rgba(255, 255, 255, 0.6);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border-radius: 14px; display: flex; align-items: center; gap: 12px;
-            border: 0.5px solid rgba(255, 255, 255, 0.8);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-        }
-        .wx-mac-login-bar svg { width: 20px; height: 20px; fill: #555; }
-        .wx-mac-login-bar span { font-size: 13px; color: #444; font-weight: 500; }
+.page {
+    width: 100vw;
+    flex-shrink: 0;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    display: flex;
+    flex-direction: column;
+    padding: 0 20px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
 
-        /* 列表区块 */
-        .wx-group-block {
-            margin: 0 16px 20px 16px;
-            background: rgba(255, 255, 255, 0.75);
-            backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
-            border-radius: 18px; overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-            border: 0.5px solid rgba(255,255,255,0.4);
-        }
+/* 第一页组件 */
+.top-widget-container { position: relative; width: 100%; height: 330px; display: flex; flex-direction: column; align-items: center; margin-top: 5px; }
+.connecting-lines { position: absolute; top: 0; left: 0; width: 100%; height: 250px; z-index: 1; pointer-events: none; }
+.avatars-wrapper { display: flex; justify-content: center; gap: 40px; z-index: 2; position: relative; margin-top: 5px; }
+.avatar-group { display: flex; flex-direction: column; align-items: center; }
+.speech-bubble {
+    background: #fff; padding: 6px 14px; border-radius: 14px; font-size: calc(12px * var(--font-scale)); font-weight: 600; margin-bottom: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05); position: relative;
+}
+.speech-bubble::after {
+    content: ''; position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%);
+    border-width: 6px 6px 0; border-style: solid; border-color: #fff transparent transparent transparent;
+}
+.avatar-circle { width: 72px; height: 72px; border-radius: 50%; border: 1.5px solid #fff; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+.center-text { position: absolute; top: 170px; font-size: calc(11px * var(--font-scale)); color: #777; letter-spacing: 0.8px; z-index: 2; font-style: italic; }
 
-        .wx-chat-row {
-            display: flex; align-items: center; padding: 12px 16px; gap: 12px; position: relative; cursor: pointer;
-        }
-        .wx-chat-row:active { background: rgba(0,0,0,0.05); }
-        .wx-chat-row:not(:last-child)::after {
-            content: ''; position: absolute; bottom: 0; right: 0; left: 76px;
-            height: 0.5px; background-color: rgba(60, 60, 67, 0.15);
-        }
+/* 音乐播放器 */
+.music-player-v2 {
+    position: absolute; bottom: 0; width: 92%; display: flex; flex-direction: column; align-items: center;
+    padding: 20px; background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+    border: 1px solid rgba(255, 255, 255, 0.7); box-shadow: 0 10px 40px rgba(0,0,0,0.04); border-radius: 24px; z-index: 3;
+}
+.music-title { font-size: calc(16px * var(--font-scale)); font-weight: 700; color: #222; }
+.music-subtitle { font-size: calc(11px * var(--font-scale)); color: #666; margin-top: 4px; }
+.progress-container { width: 100%; display: flex; align-items: center; gap: 10px; margin: 12px 0; }
+.progress-bar { flex: 1; height: 4px; background: rgba(0,0,0,0.08); border-radius: 2px; }
+.progress-fill { width: 40%; height: 100%; background: #333; border-radius: 2px; }
+.time-label { font-size: 10px; color: #999; }
+.controls-row { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+.main-controls { display: flex; align-items: center; gap: 32px; }
 
-        .wx-avatar-gray { width: 48px; height: 48px; border-radius: 8px; background-color: #d1d1d6; flex-shrink: 0; background-size: cover; background-position: center; }
-        .wx-chat-content { flex: 1; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
-        .wx-row-top { display: flex; justify-content: space-between; align-items: baseline; }
-        .wx-chat-title { font-size: 16px; font-weight: 600; color: #000; }
-        .wx-chat-date { font-size: 11px; color: #8e8e93; font-weight: 400; }
-        .wx-row-bottom { display: flex; justify-content: space-between; align-items: center; }
-        .wx-chat-preview { font-size: 14px; color: #8e8e93; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90%; }
-        .wx-badge-dot { width: 10px; height: 10px; background: #ff3b30; border-radius: 50%; }
+/* 第二页组件 */
+.large-rect-widget {
+    width: 100%; background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-radius: 28px; padding: 18px; margin-top: 15px; border: 1px solid rgba(255, 255, 255, 0.5);
+}
+.widget-top-row { display: flex; align-items: flex-start; gap: 15px; position: relative; }
+.rect-avatar { width: 65px; height: 65px; border-radius: 18px; }
+.text-content { flex: 1; display: flex; flex-direction: column; gap: 6px; padding-top: 4px; }
+.info-line { display: flex; align-items: center; gap: 6px; font-size: calc(14px * var(--font-scale)); font-weight: 600; color: #444; }
+.info-line svg { width: 14px; height: 14px; stroke: #666; stroke-width: 1.5; fill: none; }
 
-        /* 底部悬浮胶囊栏 */
-        .wx-capsule-dock-container {
-            position: fixed; bottom: 30px; left: 0; width: 100%;
-            display: flex; justify-content: center; z-index: 5001; pointer-events: none;
-        }
+.widget-bottom-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 18px; }
+.mini-square { aspect-ratio: 1; border-radius: 15px; border: 1px solid rgba(255, 255, 255, 0.3); }
 
-        .wx-capsule-dock {
-            pointer-events: auto;
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
-            padding: 12px 25px; border-radius: 50px;
-            display: flex; gap: 35px; align-items: center;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.12), 0 5px 10px rgba(0,0,0,0.05);
-            border: 0.5px solid rgba(255,255,255,0.6);
-        }
+.profile-widget { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0; }
+.profile-circle { width: 85px; height: 85px; border-radius: 50%; margin-bottom: 12px; border: 2px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+.profile-name { font-size: calc(15px * var(--font-scale)); font-weight: 700; color: #444; margin-bottom: 10px; }
+.status-pill {
+    background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    padding: 6px 14px 6px 6px; border-radius: 20px; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+}
+.pill-icon-circle { width: 20px; height: 20px; background: #555; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.pill-icon-circle svg { width: 11px; height: 11px; fill: none; stroke: #fff; stroke-width: 2.5; }
+.status-pill span { font-size: calc(11px * var(--font-scale)); color: #555; font-weight: 600; }
 
-        .wx-dock-item {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            opacity: 0.6; transition: all 0.2s ease; cursor: pointer;
-        }
-        .wx-dock-item.active { opacity: 1; }
+.bottom-wide-widget {
+    width: 100%; height: 110px; background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-radius: 24px; margin-top: 10px; border: 1px solid rgba(255, 255, 255, 0.5); overflow: hidden;
+}
 
-        .wx-dock-icon-img {
-            object-fit: contain;
-            filter: drop-shadow(0.3px 0 0 #000) drop-shadow(-0.3px 0 0 #000) drop-shadow(0 0.3px 0 #000) drop-shadow(0 -0.3px 0 #000);
-            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
+/* 第三页组件 */
+.p3-top-widget { width: 100%; display: flex; flex-direction: column; align-items: center; padding: 20px 0; margin-top: 10px; }
+.p3-main-row { display: flex; align-items: center; justify-content: center; gap: 15px; width: 100%; }
+.p3-side-column { display: flex; flex-direction: column; gap: 15px; flex: 1; }
+.p3-text-bar {
+    background: rgba(255, 255, 255, 0.5); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+    padding: 10px 12px; border-radius: 18px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.4); height: 40px;
+}
+.p3-text-bar span { font-size: calc(12px * var(--font-scale)); font-weight: 700; color: #444; font-style: italic; }
+.p3-center-avatar { width: 100px; height: 100px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 8px 20px rgba(0,0,0,0.05); flex-shrink: 0; }
+.p3-sub-text { margin-top: 12px; font-size: calc(14px * var(--font-scale)); color: #666; letter-spacing: 2px; font-weight: 500; }
 
-        .wx-dock-item:nth-child(1) .wx-dock-icon-img { width: 34px; height: 34px; }
-        .wx-dock-item:nth-child(2) .wx-dock-icon-img { width: 29px; height: 29px; }
-        .wx-dock-item:nth-child(3) .wx-dock-icon-img { width: 31px; height: 31px; transform: translateY(1px); }
-        .wx-dock-item:nth-child(4) .wx-dock-icon-img { width: 24px; height: 24px; opacity: 0.85; }
+/* 聊天组件 */
+.chat-widget { flex: 1; padding: 15px 0; display: flex; flex-direction: column; gap: 12px; }
+.chat-header { font-size: calc(15px * var(--font-scale)); font-weight: 700; color: #333; margin-bottom: 5px; padding-left: 5px; }
+.chat-bubble {
+    background: rgba(255, 255, 255, 0.6); padding: 8px 12px; border-radius: 22px; display: flex; align-items: center; gap: 10px; border: 1px solid rgba(255, 255, 255, 0.3); 
+    width: 100%;
+}
+.chat-bubble.right { flex-direction: row-reverse; }
+.mini-avatar { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; }
+.chat-text { font-size: calc(11px * var(--font-scale)); color: #444; font-weight: 600; flex: 1; }
+.chat-bubble.right .chat-text { text-align: right; }
 
-        .wx-dock-item:active .wx-dock-icon-img { transform: scale(0.9) translateY(0); }
-        .wx-dock-item:nth-child(3):active .wx-dock-icon-img { transform: scale(0.9) translateY(1px); }
-    </style>
-</head>
-<body>
+/* 通用布局 */
+.middle-section { display: flex; justify-content: space-between; margin-top: 20px; gap: 15px; padding-bottom: 10px; }
+.left-apps, .right-apps { flex: 1; display: grid; grid-template-columns: repeat(2, 1fr); grid-gap: 20px 12px; }
+.full-width-apps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 20px; width: 100%; }
+.app-item { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 
-    <!-- 状态栏 -->
-    <div class="status-bar">
-        <div class="time-container">
-            <div class="time" id="currentTime">16:17</div>
-            <div class="time-decorator" id="timeDecorator"></div>
-        </div>
-        <div class="status-icons">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="#333"><rect x="0" y="12" width="4.5" height="6" rx="1.5"/><rect x="6.5" y="9" width="4.5" height="9" rx="1.5"/><rect x="13" y="6" width="4.5" height="12" rx="1.5"/><rect x="19.5" y="4" width="4.5" height="14" rx="1.5"/><rect x="0" y="20" width="4.5" height="4" rx="1.5"/><rect x="6.5" y="20" width="4.5" height="4" rx="1.5"/><rect x="13" y="20" width="4.5" height="4" rx="1.5"/><rect x="19.5" y="20" width="4.5" height="4" rx="1.5"/></svg>
-            <svg width="20" height="16" viewBox="0 0 24 20" fill="#333"><path d="M12 3c4.6 0 8.8 1.8 12 4.7l-1.5 1.8C19.8 7 16.1 5.3 12 5.3s-7.8 1.7-10.5 4.2L0 7.7C3.2 4.8 7.4 3 12 3z" stroke="#333" stroke-width="0.5"/><path d="M12 9.5c2.8 0 5.4 1.1 7.3 2.9l-1.5 1.8C16.5 13 14.4 12.2 12 12.2s-4.5.8-5.8 2L4.7 12.4c1.9-1.8 4.5-2.9 7.3-2.9z" stroke="#333" stroke-width="0.5"/><path d="M12 15.8c1.1 0 2.1.4 2.8 1.1l-2.8 3.4-2.8-3.4c.7-.7 1.7-1.1 2.8-1.1z" stroke="#333" stroke-width="0.5"/></svg>
-            <svg width="32" height="14" viewBox="0 0 32 14"><defs><mask id="battery-mask"><rect width="32" height="14" fill="white" /><text x="13.5" y="11.5" font-size="12" font-weight="900" fill="black" text-anchor="middle" letter-spacing="-0.5" id="batteryText">77</text></mask></defs><rect x="0" y="0" width="27" height="14" rx="4.5" fill="#333" mask="url(#battery-mask)" /><path d="M28 4.5 v5 a2 2 0 0 0 0 -5 z" fill="#333" /></svg>
-        </div>
-    </div>
+.app-icon { 
+    width: 58px; height: 58px; border-radius: 14px; 
+    box-shadow: inset 0 1px 2px rgba(255,255,255,0.5), 0 3px 8px rgba(0,0,0,0.06); 
+    background-size: cover !important; 
+    background-position: center !important; 
+    background-repeat: no-repeat !important;
+}
 
-    <div class="pages-container" id="mainPages">
-        <!-- 第一页 -->
-        <div class="page">
-            <div class="top-widget-container">
-                <svg class="connecting-lines" viewBox="-50 0 400 250">
-                    <defs><linearGradient id="fade-grad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#888;stop-opacity:1" /><stop offset="85%" style="stop-color:#888;stop-opacity:0" /></linearGradient></defs>
-                    <circle cx="35" cy="78" r="4" fill="#888" /><circle cx="265" cy="78" r="4" fill="#888" />
-                    <path d="M 35 78 Q -50 110, 105 200" fill="none" stroke="url(#fade-grad)" stroke-width="1.3" stroke-linecap="round"/>
-                    <path d="M 265 78 Q 350 110, 195 200" fill="none" stroke="url(#fade-grad)" stroke-width="1.3" stroke-linecap="round"/>
-                </svg>
-                <div class="avatars-wrapper">
-                    <div class="avatar-group"><div class="speech-bubble" contenteditable="true" data-save="p1-bubble-l">你在左边</div><div class="avatar-circle img-upload-target" data-img-id="p1-avatar-l"></div></div>
-                    <div class="avatar-group"><div class="speech-bubble" contenteditable="true" data-save="p1-bubble-r">我紧靠右</div><div class="avatar-circle img-upload-target" data-img-id="p1-avatar-r"></div></div>
-                </div>
-                <div class="center-text">Twenty four seven with us</div>
-                <div class="music-player-v2">
-                    <div class="music-title">Pink Lavender</div>
-                    <div class="music-subtitle" contenteditable="true" data-save="p1-music-sub">· ⁺ ⋆ ‿ ıllıllı ‿ ⋆ ⁺ ·</div>
-                    <div class="progress-container">
-                        <div class="time-label">1:26</div>
-                        <div class="progress-bar"><div class="progress-fill"></div></div>
-                        <div class="time-label">3:48</div>
-                    </div>
-                    <div class="controls-row">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="#666"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                        <div class="main-controls">
-                            <svg width="24" height="24" viewBox="0 0 24 24"><path d="M11 18V6l-8.5 6z" fill="#333" stroke="#333" stroke-width="3" stroke-linejoin="round"/><path d="M22 18V6l-8.5 6z" fill="#333" stroke="#333" stroke-width="3" stroke-linejoin="round"/></svg>
-                            <svg width="32" height="32" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="2" fill="#333"/><rect x="14" y="5" width="4" height="14" rx="2" fill="#333"/></svg>
-                            <svg width="24" height="24" viewBox="0 0 24 24"><path d="M2 6v12l8.5-6z" fill="#333" stroke="#333" stroke-width="3" stroke-linejoin="round"/><path d="M13 6v12l8.5-6z" fill="#333" stroke="#333" stroke-width="3" stroke-linejoin="round"/></svg>
-                        </div>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2"><path d="M9.52 14.47 A 3.5 3.5 0 1 1 14.48 14.47"/><path d="M7.05 16.95 A 7 7 0 1 1 16.95 16.95"/><path d="M4.58 19.42 A 10.5 10.5 0 1 1 19.42 19.42"/><path d="M12 15.5L16.5 21H7.5L12 15.5Z" fill="#333"/></svg>
-                    </div>
-                </div>
-            </div>
-            <div class="centered-label">Colorful Widget</div>
-            <div class="middle-section">
-                <div class="left-apps">
-                    <!-- 绑定了 openWechat() -->
-                    <div class="app-item" data-app-id="p1-app-wechat" onclick="openWechat()">
-                        <div class="app-icon gray-1"></div><span class="app-name">Wechat</span>
-                    </div>
-                    <div class="app-item" data-app-id="p1-app-files"><div class="app-icon gray-2"></div><span class="app-name">文件</span></div>
-                    <div class="app-item" data-app-id="p1-app-world"><div class="app-icon gray-3"></div><span class="app-name">世界</span></div>
-                    <div class="app-item" data-app-id="p1-app-contacts"><div class="app-icon gray-4"></div><span class="app-name">通讯录</span></div>
-                </div>
-                <div class="right-widget-wrap">
-                    <div class="large-widget img-upload-target" data-img-id="p1-large-widget"></div>
-                    <div class="sub-label">Colorful Widget</div>
-                </div>
-            </div>
-        </div>
+.gray-1 { background: linear-gradient(135deg, #f5f5f5, #dcdcdc); }
+.gray-2 { background: linear-gradient(135deg, #e8e8e8, #c0c0c0); }
+.gray-3 { background: linear-gradient(135deg, #dadada, #b0b0b0); }
+.gray-4 { background: linear-gradient(135deg, #cccccc, #a0a0a0); }
+.app-name { font-size: calc(11px * var(--font-scale)); color: #555; font-weight: 600; }
+.right-widget-wrap { flex: 1.2; display: flex; flex-direction: column; align-items: center; }
+.large-widget { width: 100%; aspect-ratio: 1; border-radius: 24px; }
+.centered-label { width: 100%; text-align: center; font-size: calc(12px * var(--font-scale)); color: #777; font-weight: 600; margin-top: 20px; letter-spacing: 0.5px; }
+.sub-label { font-size: calc(12px * var(--font-scale)); color: #777; margin-top: 12px; font-weight: 600; }
 
-        <!-- 第二页 -->
-        <div class="page">
-            <div class="large-rect-widget">
-                <div class="widget-top-row">
-                    <div class="rect-avatar img-upload-target" data-img-id="p2-rect-avatar"></div>
-                    <div class="text-content">
-                        <div class="info-line"><span contenteditable="true" data-save="p2-today">Today is...</span> <svg viewBox="0 0 24 24"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg> <span contenteditable="true" data-save="p2-num">3."</span></div>
-                        <div class="info-line"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> <span contenteditable="true" data-save="p2-love">Love is more than that.</span></div>
-                    </div>
-                </div>
-                <div class="widget-bottom-row">
-                    <div class="mini-square img-upload-target" data-img-id="p2-sq-1"></div>
-                    <div class="mini-square img-upload-target" data-img-id="p2-sq-2"></div>
-                    <div class="mini-square img-upload-target" data-img-id="p2-sq-3"></div>
-                    <div class="mini-square img-upload-target" data-img-id="p2-sq-4"></div>
-                </div>
-            </div>
-            <div class="centered-label">Colorful Widget</div>
-            <div class="middle-section">
-                <div class="profile-widget">
-                    <div class="profile-circle img-upload-target" data-img-id="p2-profile-main"></div>
-                    <div class="profile-name" contenteditable="true" data-save="p2-name">小猫爱你</div>
-                    <div class="status-pill">
-                        <div class="pill-icon-circle"><svg viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18" stroke-linecap="round"/></svg></div>
-                        <span contenteditable="true" data-save="p2-status">我做了一个很长的梦</span>
-                    </div>
-                </div>
-                <div class="right-apps">
-                    <div class="app-item" data-app-id="p2-app-photos"><div class="app-icon gray-1"></div><span class="app-name">照片</span></div>
-                    <div class="app-item" data-app-id="p2-app-weather"><div class="app-icon gray-2"></div><span class="app-name">天气</span></div>
-                    <div class="app-item" data-app-id="p2-app-memories"><div class="app-icon gray-3"></div><span class="app-name">回忆</span></div>
-                    <div class="app-item" data-app-id="p2-app-games"><div class="app-icon gray-4"></div><span class="app-name">游戏</span></div>
-                </div>
-            </div>
-            <div class="bottom-wide-widget img-upload-target" data-img-id="p2-bottom-wide"></div>
-        </div>
+/* 底部固定区 */
+.bottom-section { margin-top: auto; display: flex; flex-direction: column; align-items: center; padding-bottom: 25px; }
+.search-pill {
+    background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+    padding: 8px 18px; border-radius: 20px; display: flex; align-items: center; gap: 8px; margin-bottom: 25px;
+}
+.search-pill svg { width: 15px; height: 15px; fill: #555; }
+.search-pill span { font-size: 13px; color: #555; font-weight: 600; }
+.dock {
+    width: 92%; background: rgba(255, 255, 255, 0.5); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+    border-radius: 30px; padding: 18px 22px; display: flex; justify-content: space-between; border: 1px solid rgba(255,255,255,0.6);
+}
+.dock-text-icon { display: flex; align-items: center; justify-content: center; font-size: calc(11px * var(--font-scale)); font-weight: 700; color: #444; text-align: center; padding: 4px; cursor: pointer; }
 
-        <!-- 第三页 -->
-        <div class="page">
-            <div class="p3-top-widget">
-                <div class="p3-main-row">
-                    <div class="p3-side-column">
-                        <div class="p3-text-bar"><span contenteditable="true" data-save="p3-t1">Selcouth</span></div>
-                        <div class="p3-text-bar"><span contenteditable="true" data-save="p3-t2">Sonorous</span></div>
-                    </div>
-                    <div class="p3-center-avatar img-upload-target" data-img-id="p3-center-avatar"></div>
-                    <div class="p3-side-column">
-                        <div class="p3-text-bar"><span contenteditable="true" data-save="p3-t3">Syzygy</span></div>
-                        <div class="p3-text-bar"><span contenteditable="true" data-save="p3-t4">Palimpsest</span></div>
-                    </div>
-                </div>
-                <div class="p3-sub-text" contenteditable="true" data-save="p3-sub">† ☆ ⁺ † ☆ ⁺ ☆ †</div>
-            </div>
-            <div class="centered-label">Colorful Widget</div>
-            <div class="middle-section">
-                <div class="chat-widget">
-                    <div class="chat-header" contenteditable="true" data-save="p3-chat-h">✩* iwish..★</div>
-                    <div class="chat-bubble">
-                        <div class="mini-avatar img-upload-target" data-img-id="p3-chat-av-1"></div>
-                        <span class="chat-text" contenteditable="true" data-save="p3-chat-b1">★˚₊내 생각 하나:♬</span>
-                    </div>
-                    <div class="chat-bubble right">
-                        <div class="mini-avatar img-upload-target" data-img-id="p3-chat-av-2"></div>
-                        <span class="chat-text" contenteditable="true" data-save="p3-chat-b2">♡고목에서봉이올때▹</span>
-                    </div>
-                </div>
-                <div class="right-apps">
-                    <div class="app-item" data-app-id="p3-app-messages"><div class="app-icon gray-1"></div><span class="app-name">信息</span></div>
-                    <div class="app-item" data-app-id="p3-app-phone"><div class="app-icon gray-2"></div><span class="app-name">电话</span></div>
-                    <div class="app-item" data-app-id="p3-app-mail"><div class="app-icon gray-3"></div><span class="app-name">邮件</span></div>
-                    <div class="app-item" data-app-id="p3-app-store"><div class="app-icon gray-4"></div><span class="app-name">商城</span></div>
-                </div>
-            </div>
-            <div class="full-width-apps">
-                <div class="app-item" data-app-id="p3-app-weather2"><div class="app-icon gray-4"></div><span class="app-name">天气</span></div>
-                <div class="app-item" data-app-id="p3-app-books"><div class="app-icon gray-3"></div><span class="app-name">图书</span></div>
-                <div class="app-item" data-app-id="p3-app-forum"><div class="app-icon gray-2"></div><span class="app-name">论坛</span></div>
-                <div class="app-item" data-app-id="p3-app-more"><div class="app-icon gray-1"></div><span class="app-name">更多</span></div>
-            </div>
-        </div>
-    </div>
+/* Dock 图标隐藏文字 */
+.dock-text-icon.has-custom-icon {
+    background-color: transparent !important;
+    box-shadow: none;
+}
+.dock-text-icon.has-custom-icon .app-name {
+    display: none;
+}
 
-    <!-- 底部固定区 -->
-    <div class="bottom-section">
-        <div class="search-pill">
-            <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-            <span>搜索</span>
-        </div>
-        <div class="dock">
-            <div class="app-icon gray-1 dock-text-icon" data-app-id="dock-music" onclick="openMusicPlayer()"><span class="app-name">音乐</span></div>
-            <div class="app-icon gray-2 dock-text-icon" data-app-id="dock-ins"><span class="app-name">ins</span></div>
-            <div class="app-icon gray-3 dock-text-icon" data-app-id="dock-settings" onclick="openSettings()"><span class="app-name">设置</span></div>
-            <div class="app-icon gray-4 dock-text-icon" data-app-id="dock-check"><span class="app-name">查手机</span></div>
-        </div>
-    </div>
+/* --- iOS 设置界面 (通用) --- */
+.settings-base-screen {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: #f2f2f7; z-index: 1200; 
+    display: none; flex-direction: column;
+    transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.settings-base-screen.active { display: flex; transform: translateY(0); }
 
-    <!-- iOS 设置界面 -->
-    <div id="settingsScreen" class="settings-base-screen">
-        <div class="settings-scroll-area">
-            <div class="settings-header">
-                <div class="settings-title">设置</div>
-            </div>
-            
-            <div class="settings-search">
-                <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-                <span>搜索</span>
-            </div>
+.settings-nav-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 55px 16px 8px; position: sticky; top: 0;
+    background: #f2f2f7; z-index: 10;
+}
+.nav-btn { font-size: 16px; color: #007aff; cursor: pointer; min-width: 50px; }
+.nav-btn.back-btn { text-align: left; }
+.nav-btn.save-btn { text-align: right; font-weight: 600; }
+.nav-title { font-size: 17px; font-weight: 600; color: #000; position: absolute; left: 50%; transform: translateX(-50%); }
 
-            <div class="settings-group">
-                <div class="settings-item account-item">
-                    <div class="account-avatar img-upload-target" data-img-id="settings-avatar"></div>
-                    <div class="account-info">
-                        <div class="account-name" contenteditable="true" data-save="set-name">小猫</div>
-                        <div class="account-sub">Apple账户、iCloud等</div>
-                    </div>
-                    <svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
-                </div>
-            </div>
+.settings-scroll-area { flex: 1; overflow-y: auto; padding-bottom: 80px; }
+.settings-header { padding: 55px 16px 8px; }
+.settings-title { font-size: 32px; font-weight: 700; color: #000; margin-bottom: 12px; }
 
-            <div class="settings-group">
-                <div class="settings-item"><img src="https://file.uhsea.com/2602/538354eb085d84606da233325e040f6aJ0.png" class="item-icon-img"><div class="item-label">飞行模式</div><div class="ios-switch" onclick="this.classList.toggle('on')"></div></div>
-                <div class="settings-item"><img src="https://file.uhsea.com/2602/84babb981b033253a802941af1fb4405GV.png" class="item-icon-img"><div class="item-label">无线局域网</div><div class="item-value">Hajimi_5G</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-                <div class="settings-item"><img src="https://file.uhsea.com/2602/68787c10639ebfce28afd3807f15f703BU.png" class="item-icon-img"><div class="item-label">蓝牙</div><div class="item-value">开启</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-                <div class="settings-item"><img src="https://file.uhsea.com/2602/3a891228cd11d1a3242d71ab61549496VF.png" class="item-icon-img"><div class="item-label">蜂窝网络</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-                <div class="settings-item"><img src="https://file.uhsea.com/2602/9bcb5c152ff545099c3f5b52c65af212IX.png" class="item-icon-img"><div class="item-label">个人热点</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-                <div class="settings-item"><img src="https://file.uhsea.com/2602/2fadc0e168eb400d4f0c811d690b0619FP.png" class="item-icon-img"><div class="item-label">电池</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-                <div class="settings-item"><img src="https://file.uhsea.com/2602/ef476cdfec0034da3ffe5c89182c552d1T.png" class="item-icon-img"><div class="item-label">VPN</div><div class="ios-switch" onclick="this.classList.toggle('on')"></div></div>
-            </div>
+.settings-search {
+    background: #e3e3e8; border-radius: 10px; padding: 8px 12px; margin: 0 16px 18px;
+    display: flex; align-items: center; gap: 8px;
+}
+.settings-search svg { width: 15px; height: 15px; fill: #8e8e93; }
+.settings-search span { color: #8e8e93; font-size: 16px; }
 
-            <div class="settings-group">
-                <div class="settings-item"><img src="https://file.uhsea.com/2602/52ee4e85a9e9bfdb727d6a5b16acdcd95R.png" class="item-icon-img"><div class="item-label">通用</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-                <div class="settings-item" onclick="openWallpaperScreen()"><img src="https://file.uhsea.com/2602/8a8ec510263c8e749a82f1d95192b1adIS.png" class="item-icon-img"><div class="item-label">壁纸</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-                <div class="settings-item" onclick="openBeautifyScreen()"><img src="https://file.uhsea.com/2602/fa1efacb329f8483d028876802d860892A.png" class="item-icon-img"><div class="item-label">主界面美化</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-                <div class="settings-item"><img src="https://file.uhsea.com/2602/557e1bdcb9ad2b8b0a0adb1d4741e5c1SJ.png" class="item-icon-img"><div class="item-label">通知</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-            </div>
-        </div>
-        <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeSettings()"></div></div>
-    </div>
+.group-title {
+    font-size: 14px; color: #6d6d72; text-transform: uppercase;
+    padding: 0 16px 8px 32px; margin-top: 24px; font-weight: 600;
+}
 
-    <!-- 壁纸界面 -->
-    <div id="wallpaperScreen" class="settings-base-screen">
-        <div class="settings-nav-bar">
-            <div class="nav-btn back-btn" onclick="closeWallpaperScreen()" style="display: flex; align-items: center; margin-left: -8px;">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-            </div>
-            <div class="nav-title">壁纸</div>
-            <div class="nav-btn"></div>
-        </div>
-        <div class="settings-scroll-area">
-            <div class="wallpaper-preview-container">
-                <div class="wallpaper-preview-card" id="current-wallpaper-preview"></div>
-            </div>
-            <div class="settings-group">
-                <div class="settings-item beautify-action-btn" onclick="triggerWallpaperUpload()">
-                    <div class="item-label">添加新壁纸</div>
-                </div>
-            </div>
-            <div class="group-title">我的壁纸</div>
-            <div class="wallpaper-grid" id="wallpaper-list-container">
-                <!-- 壁纸项动态生成 -->
-            </div>
-        </div>
-        <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeWallpaperScreen()"></div></div>
-    </div>
+.settings-group {
+    background: #fff; border-radius: 10px; margin: 0 16px 18px; overflow: hidden;
+}
+.settings-item {
+    display: flex; align-items: center; padding: 10px 16px; gap: 14px;
+    position: relative; cursor: pointer; min-height: 44px;
+}
+.settings-item:active { background: #f2f2f7; }
+.settings-item:not(:last-child)::after {
+    content: ''; position: absolute; bottom: 0; left: 54px; right: 0; height: 0.5px; background: #c6c6c8;
+}
 
-    <!-- 主界面美化页面 -->
-    <div id="beautifyScreen" class="settings-base-screen">
-        <div class="settings-nav-bar">
-            <div class="nav-btn back-btn" onclick="saveBeautification()" style="font-size: 17px; color: #8e8e93; font-weight: 600; display: flex; align-items: center;">Save</div>
-            <div class="nav-title">主界面美化</div>
-            <div class="nav-btn save-btn" onclick="closeBeautifyScreen()" style="font-size: 17px; color: #8e8e93; font-weight: 600;">Done</div>
-        </div>
-        <div class="settings-scroll-area">
-            <div class="group-title">顶栏ovo</div>
-            <div class="settings-group">
-                <div class="settings-item">
-                    <div class="item-label">顶栏显示</div>
-                    <div class="ios-switch on" id="beautify-toggle-topbar" onclick="this.classList.toggle('on')"></div>
-                </div>
-                <div class="settings-item">
-                    <div class="item-label img-upload-target" data-img-id="time-decorator" id="time-decorator-label" style="flex:1;">时间栏装饰 (点击更改)</div>
-                    <div class="reset-btn" onclick="resetBeautifyItem('time-decorator')">
-                        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                    </div>
-                </div>
-                <div class="settings-item">
-                    <div class="item-label">装饰大小</div>
-                    <input type="range" class="ios-slider" id="time-dec-slider" min="10" max="40" step="1" value="18" oninput="updateTimeDecPreview()">
-                    <div class="reset-btn" onclick="resetSlider('time-dec')">
-                        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="group-title">图标TvT</div>
-            <div class="settings-group" id="beautify-app-list">
-                <!-- App list will be dynamically generated here -->
-            </div>
-            
-            <div class="group-title">字体设置QAQ</div>
-            <div class="settings-group">
-                <div class="settings-item">
-                    <input type="text" id="custom-font-url" class="beautify-app-name-input" placeholder="输入 TTF/OTF 字体直链..." onchange="previewFont()" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="hajimi-font-url-random">
-                    <div class="reset-btn" onclick="resetBeautifyItem('font')">
-                        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                    </div>
-                </div>
-                <div class="settings-item">
-                    <div class="item-label">字体大小</div>
-                    <input type="range" class="ios-slider" id="font-size-slider" min="0.8" max="1.5" step="0.05" value="1" oninput="updateFontSizePreview()">
-                    <div class="reset-btn" onclick="resetSlider('font-size')">
-                        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                    </div>
-                </div>
-                <div class="settings-item">
-                    <div class="item-label">字体预设</div>
-                    <select id="font-preset-select" class="beautify-app-name-input" style="text-align: right; direction: rtl;" onchange="applyFontPreset()">
-                        <option value="">选择预设...</option>
-                    </select>
-                </div>
-                <div class="settings-item beautify-action-btn" onclick="saveFontPreset()">
-                    <div class="item-label">保存为新字体预设</div>
-                </div>
-                <div class="settings-item" style="flex-direction: column; align-items: stretch; padding: 16px;">
-                    <div class="font-preview-box" id="font-preview-box">小猫正在偷吃！</div>
-                </div>
-            </div>
+.item-icon-img { width: 26px; height: 26px; border-radius: 6px; object-fit: contain; flex-shrink: 0; }
+.item-label { flex: 1; font-size: 16px; color: #000; line-height: 1.2; }
+.item-value { font-size: 15px; color: #8e8e93; margin-right: 4px; }
+.chevron { width: 12px; height: 12px; stroke: #c7c7cc; stroke-width: 2.4; fill: none; flex-shrink: 0; }
 
-            <div class="group-title">全局美化代码TwT</div>
-            <div class="settings-group">
-                <div class="settings-item" style="padding: 0; position: relative;">
-                    <textarea id="custom-css-input" style="width: 100%; height: 120px; border: none; padding: 12px 16px; font-family: monospace; font-size: 13px; background: transparent; resize: none; outline: none;" placeholder="在此输入自定义 CSS 代码..." onchange="previewCSS()"></textarea>
-                    <div class="reset-btn" style="position: absolute; top: 10px; right: 10px;" onclick="resetBeautifyItem('css')">
-                        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                    </div>
-                </div>
-                <div class="settings-item">
-                    <div class="item-label">CSS 预设</div>
-                    <select id="css-preset-select" class="beautify-app-name-input" style="text-align: right; direction: rtl;" onchange="applyCSSPreset()">
-                        <option value="">选择预设...</option>
-                    </select>
-                </div>
-                <div class="settings-item beautify-action-btn" onclick="saveCSSPreset()">
-                    <div class="item-label">保存为新 CSS 预设</div>
-                </div>
-            </div>
+.account-item { padding: 14px 16px; gap: 14px; min-height: 74px; }
+.account-avatar { width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0; background-color: #d1d1d6; }
+.account-info { display: flex; flex-direction: column; gap: 1px; flex: 1; justify-content: center; }
+.account-name { font-size: 19px; font-weight: 400; color: #000; }
+.account-sub { font-size: 12px; color: #8e8e93; }
 
-            <div class="group-title">管理owo</div>
-            <div class="settings-group">
-                <div class="settings-item beautify-action-btn" onclick="importBeautification()">
-                    <div class="item-label">导入美化配置</div>
-                </div>
-                <div class="settings-item beautify-action-btn" onclick="exportBeautification()">
-                    <div class="item-label">导出美化配置</div>
-                </div>
-            </div>
-             <div class="settings-group">
-                <div class="settings-item beautify-danger-btn" onclick="clearBeautification()">
-                    <div class="item-label">一键清空所有美化</div>
-                </div>
-            </div>
-        </div>
-        <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeBeautifyScreen()"></div></div>
-    </div>
+.ios-switch {
+    width: 48px; height: 28px; background: #e9e9ea; border-radius: 14px;
+    position: relative; transition: background 0.3s; cursor: pointer; flex-shrink: 0;
+}
+.ios-switch::after {
+    content: ''; position: absolute; top: 2px; left: 2px; width: 24px; height: 24px;
+    background: #fff; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    transition: transform 0.3s;
+}
+.ios-switch.on { background: #34c759; }
+.ios-switch.on::after { transform: translateX(20px); }
 
-    <!-- Wechat 独立界面 -->
-    <div id="wechatScreen" class="app-screen-overlay">
-        <!-- 头部区域 -->
-        <div class="wx-header-area">
-            <div class="wx-nav-bar">
-                <!-- 左侧星星 (返回键) -->
-                <div class="wx-star-btn" onclick="closeWechat()">
-                    <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                </div>
-                <!-- 标题 -->
-                <div class="wx-page-title">Wechat</div>
-                <!-- 右侧星星 (触发角色添加) -->
-                <div class="wx-star-btn" onclick="openCharAddScreen()">
-                    <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                </div>
-            </div>
+.home-indicator-wrap {
+    position: absolute; bottom: 0; left: 0; width: 100%; height: 34px;
+    display: flex; justify-content: center; align-items: center;
+    background: transparent; z-index: 1200; pointer-events: none;
+}
+.home-indicator-bar {
+    width: 134px; height: 5px; background: #000; border-radius: 100px;
+    opacity: 0.2; cursor: pointer; pointer-events: auto;
+}
 
-            <!-- 搜索栏 -->
-            <div class="wx-search-container">
-                <div class="wx-search-input">
-                    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" stroke="#8e8e93" stroke-width="2" fill="none"/><line x1="21" y1="21" x2="16.65" y2="16.65" stroke="#8e8e93" stroke-width="2"/></svg>
-                    <span>搜索</span>
-                </div>
-            </div>
+/* --- 主界面美化页特定样式 --- */
+#beautifyScreen .settings-item:not(:last-child)::after { left: 16px; } 
+.beautify-app-item {
+    display: flex; align-items: center; gap: 12px; padding: 8px 16px;
+}
 
-            <!-- 分组 Tab -->
-            <div class="wx-tab-row">
-                <div class="wx-text-tab active" onclick="switchWxTab(this)">全部</div>
-                <div class="wx-text-tab" onclick="switchWxTab(this)">私聊</div>
-                <div class="wx-text-tab" onclick="switchWxTab(this)">群聊</div>
-                <div class="wx-text-tab" onclick="switchWxTab(this)">爱人☆</div>
-                <div class="wx-text-tab" onclick="switchWxTab(this)">家人★</div>
-            </div>
-        </div>
+.beautify-app-icon {
+    width: 42px; height: 42px; border-radius: 10px; flex-shrink: 0;
+    background-color: #eee;
+    background-size: cover !important; 
+    background-position: center !important; 
+    background-repeat: no-repeat !important;
+}
 
-        <!-- 滚动内容区 -->
-        <div class="wx-scroll-content">
-            <!-- 电脑登录提示条 -->
-            <div class="wx-mac-login-bar">
-                <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" fill="none" stroke="#555" stroke-width="2"/><line x1="8" y1="21" x2="16" y2="21" stroke="#555" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="17" x2="12" y2="21" stroke="#555" stroke-width="2"/></svg>
-                <span>Mac 微信已登录，手机通知已关闭</span>
-            </div>
+.beautify-app-name-input {
+    flex: 1; border: none; background: transparent; font-size: 16px;
+    padding: 6px 10px; border-radius: 8px; transition: all 0.2s ease;
+}
+.beautify-app-name-input:focus { 
+    background: rgba(0, 0, 0, 0.05); 
+    outline: none;
+}
 
-            <!-- 动态生成的角色列表容器 -->
-            <div class="wx-group-block" id="wx-chat-list-container">
-                <!-- JS 动态渲染 -->
-            </div>
-        </div>
+select.beautify-app-name-input {
+    appearance: none; -webkit-appearance: none; color: #8e8e93; font-size: 15px; padding-right: 0;
+}
 
-        <!-- 底部悬浮胶囊栏 -->
-        <div class="wx-capsule-dock-container">
-            <div class="wx-capsule-dock">
-                <div class="wx-dock-item active" onclick="switchWxDock(this)">
-                    <img src="https://file.uhsea.com/2602/248d304f495dd1bf86106dd1d6a32aa7VJ.png" class="wx-dock-icon-img">
-                </div>
-                <div class="wx-dock-item" onclick="switchWxDock(this)">
-                    <img src="https://file.uhsea.com/2602/b3d603e7b65e0c7fbb89e4d632815ca3T2.png" class="wx-dock-icon-img">
-                </div>
-                <div class="wx-dock-item" onclick="switchWxDock(this)">
-                    <img src="https://file.uhsea.com/2602/579a66aaec58140dd0facf34caab20b1KB.png" class="wx-dock-icon-img">
-                </div>
-                <div class="wx-dock-item" onclick="switchWxDock(this)">
-                    <img src="https://file.uhsea.com/2602/314de30a1d24cb8fdcf74c7b89f06604IW.png" class="wx-dock-icon-img">
-                </div>
-            </div>
-        </div>
-    </div>
+.beautify-danger-btn { color: #ff3b30; justify-content: center !important; }
+.beautify-action-btn { color: #007aff; justify-content: center !important; }
 
-    <!-- ========================================= -->
-    <!-- === 新增：角色添加界面 (全屏无状态栏) === -->
-    <!-- ========================================= -->
-    <div id="charAddScreen" class="app-screen-overlay char-add-wrap" style="z-index: 6000;">
-        <!-- Safari 顶栏 (无状态栏，大幅下移) -->
-        <div class="char-safari-header">
-            <div class="char-nav-actions">
-                <!-- 返回微信界面 -->
-                <div class="char-icon-btn" onclick="closeCharAddScreen()"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
-                <div class="char-icon-btn" style="opacity: 0.3;"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-            </div>
-            <div class="char-url-bar">
-                <svg viewBox="0 0 24 24"><rect x="7" y="11" width="10" height="10" rx="2"/><path d="M12 11V7a3 3 0 00-6 0" stroke="#8e8e93" stroke-width="2" fill="none"/></svg>
-                <span>xiaomaoaini.com</span>
-            </div>
-            <div class="char-action-icons">
-                <!-- 修复的刷新按钮 -->
-                <!-- 修复后的刷新按钮 -->
-<div class="char-icon-btn" onclick="resetCharForm()">
-<svg viewBox="0 0 24 24">
-                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-                    <path d="M3 3v5h5"/>
-                </svg>
-            </div>
-                <!-- 保存按钮 -->
-                <div class="char-icon-btn char-star-btn" id="charSaveBtn" onclick="saveCharacter()"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
-            </div>
-        </div>
+/* 重置按钮样式 */
+.reset-btn {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0; transition: all 0.2s;
+}
+.reset-btn:active { background: rgba(0,0,0,0.1); transform: scale(0.9); }
+.reset-btn svg { width: 14px; height: 14px; stroke: #8e8e93; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 
-        <!-- 全屏滚动内容 -->
-        <div class="char-scroll-content">
-            <!-- 顶部背景图 -->
-            <div class="char-cover-image" id="charBgTarget" onclick="openCharUploadModal('charBgTarget')"></div>
+/* 字体预览区 */
+.font-preview-box {
+    width: 100%; 
+    padding: 20px 16px; 
+    background: #f2f2f7; 
+    border-radius: 14px;
+    text-align: center; 
+    font-size: 19px; 
+    color: #1c1c1e; 
+    margin-top: 8px;
+    border: none;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.04);
+    letter-spacing: 0.5px;
+    font-weight: 500;
+}
 
-            <div class="char-header-section">
-                <div class="char-avatar" id="charAvatarTarget" onclick="openCharUploadModal('charAvatarTarget')"></div>
-                <div class="char-name-tag-wrap">
-                    <!-- 备注名 -->
-                    <input type="text" class="char-name-input" id="charRemark" placeholder="角色备注" autocomplete="off">
-                    <div class="char-tags-row" id="charTagsContainer">
-                        <div class="char-tag char-gender" id="charGenderTag" onclick="toggleCharGender()">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="10" r="4"/><path d="M12 14v7M9 18h6"/></svg> 女
-                        </div>
-                        <div class="char-tag char-add" onclick="addCharTag()">+ 添加</div>
-                    </div>
-                </div>
-            </div>
+/* iOS 风格滑动条 */
+input[type=range].ios-slider {
+    -webkit-appearance: none; width: 120px; height: 4px; background: #e5e5ea; border-radius: 2px; outline: none;
+}
+input[type=range].ios-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: #fff;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.2); cursor: pointer;
+}
 
-            <!-- 主题色自定义区 -->
-            <div class="char-theme-pickers-row">
-                <div class="char-theme-item">
-                    <span class="char-theme-label">顶栏</span>
-                    <div class="char-color-picker-wrap"><input type="color" id="charColorHeader" value="#f2f2f7" oninput="updateCharColor('--header-bg', this.value)"></div>
-                </div>
-                <div class="char-theme-item">
-                    <span class="char-theme-label">搜索栏</span>
-                    <div class="char-color-picker-wrap"><input type="color" id="charColorUrl" value="#ffffff" oninput="updateCharColor('--url-bg', this.value)"></div>
-                </div>
-                <div class="char-theme-item">
-                    <span class="char-theme-label">背景</span>
-                    <div class="char-color-picker-wrap"><input type="color" id="charColorBg" value="#ffffff" oninput="updateCharColor('--content-bg', this.value)"></div>
-                </div>
-            </div>
+/* --- 壁纸界面样式 --- */
+.wallpaper-preview-container {
+    width: 100%; display: flex; justify-content: center; padding: 20px 0;
+}
+.wallpaper-preview-card {
+    width: 160px; height: 340px; border-radius: 24px;
+    background-color: #e8e9eb; background-size: cover; background-position: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 4px solid #fff;
+    position: relative; transition: background-image 0.3s ease;
+}
+.wallpaper-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 16px;
+}
+.wallpaper-item {
+    aspect-ratio: 9/19.5; border-radius: 12px; background-size: cover; background-position: center;
+    cursor: pointer; position: relative; border: 2px solid transparent; transition: all 0.2s;
+    background-color: #eee;
+}
+.wallpaper-item.active { border-color: #007aff; transform: scale(0.95); }
+.wallpaper-delete {
+    position: absolute; top: -6px; right: -6px; width: 22px; height: 22px;
+    background: #ff3b30; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 10;
+}
 
-            <div class="char-divider"></div>
+/* --- 韩系 ins 风格弹窗 --- */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(255,255,255,0.1); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+    display: none; justify-content: center; align-items: center; z-index: 2000;
+    opacity: 0; transition: opacity 0.3s ease;
+}
+.modal-overlay#music-more-modal {
+    z-index: 10000;
+    background: rgba(0,0,0,0.3);
+}
 
-            <!-- 基础信息网格 -->
-            <div class="char-grid-info">
-                <div class="char-grid-item">
-                    <span class="char-grid-label">姓名</span>
-                    <input class="char-grid-input" id="charName" placeholder="未填写" autocomplete="off">
-                </div>
-                <div class="char-grid-item">
-                    <span class="char-grid-label">昵称</span>
-                    <input class="char-grid-input" id="charNickname" placeholder="未填写" autocomplete="off">
-                </div>
-                <div class="char-grid-item">
-                    <span class="char-grid-label">年龄</span>
-                    <input class="char-grid-input" id="charAge" placeholder="--">
-                </div>
-                <div class="char-grid-item">
-                    <span class="char-grid-label">MBTI</span>
-                    <input class="char-grid-input" id="charMbti" placeholder="----">
-                </div>
-            </div>
+.modal-content {
+    width: 78%; max-width: 280px; background: rgba(255, 255, 255, 0.85);
+    border: 0.5px solid rgba(255,255,255,0.6); border-radius: 32px; padding: 32px 22px;
+    transform: scale(0.95); transition: all 0.4s cubic-bezier(0.17, 0.67, 0.12, 1);
+    box-shadow: 0 25px 50px rgba(0,0,0,0.04); text-align: center;
+}
+.modal-overlay.active { display: flex; opacity: 1; }
+.modal-overlay.active .modal-content { transform: scale(1); }
 
-            <div class="char-divider"></div>
+.modal-title { font-size: 13px; font-weight: 700; color: #777; margin-bottom: 28px; letter-spacing: 2px; text-transform: uppercase; }
+.upload-options { display: flex; flex-direction: column; gap: 10px; }
+.opt-btn {
+    width: 100%; padding: 14px; border-radius: 16px; border: none;
+    background: rgba(255,255,255,0.7); color: #444; font-size: 13px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    transition: all 0.2s; border: 0.5px solid rgba(0,0,0,0.02);
+    cursor: pointer;
+}
+.opt-btn:active { background: #fff; transform: scale(0.97); }
+.url-input-wrap { margin-top: 15px; display: none; flex-direction: column; gap: 10px; }
+.url-input-wrap.active { display: flex; }
+.url-input { 
+    width: 100%; padding: 12px; border-radius: 14px; border: none; 
+    background: rgba(0,0,0,0.04); font-size: 12px; outline: none; text-align: center; color: #333;
+}
+.confirm-btn { background: #333 !important; color: #fff !important; margin-top: 5px; }
+.close-modal-trigger { margin-top: 22px; font-size: 11px; color: #bbb; cursor: pointer; letter-spacing: 1px; }
 
-            <!-- 底部信息网格 -->
-            <div class="char-grid-info">
-                <div class="char-grid-item">
-                    <span class="char-grid-label">世界书</span>
-                    <select class="char-grid-input" id="charWorld"><option value="">未选择</option><option value="cyber">赛博朋克</option></select>
-                </div>
-                <div class="char-grid-item">
-                    <span class="char-grid-label">User 绑定</span>
-                    <select class="char-grid-input" id="charUser"><option value="default">默认</option><option value="main">主人设</option></select>
-                </div>
-                <div class="char-grid-item">
-                    <span class="char-grid-label">手机号</span>
-                    <input class="char-grid-input" id="charPhone" placeholder="选填">
-                </div>
-            </div>
+/* ========================================= */
+/* === MUSIC PLAYER OVERLAY (Fullscreen) === */
+/* ========================================= */
+#music-player-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background-color: #1a1a2e; 
+    z-index: 9900;
+    transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+    display: flex; flex-direction: column; overflow: hidden; color: #fff;
+}
+#music-player-overlay.open { transform: translateY(0); }
 
-            <div class="char-divider" style="margin-top: 15px;"></div>
+.player-top-bar {
+    width: 100%; height: 60px; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px; position: absolute; top: 40px; left: 0; z-index: 100;
+}
+.player-nav-btn {
+    width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; border-radius: 50%; background: rgba(255,255,255,0.1); backdrop-filter: blur(10px);
+}
+.player-nav-btn svg { width: 20px; height: 20px; stroke: #fff; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 
-            <div class="char-grid-info" style="justify-content: flex-start; gap: 0;">
-                <div class="char-grid-item" style="flex: 0.5;">
-                    <span class="char-grid-label">Ins 账号</span>
-                    <input class="char-grid-input" id="charIns" placeholder="选填">
-                </div>
-                <div class="char-grid-item" style="flex: 0.5;">
-                    <span class="char-grid-label">邮箱</span>
-                    <input class="char-grid-input" id="charEmail" placeholder="选填">
-                </div>
-            </div>
+#music-player-overlay .player-bg {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+    background-size: cover; background-position: center; opacity: 1; transition: background 0.5s;
+}
+#music-player-overlay .player-bg::after {
+    content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.3); backdrop-filter: blur(60px); -webkit-backdrop-filter: blur(60px);
+}
 
-            <div class="char-divider"></div>
+#music-player-overlay .player-container {
+    flex: 1; display: flex; flex-direction: column; padding: 100px 24px 20px 24px; position: relative; z-index: 10;
+}
 
-            <!-- 人设区 (固定高度) -->
-            <div class="char-section-block">
-                <div class="char-section-title">人设 ◍˃ᵕ˂◍</div>
-                <textarea class="char-fixed-textarea" id="charPersona" placeholder="在这里输入人设详情... (固定高度，内容过多可滑动)"></textarea>
-            </div>
-        </div>
-    </div>
+#music-player-overlay .album-section {
+    flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; max-height: 45vh; padding: 10px 0; position: relative; transition: all 0.4s ease;
+}
+#music-player-overlay .album-art {
+    width: 80vw; height: 80vw; max-width: 350px; max-height: 350px; border-radius: 12px; background: #ccc; box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+    background-size: cover; background-position: center; transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s; transform: scale(1); opacity: 1;
+}
+#music-player-overlay .album-art.paused { transform: scale(0.8); box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
 
-    <!-- 角色界面专属图片上传弹窗 (完美还原原版样式) -->
-    <div class="modal-overlay" id="charUploadModal" style="z-index: 7000;">
-        <div class="modal-content">
-            <div class="modal-title">Edit Component</div>
-            <div class="upload-options">
-                <button class="opt-btn" onclick="triggerCharFileSelect()">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-                    Upload Photo
-                </button>
-                <button class="opt-btn" onclick="toggleCharUrlInput()">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                    Web Link
-                </button>
-                <div class="url-input-wrap" id="charUrlInputWrap">
-                    <input type="text" class="url-input" id="charImageUrlInput" placeholder="Paste image URL here...">
-                    <button class="opt-btn confirm-btn" onclick="saveCharUrlImage()">Confirm</button>
-                </div>
-            </div>
-            <div class="close-modal-trigger" onclick="closeCharUploadModal()">Dismiss</div>
-        </div>
-    </div>
-    <input type="file" id="charFileInput" hidden accept="image/*">
+#music-player-overlay .lyrics-display {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow-y: auto; text-align: center; opacity: 0; pointer-events: none; transition: opacity 0.4s; z-index: 20; background: transparent; border-radius: 12px;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%); mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+}
+#music-player-overlay .lyrics-display.visible { opacity: 1; pointer-events: auto; }
+#music-player-overlay .lyrics-display .lyric-line { padding: 12px 20px; font-size: 20px; font-weight: 700; color: rgba(255, 255, 255, 0.7); transition: all 0.3s; cursor: pointer; transform-origin: center; }
+#music-player-overlay .lyrics-display .lyric-line.active { color: #fff; transform: scale(1.1); text-shadow: 0 2px 10px rgba(255,255,255,0.3); }
+#music-player-overlay .album-section.lyrics-mode .album-art { opacity: 0; pointer-events: none; }
 
-    <!-- 原有图片上传弹窗 -->
-    <div class="modal-overlay" id="uploadModal">
-        <div class="modal-content">
-            <div class="modal-title">Edit Component</div>
-            <div class="upload-options">
-                <button class="opt-btn" onclick="triggerFileSelect()">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-                    Upload Photo
-                </button>
-                <button class="opt-btn" onclick="toggleUrlInput()">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                    Web Link
-                </button>
-                <div class="url-input-wrap" id="urlInputWrap">
-                    <input type="text" class="url-input" id="imageUrlInput" placeholder="Paste image URL here...">
-                    <button class="opt-btn confirm-btn" onclick="saveUrlImage()">Confirm</button>
-                </div>
-            </div>
-            <div class="close-modal-trigger" onclick="closeModal()">Dismiss</div>
-        </div>
-    </div>
-    
-    <!-- 音乐播放器组件 -->
-    <div id="music-player-overlay">
-        <div class="player-bg" id="player-bg"></div>
-        <div class="player-top-bar">
-            <div class="player-nav-btn" onclick="closeMusicPlayer()">
-                <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
-            </div>
-            <div class="player-nav-btn" onclick="openMusicSearch()">
-                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            </div>
-        </div>
-        <div class="player-container">
-            <div class="album-section" id="player-album-section">
-                <div class="album-art" id="playerAlbumArt"></div>
-                <div class="lyrics-display" id="player-lyrics-display"></div>
-            </div>
-            <div class="track-info-row">
-                <div class="text-group">
-                    <div class="track-title" id="player-track-title">Not Playing</div>
-                    <div class="track-artist" id="player-track-artist">...</div>
-                </div>
-                <div class="action-icons">
-                    <div class="icon-btn-circle">
-                        <svg viewBox="0 0 24 24" style="stroke:none;"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" fill="none" stroke="#fff" stroke-width="2"/></svg>
-                    </div>
-                    <div class="icon-btn-circle" onclick="openMoreMenu()">
-                        <svg viewBox="0 0 24 24" style="stroke:none;"><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="12" r="2"/></svg>
-                    </div>
-                </div>
-            </div>
-            <div class="progress-section">
-                <div class="slider-container" id="player-progress-container">
-                    <div class="slider-track"><div class="slider-fill" id="player-progress-fill"></div></div>
-                </div>
-                <div class="time-labels">
-                    <span id="player-current-time">0:00</span>
-                    <span id="player-total-time">0:00</span>
-                </div>
-                <div class="dolby-tag">
-                    <svg viewBox="0 0 64 32" style="stroke:none;"><path d="M16,2 C8.268,2 2,8.268 2,16 C2,23.732 8.268,30 16,30 L16,2 Z M48,2 L48,30 C55.732,30 62,23.732 62,16 C62,8.268 55.732,2 48,2 Z M32,2 L32,30 L32,2 Z M32,2 L16,2 L16,30 L32,30 L32,2 Z M32,2 L48,2 L48,30 L32,30 L32,2 Z" fill="currentColor"/></svg>
-                    <span>Dolby Atmos</span>
-                </div>
-            </div>
-            <div class="controls-main">
-                <div class="ctrl-btn btn-skip" onclick="playPrev()">
-                    <svg viewBox="0 0 24 24"><path d="M11 18V6l-8.5 6z" /><path d="M22 18V6l-8.5 6z" /></svg>
-                </div>
-                <div class="ctrl-btn btn-play" id="playerPlayBtn" onclick="togglePlay()">
-                    <svg id="playerPlayIcon" viewBox="0 0 24 24" style="display:block; transform: translateX(2px);"><path d="M6 5v14l13-7z" /></svg>
-                    <svg id="playerPauseIcon" class="pause-icon" viewBox="0 0 24 24" style="display:none;"><rect x="5" y="4" width="5" height="16" rx="2.5" /><rect x="14" y="4" width="5" height="16" rx="2.5" /></svg>
-                </div>
-                <div class="ctrl-btn btn-skip" onclick="playNext()">
-                    <svg viewBox="0 0 24 24"><path d="M2 6v12l8.5-6z" /><path d="M13 6v12l8.5-6z" /></svg>
-                </div>
-            </div>
-            <div class="volume-section">
-                <div class="vol-icon"><svg viewBox="0 0 24 24" style="stroke:none;"><path d="M7 9v6h4l5 5V4l-5 5H7z"/></svg></div>
-                <div class="vol-slider-track" id="player-volume-container">
-                    <div class="vol-slider-fill" id="player-volume-fill"></div>
-                </div>
-                <div class="vol-icon"><svg viewBox="0 0 24 24" style="stroke:none;"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg></div>
-            </div>
-            <div class="bottom-actions">
-                <div class="bottom-btn lyrics" id="btn-lyrics" onclick="toggleLyrics()">
-                    <svg viewBox="0 0 24 24"><path class="bubble" d="M3 6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-4l-3 3v-3h-5a3 3 0 0 1-3-3V6z" /><path class="quote-fill" d="M9 8c-.83 0-1.5.67-1.5 1.5v2c0 .83.67 1.5 1.5 1.5h1v-2h-1v-1.5h1.5V8H9zm5 0c-.83 0-1.5.67-1.5 1.5v2c0 .83.67 1.5 1.5 1.5h1v-2h-1v-1.5h1.5V8H14z" /></svg>
-                </div>
-                <div class="bottom-btn airplay">
-                    <svg viewBox="0 0 24 24" fill="none"><path d="M9.52 14.47 A 3.5 3.5 0 1 1 14.48 14.47" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.05 16.95 A 7 7 0 1 1 16.95 16.95" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.58 19.42 A 10.5 10.5 0 1 1 19.42 19.42" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path class="triangle-fill" d="M12 15.5L16.5 21H7.5L12 15.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
-                </div>
-                <div class="bottom-btn">
-                    <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div id="music-search-overlay" onclick="closeMusicSearch()">
-        <div class="search-container" onclick="event.stopPropagation()">
-            <div class="search-list" id="music-search-results"></div>
-        </div>
-    </div>
-    <div class="modal-overlay" id="music-more-modal" onclick="closeMoreMenu()">
-        <div class="modal-content" onclick="event.stopPropagation()">
-            <div class="modal-title">Music Actions</div>
-            <div class="upload-options">
-                <button class="opt-btn" onclick="startListenTogether()">一起听</button>
-                <button class="opt-btn" onclick="togglePlayMode()" id="play-mode-btn">列表循环</button>
-                <button class="opt-btn" onclick="openChat()">聊天</button>
-                <button class="opt-btn">分享</button>
-            </div>
-            <div class="close-modal-trigger" onclick="closeMoreMenu()">Dismiss</div>
-        </div>
-    </div>
-    <audio id="audioPlayer" preload="metadata" crossorigin="anonymous"></audio>
+#music-player-overlay .track-info-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; margin-top: 10px; padding: 0 4px; }
+#music-player-overlay .text-group { display: flex; flex-direction: column; gap: 2px; flex: 1; overflow: hidden; }
+#music-player-overlay .track-title { font-size: 22px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.5px; }
+#music-player-overlay .track-artist { font-size: 17px; font-weight: 400; color: rgba(255,255,255,0.8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#music-player-overlay .action-icons { display: flex; gap: 16px; align-items: center; }
+#music-player-overlay .icon-btn-circle { width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+#music-player-overlay .icon-btn-circle svg { width: 14px; height: 14px; fill: #fff; }
 
-    <input type="file" id="fileInput" hidden accept="image/*">
-    <input type="file" id="importFileInput" hidden accept=".json">
+#music-player-overlay .progress-section { margin-bottom: 5px; }
+#music-player-overlay .slider-container { width: 100%; height: 24px; display: flex; align-items: center; position: relative; cursor: pointer; }
+#music-player-overlay .slider-track { width: 100%; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; position: relative; overflow: hidden; }
+#music-player-overlay .slider-fill { position: absolute; top: 0; left: 0; height: 100%; width: 0%; background: #fff; border-radius: 3px; }
+#music-player-overlay .time-labels { display: flex; justify-content: space-between; font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.5); margin-top: -4px; font-variant-numeric: tabular-nums; }
+#music-player-overlay .dolby-tag { display: flex; align-items: center; justify-content: center; gap: 3px; font-size: 10px; color: rgba(255,255,255,0.6); margin-top: 5px; }
+#music-player-overlay .dolby-tag svg { width: 24px; height: 12px; fill: currentColor; }
 
-    <script src="script.js" defer></script>
-    
-    <!-- 微信界面专属 JS (直接内嵌，方便使用) -->
-    <script>
-        // --- Wechat 界面控制逻辑 ---
-        function openWechat() {
-            const screen = document.getElementById('wechatScreen');
-            screen.style.display = 'flex';
-            setTimeout(() => screen.classList.add('active'), 10);
-            renderWxChatList(); // 每次打开微信刷新列表
-        }
+#music-player-overlay .controls-main { display: flex; justify-content: space-between; align-items: center; padding: 0 40px; margin-bottom: 20px; margin-top: 10px; }
+#music-player-overlay .ctrl-btn { cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.1s, opacity 0.2s; }
+#music-player-overlay .ctrl-btn:active { opacity: 0.5; transform: scale(0.9); }
+#music-player-overlay .ctrl-btn svg { fill: #fff; stroke: #fff; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+#music-player-overlay .btn-play { width: 70px; height: 70px; }
+#music-player-overlay .btn-play svg { width: 100%; height: 100%; }
+#music-player-overlay .btn-play svg.pause-icon rect { stroke: none; fill: #fff; }
+#music-player-overlay .btn-skip { width: 45px; height: 45px; }
+#music-player-overlay .btn-skip svg { width: 100%; height: 100%; }
 
-        function closeWechat() {
-            const screen = document.getElementById('wechatScreen');
-            screen.classList.remove('active');
-            setTimeout(() => screen.style.display = 'none', 400);
-        }
+#music-player-overlay .volume-section { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding: 0 20px; }
+#music-player-overlay .vol-icon svg { width: 12px; height: 12px; fill: rgba(255,255,255,0.6); }
+#music-player-overlay .vol-slider-track { flex: 1; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; position: relative; cursor: pointer; }
+#music-player-overlay .vol-slider-fill { position: absolute; top: 0; left: 0; height: 100%; width: 60%; background: #fff; border-radius: 3px; }
 
-        function switchWxTab(el) {
-            document.querySelectorAll('.wx-text-tab').forEach(t => t.classList.remove('active'));
-            el.classList.add('active');
-        }
+#music-player-overlay .bottom-actions { display: flex; justify-content: space-between; align-items: center; padding: 0 40px; }
+#music-player-overlay .bottom-btn { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: rgba(255,255,255,0.6); position: relative; }
+#music-player-overlay .bottom-btn.active { color: #fff; }
+#music-player-overlay .bottom-btn svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
+#music-player-overlay .bottom-btn.lyrics svg path.bubble { stroke-width: 2.3; }
+#music-player-overlay .bottom-btn.lyrics svg path.quote-fill { fill: currentColor; stroke: none; }
+#music-player-overlay .bottom-btn.airplay svg { stroke-width: initial; }
+#music-player-overlay .bottom-btn.airplay svg .triangle-fill { fill: currentColor; stroke: currentColor; }
 
-        function switchWxDock(el) {
-            document.querySelectorAll('.wx-dock-item').forEach(d => d.classList.remove('active'));
-            el.classList.add('active');
-        }
-        
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW 注册失败:', err));
-            });
-        }
-    </script>
-</body>
-</html>
+#music-search-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #1a1a2e; z-index: 9950; opacity: 0; pointer-events: none; transition: opacity 0.3s; display: flex; flex-direction: column; padding-top: 100px;
+}
+#music-search-overlay.open { opacity: 1; pointer-events: auto; }
+.search-container { padding: 0 20px; }
+.search-list { flex: 1; overflow-y: auto; padding: 20px; }
+.search-item { display: flex; align-items: center; gap: 15px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); cursor: pointer; }
+.search-cover { width: 50px; height: 50px; border-radius: 8px; background: #333; background-size: cover; }
+.search-info { flex: 1; color: #fff; }
+.search-title { font-size: 15px; font-weight: 600; }
+.search-artist { font-size: 12px; color: #aaa; margin-top: 4px; }
+/* ========================================= */
+/* === Wechat 界面样式 (独立命名空间 wx-) === */
+/* ========================================= */
+
+.app-screen-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background-color: #f2f2f7;
+    background-image: linear-gradient(180deg, #eef1f5 0%, #e6e9ef 100%);
+    z-index: 5000; /* 保证在主页之上，但在状态栏之下 */
+    display: flex; flex-direction: column;
+    transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.app-screen-overlay.active { transform: translateY(0); }
+
+/* 头部区域 */
+.wx-header-area {
+    padding: 55px 16px 0; /* 避开状态栏 */
+    display: flex; flex-direction: column; gap: 10px;
+    background: transparent;
+}
+
+.wx-nav-bar { display: flex; justify-content: space-between; align-items: center; height: 44px; }
+
+.wx-star-btn {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    display: flex; justify-content: center; align-items: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    border: 0.5px solid rgba(255,255,255,0.8);
+    transition: transform 0.2s; cursor: pointer;
+}
+.wx-star-btn:active { transform: scale(0.9); }
+.wx-star-btn svg { width: 18px; height: 18px; fill: #333; }
+
+.wx-page-title { font-size: 17px; font-weight: 600; color: #000; }
+
+/* 搜索栏 */
+.wx-search-container { margin-top: 5px; }
+.wx-search-input {
+    width: 100%; height: 36px;
+    background: rgba(118, 118, 128, 0.12);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.wx-search-input svg { width: 16px; height: 16px; fill: #8e8e93; }
+.wx-search-input span { font-size: 17px; color: #8e8e93; }
+
+/* 分组 Tab */
+.wx-tab-row {
+    display: flex; align-items: center; gap: 24px;
+    padding: 15px 4px 10px; margin-bottom: 5px;
+    overflow-x: auto; scrollbar-width: none;
+}
+.wx-tab-row::-webkit-scrollbar { display: none; }
+
+.wx-text-tab {
+    font-size: 15px; font-weight: 600; color: #8e8e93;
+    position: relative; transition: color 0.3s; white-space: nowrap; cursor: pointer;
+}
+.wx-text-tab.active { color: #000; font-size: 16px; font-weight: 700; }
+.wx-text-tab.active::after {
+    content: ''; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%);
+    width: 16px; height: 3px; background: #007aff; border-radius: 2px;
+}
+
+/* 滚动内容区 */
+.wx-scroll-content {
+    flex: 1; overflow-y: auto; padding-bottom: 120px;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.wx-scroll-content::-webkit-scrollbar { display: none; }
+
+/* 电脑登录提示 */
+.wx-mac-login-bar {
+    margin: 0 16px 15px 16px; padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-radius: 14px; display: flex; align-items: center; gap: 12px;
+    border: 0.5px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+}
+.wx-mac-login-bar svg { width: 20px; height: 20px; fill: #555; }
+.wx-mac-login-bar span { font-size: 13px; color: #444; font-weight: 500; }
+
+/* 列表区块 */
+.wx-group-block {
+    margin: 0 16px 20px 16px;
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+    border-radius: 18px; overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+    border: 0.5px solid rgba(255,255,255,0.4);
+}
+
+.wx-chat-row {
+    display: flex; align-items: center; padding: 12px 16px; gap: 12px; position: relative;
+}
+.wx-chat-row:not(:last-child)::after {
+    content: ''; position: absolute; bottom: 0; right: 0; left: 76px;
+    height: 0.5px; background-color: rgba(60, 60, 67, 0.15);
+}
+
+.wx-avatar-gray { width: 48px; height: 48px; border-radius: 8px; background-color: #d1d1d6; flex-shrink: 0; }
+.wx-chat-content { flex: 1; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+.wx-row-top { display: flex; justify-content: space-between; align-items: baseline; }
+.wx-chat-title { font-size: 16px; font-weight: 600; color: #000; }
+.wx-chat-date { font-size: 11px; color: #8e8e93; font-weight: 400; }
+.wx-row-bottom { display: flex; justify-content: space-between; align-items: center; }
+.wx-chat-preview { font-size: 14px; color: #8e8e93; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90%; }
+.wx-badge-dot { width: 10px; height: 10px; background: #ff3b30; border-radius: 50%; }
+
+/* 底部悬浮胶囊栏 */
+.wx-capsule-dock-container {
+    position: fixed; bottom: 30px; left: 0; width: 100%;
+    display: flex; justify-content: center; z-index: 5001; pointer-events: none;
+}
+
+.wx-capsule-dock {
+    pointer-events: auto;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+    padding: 12px 25px; border-radius: 50px;
+    display: flex; gap: 35px; align-items: center;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.12), 0 5px 10px rgba(0,0,0,0.05);
+    border: 0.5px solid rgba(255,255,255,0.6);
+}
+
+.wx-dock-item {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    opacity: 0.6; transition: all 0.2s ease; cursor: pointer;
+}
+.wx-dock-item.active { opacity: 1; }
+
+.wx-dock-icon-img {
+    object-fit: contain;
+    /* 0.3px 硬描边黑科技 */
+    filter: drop-shadow(0.3px 0 0 #000) drop-shadow(-0.3px 0 0 #000) drop-shadow(0 0.3px 0 #000) drop-shadow(0 -0.3px 0 #000);
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 图标尺寸微调 */
+.wx-dock-item:nth-child(1) .wx-dock-icon-img { width: 34px; height: 34px; }
+.wx-dock-item:nth-child(2) .wx-dock-icon-img { width: 29px; height: 29px; }
+.wx-dock-item:nth-child(3) .wx-dock-icon-img { width: 31px; height: 31px; transform: translateY(1px); }
+.wx-dock-item:nth-child(4) .wx-dock-icon-img { width: 24px; height: 24px; opacity: 0.85; }
+
+.wx-dock-item:active .wx-dock-icon-img { transform: scale(0.9) translateY(0); }
+.wx-dock-item:nth-child(3):active .wx-dock-icon-img { transform: scale(0.9) translateY(1px); }
