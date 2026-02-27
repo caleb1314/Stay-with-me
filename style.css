@@ -85,9 +85,9 @@ body.dark-mode {
 .time-container { display: flex; align-items: center; gap: 6px; pointer-events: auto; }
 .time { 
     /* 强制固定大小，忽略 --font-scale */
-    font-size: 19px !important; 
+    font-size: 17px !important; 
     font-weight: 680; 
-    margin-top: 8px; 
+    margin-top: 4px; 
     letter-spacing: -0.5px; 
 }
 .time-decorator {
@@ -373,9 +373,18 @@ select.beautify-app-name-input {
 
 /* 字体预览区 */
 .font-preview-box {
-    width: 100%; padding: 16px; background: #f9f9f9; border-radius: 8px;
-    text-align: center; font-size: 18px; color: #333; margin-top: 5px;
-    border: 1px dashed #ccc;
+    width: 100%; 
+    padding: 20px 16px; 
+    background: #f2f2f7; 
+    border-radius: 14px;
+    text-align: center; 
+    font-size: 19px; 
+    color: #1c1c1e; 
+    margin-top: 8px;
+    border: none;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.04);
+    letter-spacing: 0.5px;
+    font-weight: 500;
 }
 
 /* iOS 风格滑动条 */
