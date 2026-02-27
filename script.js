@@ -854,7 +854,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (savedValue) el.innerText = savedValue;
     });
 });
-// --- 微信界面控制逻辑 ---
+// --- Wechat 界面控制逻辑 ---
 function openWechat() {
     const screen = document.getElementById('wechatScreen');
     screen.style.display = 'flex';
@@ -867,21 +867,12 @@ function closeWechat() {
     setTimeout(() => screen.style.display = 'none', 400);
 }
 
-// 微信界面内部交互 (Tab 切换与 Dock 切换)
-document.addEventListener('DOMContentLoaded', () => {
-    const wechatTabs = document.querySelectorAll('.wechat-text-tab');
-    wechatTabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            wechatTabs.forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-        });
-    });
+function switchWxTab(el) {
+    document.querySelectorAll('.wx-text-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+}
 
-    const wechatDockItems = document.querySelectorAll('.wechat-dock-item');
-    wechatDockItems.forEach(item => {
-        item.addEventListener('click', () => {
-            wechatDockItems.forEach(d => d.classList.remove('active'));
-            item.classList.add('active');
-        });
-    });
-});
+function switchWxDock(el) {
+    document.querySelectorAll('.wx-dock-item').forEach(d => d.classList.remove('active'));
+    el.classList.add('active');
+}
