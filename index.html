@@ -165,7 +165,7 @@
 </head>
 <body>
 
-    <!-- 状态栏 -->
+    <!-- 状态栏 (全局保留，不被任何界面遮挡) -->
     <div class="status-bar">
         <div class="time-container">
             <div class="time" id="currentTime">16:17</div>
@@ -563,9 +563,7 @@
         </div>
     </div>
 
-    <!-- ========================================= -->
-    <!-- === 新增：角色添加界面 (全屏无状态栏) === -->
-    <!-- ========================================= -->
+    <!-- 角色添加界面 -->
     <div id="charAddScreen" class="app-screen-overlay char-add-wrap" style="z-index: 6000;">
         <!-- Safari 顶栏 (无状态栏，大幅下移) -->
         <div class="char-safari-header">
@@ -579,14 +577,13 @@
                 <span>xiaomaoaini.com</span>
             </div>
             <div class="char-action-icons">
-                <!-- 修复的刷新按钮 -->
                 <!-- 修复后的刷新按钮 -->
-<div class="char-icon-btn" onclick="resetCharForm()">
-<svg viewBox="0 0 24 24">
-                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-                    <path d="M3 3v5h5"/>
-                </svg>
-            </div>
+                <div class="char-icon-btn" onclick="resetCharForm()">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                        <path d="M3 3v5h5"/>
+                    </svg>
+                </div>
                 <!-- 保存按钮 -->
                 <div class="char-icon-btn char-star-btn" id="charSaveBtn" onclick="saveCharacter()"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
             </div>
@@ -690,7 +687,104 @@
         </div>
     </div>
 
-    <!-- 角色界面专属图片上传弹窗 (完美还原原版样式) -->
+    <!-- ========================================= -->
+    <!-- === 新增：独立聊天界面 (三层汉堡架构) === -->
+    <!-- ========================================= -->
+    <div id="chatScreen" class="app-screen-overlay" style="z-index: 5500; background-color: #d1d1d6; background-image: none;">
+        <!-- 第三层 (过渡层) -->
+        <div class="layer-3-backdrop"></div>
+
+        <!-- 第二层 (主卡片) -->
+        <div class="chat-layer-card" id="chatLayerCard">
+            
+            <!-- 顶栏 -->
+            <div class="chat-header-flat">
+                <div class="header-back-btn" onclick="closeChatScreen()">
+                    <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+                </div>
+                
+                <div class="header-text-group">
+                    <div class="header-remark" id="chatHeaderRemark">宝宝</div>
+                    <div class="header-sub-text">Do you love me?</div>
+                </div>
+
+                <div class="header-right-icons">
+                    <!-- 放大镜 -->
+                    <div class="header-icon-btn">
+                        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    </div>
+                    <!-- 空心星星 -->
+                    <div class="header-icon-btn">
+                        <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 聊天内容 -->
+            <div class="chat-scroll-area" id="chatScrollArea">
+                <div class="chat-time-stamp">昨天 21:24</div>
+                
+                <!-- 静态示例：Char 组 -->
+                <div class="msg-row left group-start">
+                    <div class="msg-bubble">May you participate in my winter</div>
+                </div>
+                <div class="msg-row left group-middle">
+                    <div class="msg-bubble">Time will prove love</div>
+                </div>
+                <div class="msg-row left group-end">
+                    <div class="msg-bubble">愿你参与我的冬天</div>
+                </div>
+
+                <!-- 静态示例：User 组 -->
+                <div class="msg-row right group-start">
+                    <div class="msg-bubble">独木舟就敢来到这里</div>
+                </div>
+                <div class="msg-row right group-middle">
+                    <div class="msg-bubble">所以你是船翻了也能活下来[♡]人</div>
+                </div>
+                <div class="msg-row right group-end">
+                    <div class="msg-bubble">是靠着[★]块木板也能漂浮[♡]人”</div>
+                </div>
+
+                <div class="msg-row right single">
+                    <div class="msg-bubble">你失言了 再见</div>
+                </div>
+            </div>
+
+            <!-- 底栏 -->
+            <div class="bottom-bar-container">
+                <!-- 左侧：曲别针 -->
+                <div class="glass-box btn-circle">
+                    <svg class="svg-icon" viewBox="0 0 24 24">
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                    </svg>
+                </div>
+
+                <!-- 中间：输入栏 -->
+                <div class="glass-box input-pill">
+                    <input type="text" class="chat-input" id="chatInput" placeholder="Type..." autocomplete="off">
+                    <!-- 内部右侧：信封 -->
+                    <div class="emoji-btn-inner">
+                        <svg class="svg-icon" viewBox="0 0 24 24" style="width: 20px; height: 20px;">
+                            <rect x="2" y="4" width="20" height="16" rx="2"/>
+                            <path d="M22 6l-10 7L2 6"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- 右侧：发送 -->
+                <div class="glass-box btn-circle" onclick="sendChatMessage()">
+                    <svg class="send-icon" viewBox="0 0 24 24">
+                        <path d="M22 2L11 13" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 角色界面专属图片上传弹窗 -->
     <div class="modal-overlay" id="charUploadModal" style="z-index: 7000;">
         <div class="modal-content">
             <div class="modal-title">Edit Component</div>
@@ -774,7 +868,7 @@
                     <span id="player-total-time">0:00</span>
                 </div>
                 <div class="dolby-tag">
-                    <svg viewBox="0 0 64 32" style="stroke:none;"><path d="M16,2 C8.268,2 2,8.268 2,16 C2,23.732 8.268,30 16,30 L16,2 Z M48,2 L48,30 C55.732,30 62,23.732 62,16 C62,8.268 55.732,2 48,2 Z M32,2 L32,30 L32,2 Z M32,2 L16,2 L16,30 L32,30 L32,2 Z M32,2 L48,2 L48,30 L32,30 L32,2 Z" fill="currentColor"/></svg>
+                    <svg viewBox="0 0 64 32" style="stroke:none;"><path d="M16,2 C8.268,2 2,8.268 2,16 C2,23.732 8.268,30 16,30 L16,2 Z M48,2 L48,30 C55.732,30 62,23.732 62,16 C62,8.268 55.732,2 48,2 Z M32,2 L32,30 L32,2 Z M32,2 L16,2 L16,30 L32,30 L32,2 Z M32,2 L48,2 L48,30 L32,30 L32,2 Z M32,2 L48,2 L48,30 L32,30 L32,2 Z" fill="currentColor"/></svg>
                     <span>Dolby Atmos</span>
                 </div>
             </div>
