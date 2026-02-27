@@ -606,6 +606,8 @@ function closeBeautifyScreen() {
 function populateBeautifyList() {
     beautifyAppList.innerHTML = '';
     const allApps = document.querySelectorAll('[data-app-id]');
+    
+    // 1. 先生成 HTML 骨架
     allApps.forEach(appEl => {
         const appId = appEl.dataset.appId;
         if (appId.startsWith('beautify-') || appId === 'time-decorator') return;
@@ -614,13 +616,9 @@ function populateBeautifyList() {
         const appIconEl = appEl.classList.contains('dock-text-icon') ? appEl : appEl.querySelector('.app-icon');
         const currentName = appNameEl ? appNameEl.textContent : appEl.textContent;
         
-        // 完美修复：直接读取主界面图标当前的内联背景，确保刷新后依然能获取到自定义图标
-        let inlineBg = appIconEl.style.backgroundImage;
-        let bgStyle = (inlineBg && inlineBg !== 'none') 
-            ? `background-image: ${inlineBg};` 
-            : `background-color: ${window.getComputedStyle(appIconEl).backgroundColor};`;
+        // 默认先用 CSS 里的颜色，不依赖 style.backgroundImage
+        let bgStyle = `background-color: ${window.getComputedStyle(appIconEl).backgroundColor};`;
 
-        // 记录默认名称
         if (!appEl.dataset.defaultName) appEl.dataset.defaultName = currentName;
         const defaultName = appEl.dataset.defaultName;
 
@@ -635,6 +633,25 @@ function populateBeautifyList() {
         `;
         beautifyAppList.insertAdjacentHTML('beforeend', itemHTML);
     });
+
+    // 2. 异步从 DB 读取真实图片并应用到预览上
+    if (db) {
+        const transaction = db.transaction([storeName], "readonly");
+        const store = transaction.objectStore(storeName);
+        const req = store.getAll();
+        req.onsuccess = () => {
+            req.result.forEach(item => {
+                if (item.id.startsWith('icon-')) {
+                    const appId = item.id.replace('icon-', '');
+                    // 找到对应的预览元素
+                    const previewEl = document.querySelector(`[data-img-id="beautify-app-icon-${appId}"]`);
+                    if (previewEl) {
+                        previewEl.style.backgroundImage = `url(${item.data})`;
+                    }
+                }
+            });
+        };
+    }
 }
 
 // 重置功能
