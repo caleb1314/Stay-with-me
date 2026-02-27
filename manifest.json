@@ -3,6 +3,7 @@
   "short_name": "Home",
   "start_url": "./index.html",
   "display": "fullscreen",
+  "orientation": "portrait",
   "background_color": "#e8e9eb",
   "theme_color": "#e8e9eb",
   "icons": [
