@@ -26,9 +26,7 @@ input:-webkit-autofill:active{
 body {
     background-color: #e8e9eb;
     width: 100vw;
-    width: 100dvw;
     height: 100vh;
-    height: 100dvh;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -76,14 +74,22 @@ body.dark-mode {
     left: 0;
     transition: opacity 0.3s;
     pointer-events: none; 
+    /* 强制使用系统字体，忽略自定义字体 */
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif !important;
 }
+/* 强制子元素也忽略全局字体设置 */
 .status-bar * {
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif !important;
 }
 
-.time-container { display: flex; align-items: center; gap: 6px; pointer-events: auto; margin-left: 8px; }
-.time { font-size: 17px !important; font-weight: 680; margin-top: 8px; letter-spacing: -0.5px; }
+.time-container { display: flex; align-items: center; gap: 6px; pointer-events: auto; }
+.time { 
+    /* 强制固定大小，忽略 --font-scale */
+    font-size: 19px !important; 
+    font-weight: 680; 
+    margin-top: 8px; 
+    letter-spacing: -0.5px; 
+}
 .time-decorator {
     width: var(--time-dec-size); height: var(--time-dec-size); margin-top: 8px;
     background-size: contain; background-position: center; background-repeat: no-repeat;
@@ -328,7 +334,6 @@ body.dark-mode {
 
 /* --- 主界面美化页特定样式 --- */
 #beautifyScreen .settings-item:not(:last-child)::after { left: 16px; } 
-
 .beautify-app-item {
     display: flex; align-items: center; gap: 12px; padding: 8px 16px;
 }
@@ -341,17 +346,9 @@ body.dark-mode {
     background-repeat: no-repeat !important;
 }
 
-/* 修复：给输入框添加右边距，并限制最小宽度，防止挤压重置键 */
 .beautify-app-name-input {
-    flex: 1; 
-    border: none; 
-    background: transparent; 
-    font-size: 16px;
-    padding: 6px 10px; 
-    border-radius: 8px; 
-    transition: all 0.2s ease;
-    margin-right: 15px; /* 强制右边距，把重置键推开 */
-    min-width: 0; /* 防止 flex 子元素溢出 */
+    flex: 1; border: none; background: transparent; font-size: 16px;
+    padding: 6px 10px; border-radius: 8px; transition: all 0.2s ease;
 }
 .beautify-app-name-input:focus { 
     background: rgba(0, 0, 0, 0.05); 
@@ -374,23 +371,11 @@ select.beautify-app-name-input {
 .reset-btn:active { background: rgba(0,0,0,0.1); transform: scale(0.9); }
 .reset-btn svg { width: 14px; height: 14px; stroke: #8e8e93; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 
-/* 字体预览区 - 升级版毛玻璃卡片 */
+/* 字体预览区 */
 .font-preview-box {
-    width: 100%; 
-    padding: 24px 16px; 
-    background: rgba(255, 255, 255, 0.8); 
-    backdrop-filter: blur(15px);
-    -webkit-backdrop-filter: blur(15px);
-    border-radius: 16px;
-    text-align: center; 
-    font-size: 20px; 
-    color: #1c1c1e; 
-    margin-top: 8px;
-    border: 1px solid rgba(0,0,0,0.05);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.04);
-    letter-spacing: 0.5px;
-    font-weight: 500;
-    transition: all 0.3s ease;
+    width: 100%; padding: 16px; background: #f9f9f9; border-radius: 8px;
+    text-align: center; font-size: 18px; color: #333; margin-top: 5px;
+    border: 1px dashed #ccc;
 }
 
 /* iOS 风格滑动条 */
