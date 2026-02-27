@@ -95,7 +95,7 @@ body.dark-mode {
     letter-spacing: -0.5px; 
 }
 .time-decorator {
-    width: var(--time-dec-size); height: var(--time-dec-size); margin-top: 8px;
+    width: var(--time-dec-size); height: var(--time-dec-size); margin-top: 3px;
     background-size: contain; background-position: center; background-repeat: no-repeat;
 }
 .status-icons { display: flex; align-items: center; gap: 7px; padding-top: 4px; pointer-events: auto; }
