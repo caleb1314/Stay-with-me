@@ -9,160 +9,7 @@
     <title>iOS Minimalist Home - Hajimi Edition</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="https://file.uhsea.com/2602/70da4faf682de2817a4b430809e0bce3NN.jpg">
-    
-    <!-- 微信界面专属 CSS (直接内嵌，方便使用) -->
-    <style>
-        /* ========================================= */
-        /* === Wechat 界面样式 (独立命名空间 wx-) === */
-        /* ========================================= */
-
-        .app-screen-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: #f2f2f7;
-            background-image: linear-gradient(180deg, #eef1f5 0%, #e6e9ef 100%);
-            z-index: 5000; /* 保证在主页之上 */
-            display: flex; flex-direction: column;
-            transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
-        }
-        .app-screen-overlay.active { transform: translateY(0); }
-
-        /* 头部区域 */
-        .wx-header-area {
-            padding: 55px 16px 0; /* 避开状态栏 */
-            display: flex; flex-direction: column; gap: 10px;
-            background: transparent;
-        }
-
-        .wx-nav-bar { display: flex; justify-content: space-between; align-items: center; height: 44px; }
-
-        .wx-star-btn {
-            width: 36px; height: 36px; border-radius: 50%;
-            background: rgba(255, 255, 255, 0.6);
-            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-            display: flex; justify-content: center; align-items: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            border: 0.5px solid rgba(255,255,255,0.8);
-            transition: transform 0.2s; cursor: pointer;
-        }
-        .wx-star-btn:active { transform: scale(0.9); }
-        .wx-star-btn svg { width: 18px; height: 18px; fill: #333; }
-
-        .wx-page-title { font-size: 17px; font-weight: 600; color: #000; }
-
-        /* 搜索栏 */
-        .wx-search-container { margin-top: 5px; }
-        .wx-search-input {
-            width: 100%; height: 36px;
-            background: rgba(118, 118, 128, 0.12);
-            border-radius: 10px;
-            display: flex; align-items: center; justify-content: center; gap: 6px;
-        }
-        .wx-search-input svg { width: 16px; height: 16px; fill: #8e8e93; }
-        .wx-search-input span { font-size: 17px; color: #8e8e93; }
-
-        /* 分组 Tab */
-        .wx-tab-row {
-            display: flex; align-items: center; gap: 24px;
-            padding: 15px 4px 10px; margin-bottom: 5px;
-            overflow-x: auto; scrollbar-width: none;
-        }
-        .wx-tab-row::-webkit-scrollbar { display: none; }
-
-        .wx-text-tab {
-            font-size: 15px; font-weight: 600; color: #8e8e93;
-            position: relative; transition: color 0.3s; white-space: nowrap; cursor: pointer;
-        }
-        .wx-text-tab.active { color: #000; font-size: 16px; font-weight: 700; }
-        .wx-text-tab.active::after {
-            content: ''; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%);
-            width: 16px; height: 3px; background: #007aff; border-radius: 2px;
-        }
-
-        /* 滚动内容区 */
-        .wx-scroll-content {
-            flex: 1; overflow-y: auto; padding-bottom: 120px;
-            -webkit-overflow-scrolling: touch; scrollbar-width: none;
-        }
-        .wx-scroll-content::-webkit-scrollbar { display: none; }
-
-        /* 电脑登录提示 */
-        .wx-mac-login-bar {
-            margin: 0 16px 15px 16px; padding: 12px 16px;
-            background: rgba(255, 255, 255, 0.6);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border-radius: 14px; display: flex; align-items: center; gap: 12px;
-            border: 0.5px solid rgba(255, 255, 255, 0.8);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-        }
-        .wx-mac-login-bar svg { width: 20px; height: 20px; fill: #555; }
-        .wx-mac-login-bar span { font-size: 13px; color: #444; font-weight: 500; }
-
-        /* 列表区块 */
-        .wx-group-block {
-            margin: 0 16px 20px 16px;
-            background: rgba(255, 255, 255, 0.75);
-            backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
-            border-radius: 18px; overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-            border: 0.5px solid rgba(255,255,255,0.4);
-        }
-
-        .wx-chat-row {
-            display: flex; align-items: center; padding: 12px 16px; gap: 12px; position: relative;
-        }
-        .wx-chat-row:not(:last-child)::after {
-            content: ''; position: absolute; bottom: 0; right: 0; left: 76px;
-            height: 0.5px; background-color: rgba(60, 60, 67, 0.15);
-        }
-
-        .wx-avatar-gray { width: 48px; height: 48px; border-radius: 8px; background-color: #d1d1d6; flex-shrink: 0; }
-        .wx-chat-content { flex: 1; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
-        .wx-row-top { display: flex; justify-content: space-between; align-items: baseline; }
-        .wx-chat-title { font-size: 16px; font-weight: 600; color: #000; }
-        .wx-chat-date { font-size: 11px; color: #8e8e93; font-weight: 400; }
-        .wx-row-bottom { display: flex; justify-content: space-between; align-items: center; }
-        .wx-chat-preview { font-size: 14px; color: #8e8e93; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90%; }
-        .wx-badge-dot { width: 10px; height: 10px; background: #ff3b30; border-radius: 50%; }
-
-        /* 底部悬浮胶囊栏 */
-        .wx-capsule-dock-container {
-            position: fixed; bottom: 30px; left: 0; width: 100%;
-            display: flex; justify-content: center; z-index: 5001; pointer-events: none;
-        }
-
-        .wx-capsule-dock {
-            pointer-events: auto;
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
-            padding: 12px 25px; border-radius: 50px;
-            display: flex; gap: 35px; align-items: center;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.12), 0 5px 10px rgba(0,0,0,0.05);
-            border: 0.5px solid rgba(255,255,255,0.6);
-        }
-
-        .wx-dock-item {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            opacity: 0.6; transition: all 0.2s ease; cursor: pointer;
-        }
-        .wx-dock-item.active { opacity: 1; }
-
-        .wx-dock-icon-img {
-            object-fit: contain;
-            /* 0.3px 硬描边黑科技 */
-            filter: drop-shadow(0.3px 0 0 #000) drop-shadow(-0.3px 0 0 #000) drop-shadow(0 0.3px 0 #000) drop-shadow(0 -0.3px 0 #000);
-            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-
-        /* 图标尺寸微调 */
-        .wx-dock-item:nth-child(1) .wx-dock-icon-img { width: 34px; height: 34px; }
-        .wx-dock-item:nth-child(2) .wx-dock-icon-img { width: 29px; height: 29px; }
-        .wx-dock-item:nth-child(3) .wx-dock-icon-img { width: 31px; height: 31px; transform: translateY(1px); }
-        .wx-dock-item:nth-child(4) .wx-dock-icon-img { width: 24px; height: 24px; opacity: 0.85; }
-
-        .wx-dock-item:active .wx-dock-icon-img { transform: scale(0.9) translateY(0); }
-        .wx-dock-item:nth-child(3):active .wx-dock-icon-img { transform: scale(0.9) translateY(1px); }
-    </style>
+<link rel="apple-touch-icon" href="https://file.uhsea.com/2602/70da4faf682de2817a4b430809e0bce3NN.jpg">
 </head>
 <body>
 
@@ -216,10 +63,8 @@
             <div class="centered-label">Colorful Widget</div>
             <div class="middle-section">
                 <div class="left-apps">
-                    <!-- 绑定了 openWechat() -->
-                    <div class="app-item" data-app-id="p1-app-wechat" onclick="openWechat()">
-                        <div class="app-icon gray-1"></div><span class="app-name">Wechat</span>
-                    </div>
+                    <!-- 这里的 onclick="openWechat()" 是关键改动 -->
+                    <div class="app-item" data-app-id="p1-app-wechat" onclick="openWechat()"><div class="app-icon gray-1"></div><span class="app-name">Wechat</span></div>
                     <div class="app-item" data-app-id="p1-app-files"><div class="app-icon gray-2"></div><span class="app-name">文件</span></div>
                     <div class="app-item" data-app-id="p1-app-world"><div class="app-icon gray-3"></div><span class="app-name">世界</span></div>
                     <div class="app-item" data-app-id="p1-app-contacts"><div class="app-icon gray-4"></div><span class="app-name">通讯录</span></div>
@@ -327,176 +172,7 @@
         </div>
     </div>
 
-    <!-- iOS 设置界面 -->
-    <div id="settingsScreen" class="settings-base-screen">
-        <div class="settings-scroll-area">
-            <div class="settings-header">
-                <div class="settings-title">设置</div>
-            </div>
-            
-            <div class="settings-search">
-                <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-                <span>搜索</span>
-            </div>
-
-            <div class="settings-group">
-                <div class="settings-item account-item">
-                    <div class="account-avatar img-upload-target" data-img-id="settings-avatar"></div>
-                    <div class="account-info">
-                        <div class="account-name" contenteditable="true" data-save="set-name">小猫</div>
-                        <div class="account-sub">Apple账户、iCloud等</div>
-                    </div>
-                    <svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
-                </div>
-            </div>
-
-            <div class="settings-group">
-                <div class="settings-item"><img src="https://file.uhsea.com/2602/538354eb085d84606da233325e040f6aJ0.png" class="item-icon-img"><div class="item-label">飞行模式</div><div class="ios-switch" onclick="this.classList.toggle('on')"></div></div>
-                <div class="settings-item"><img src="https://file.uhsea.com/2602/84babb981b033253a802941af1fb4405GV.png" class="item-icon-img"><div class="item-label">无线局域网</div><div class="item-value">Hajimi_5G</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-                <div class="settings-item"><img src="https://file.uhsea.com/2602/68787c10639ebfce28afd3807f15f703BU.png" class="item-icon-img"><div class="item-label">蓝牙</div><div class="item-value">开启</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-                <div class="settings-item"><img src="https://file.uhsea.com/2602/3a891228cd11d1a3242d71ab61549496VF.png" class="item-icon-img"><div class="item-label">蜂窝网络</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-                <div class="settings-item"><img src="https://file.uhsea.com/2602/9bcb5c152ff545099c3f5b52c65af212IX.png" class="item-icon-img"><div class="item-label">个人热点</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-                <div class="settings-item"><img src="https://file.uhsea.com/2602/2fadc0e168eb400d4f0c811d690b0619FP.png" class="item-icon-img"><div class="item-label">电池</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-                <div class="settings-item"><img src="https://file.uhsea.com/2602/ef476cdfec0034da3ffe5c89182c552d1T.png" class="item-icon-img"><div class="item-label">VPN</div><div class="ios-switch" onclick="this.classList.toggle('on')"></div></div>
-            </div>
-
-            <div class="settings-group">
-                <div class="settings-item"><img src="https://file.uhsea.com/2602/52ee4e85a9e9bfdb727d6a5b16acdcd95R.png" class="item-icon-img"><div class="item-label">通用</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-                <div class="settings-item" onclick="openWallpaperScreen()"><img src="https://file.uhsea.com/2602/8a8ec510263c8e749a82f1d95192b1adIS.png" class="item-icon-img"><div class="item-label">壁纸</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-                <div class="settings-item" onclick="openBeautifyScreen()"><img src="https://file.uhsea.com/2602/fa1efacb329f8483d028876802d860892A.png" class="item-icon-img"><div class="item-label">主界面美化</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-                <div class="settings-item"><img src="https://file.uhsea.com/2602/557e1bdcb9ad2b8b0a0adb1d4741e5c1SJ.png" class="item-icon-img"><div class="item-label">通知</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-            </div>
-        </div>
-        <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeSettings()"></div></div>
-    </div>
-
-    <!-- NEW: 壁纸界面 -->
-    <div id="wallpaperScreen" class="settings-base-screen">
-        <div class="settings-nav-bar">
-            <div class="nav-btn back-btn" onclick="closeWallpaperScreen()" style="display: flex; align-items: center; margin-left: -8px;">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-            </div>
-            <div class="nav-title">壁纸</div>
-            <div class="nav-btn"></div>
-        </div>
-        <div class="settings-scroll-area">
-            <div class="wallpaper-preview-container">
-                <div class="wallpaper-preview-card" id="current-wallpaper-preview"></div>
-            </div>
-            <div class="settings-group">
-                <div class="settings-item beautify-action-btn" onclick="triggerWallpaperUpload()">
-                    <div class="item-label">添加新壁纸</div>
-                </div>
-            </div>
-            <div class="group-title">我的壁纸</div>
-            <div class="wallpaper-grid" id="wallpaper-list-container">
-                <!-- 壁纸项动态生成 -->
-            </div>
-        </div>
-        <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeWallpaperScreen()"></div></div>
-    </div>
-
-    <!-- NEW: 主界面美化页面 -->
-    <div id="beautifyScreen" class="settings-base-screen">
-        <div class="settings-nav-bar">
-            <div class="nav-btn back-btn" onclick="saveBeautification()" style="font-size: 17px; color: #8e8e93; font-weight: 600; display: flex; align-items: center;">Save</div>
-            <div class="nav-title">主界面美化</div>
-            <div class="nav-btn save-btn" onclick="closeBeautifyScreen()" style="font-size: 17px; color: #8e8e93; font-weight: 600;">Done</div>
-        </div>
-        <div class="settings-scroll-area">
-            <div class="group-title">顶栏ovo</div>
-            <div class="settings-group">
-                <div class="settings-item">
-                    <div class="item-label">顶栏显示</div>
-                    <div class="ios-switch on" id="beautify-toggle-topbar" onclick="this.classList.toggle('on')"></div>
-                </div>
-                <div class="settings-item">
-                    <div class="item-label img-upload-target" data-img-id="time-decorator" id="time-decorator-label" style="flex:1;">时间栏装饰 (点击更改)</div>
-                    <div class="reset-btn" onclick="resetBeautifyItem('time-decorator')">
-                        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                    </div>
-                </div>
-                <div class="settings-item">
-                    <div class="item-label">装饰大小</div>
-                    <input type="range" class="ios-slider" id="time-dec-slider" min="10" max="40" step="1" value="18" oninput="updateTimeDecPreview()">
-                    <div class="reset-btn" onclick="resetSlider('time-dec')">
-                        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="group-title">图标TvT</div>
-            <div class="settings-group" id="beautify-app-list">
-                <!-- App list will be dynamically generated here -->
-            </div>
-            
-            <div class="group-title">字体设置QAQ</div>
-            <div class="settings-group">
-                <div class="settings-item">
-                    <input type="text" id="custom-font-url" class="beautify-app-name-input" placeholder="输入 TTF/OTF 字体直链..." onchange="previewFont()" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="hajimi-font-url-random">
-                    <div class="reset-btn" onclick="resetBeautifyItem('font')">
-                        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                    </div>
-                </div>
-                <div class="settings-item">
-                    <div class="item-label">字体大小</div>
-                    <input type="range" class="ios-slider" id="font-size-slider" min="0.8" max="1.5" step="0.05" value="1" oninput="updateFontSizePreview()">
-                    <div class="reset-btn" onclick="resetSlider('font-size')">
-                        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                    </div>
-                </div>
-                <div class="settings-item">
-                    <div class="item-label">字体预设</div>
-                    <select id="font-preset-select" class="beautify-app-name-input" style="text-align: right; direction: rtl;" onchange="applyFontPreset()">
-                        <option value="">选择预设...</option>
-                    </select>
-                </div>
-                <div class="settings-item beautify-action-btn" onclick="saveFontPreset()">
-                    <div class="item-label">保存为新字体预设</div>
-                </div>
-                <div class="settings-item" style="flex-direction: column; align-items: stretch; padding: 16px;">
-                    <div class="font-preview-box" id="font-preview-box">小猫正在偷吃！</div>
-                </div>
-            </div>
-
-            <div class="group-title">全局美化代码TwT</div>
-            <div class="settings-group">
-                <div class="settings-item" style="padding: 0; position: relative;">
-                    <textarea id="custom-css-input" style="width: 100%; height: 120px; border: none; padding: 12px 16px; font-family: monospace; font-size: 13px; background: transparent; resize: none; outline: none;" placeholder="在此输入自定义 CSS 代码..." onchange="previewCSS()"></textarea>
-                    <div class="reset-btn" style="position: absolute; top: 10px; right: 10px;" onclick="resetBeautifyItem('css')">
-                        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                    </div>
-                </div>
-                <div class="settings-item">
-                    <div class="item-label">CSS 预设</div>
-                    <select id="css-preset-select" class="beautify-app-name-input" style="text-align: right; direction: rtl;" onchange="applyCSSPreset()">
-                        <option value="">选择预设...</option>
-                    </select>
-                </div>
-                <div class="settings-item beautify-action-btn" onclick="saveCSSPreset()">
-                    <div class="item-label">保存为新 CSS 预设</div>
-                </div>
-            </div>
-
-            <div class="group-title">管理owo</div>
-            <div class="settings-group">
-                <div class="settings-item beautify-action-btn" onclick="importBeautification()">
-                    <div class="item-label">导入美化配置</div>
-                </div>
-                <div class="settings-item beautify-action-btn" onclick="exportBeautification()">
-                    <div class="item-label">导出美化配置</div>
-                </div>
-            </div>
-             <div class="settings-group">
-                <div class="settings-item beautify-danger-btn" onclick="clearBeautification()">
-                    <div class="item-label">一键清空所有美化</div>
-                </div>
-            </div>
-        </div>
-        <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeBeautifyScreen()"></div></div>
-    </div>
-
-    <!-- Wechat 独立界面 (App Overlay) -->
+    <!-- NEW: Wechat 独立界面 (App Overlay) -->
     <div id="wechatScreen" class="app-screen-overlay">
         <!-- 头部区域 -->
         <div class="wx-header-area">
@@ -630,6 +306,180 @@
         </div>
     </div>
 
+    <!-- iOS 设置界面 -->
+    <div id="settingsScreen" class="settings-base-screen">
+        <div class="settings-scroll-area">
+            <div class="settings-header">
+                <div class="settings-title">设置</div>
+            </div>
+            
+            <div class="settings-search">
+                <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                <span>搜索</span>
+            </div>
+
+            <div class="settings-group">
+                <div class="settings-item account-item">
+                    <div class="account-avatar img-upload-target" data-img-id="settings-avatar"></div>
+                    <div class="account-info">
+                        <div class="account-name" contenteditable="true" data-save="set-name">小猫</div>
+                        <div class="account-sub">Apple账户、iCloud等</div>
+                    </div>
+                    <svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <div class="settings-item"><img src="https://file.uhsea.com/2602/538354eb085d84606da233325e040f6aJ0.png" class="item-icon-img"><div class="item-label">飞行模式</div><div class="ios-switch" onclick="this.classList.toggle('on')"></div></div>
+                <div class="settings-item"><img src="https://file.uhsea.com/2602/84babb981b033253a802941af1fb4405GV.png" class="item-icon-img"><div class="item-label">无线局域网</div><div class="item-value">Hajimi_5G</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+                <div class="settings-item"><img src="https://file.uhsea.com/2602/68787c10639ebfce28afd3807f15f703BU.png" class="item-icon-img"><div class="item-label">蓝牙</div><div class="item-value">开启</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+                <div class="settings-item"><img src="https://file.uhsea.com/2602/3a891228cd11d1a3242d71ab61549496VF.png" class="item-icon-img"><div class="item-label">蜂窝网络</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+                <div class="settings-item"><img src="https://file.uhsea.com/2602/9bcb5c152ff545099c3f5b52c65af212IX.png" class="item-icon-img"><div class="item-label">个人热点</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+                <div class="settings-item"><img src="https://file.uhsea.com/2602/2fadc0e168eb400d4f0c811d690b0619FP.png" class="item-icon-img"><div class="item-label">电池</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+                <div class="settings-item"><img src="https://file.uhsea.com/2602/ef476cdfec0034da3ffe5c89182c552d1T.png" class="item-icon-img"><div class="item-label">VPN</div><div class="ios-switch" onclick="this.classList.toggle('on')"></div></div>
+            </div>
+
+            <div class="settings-group">
+                <div class="settings-item"><img src="https://file.uhsea.com/2602/52ee4e85a9e9bfdb727d6a5b16acdcd95R.png" class="item-icon-img"><div class="item-label">通用</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+                <div class="settings-item" onclick="openWallpaperScreen()"><img src="https://file.uhsea.com/2602/8a8ec510263c8e749a82f1d95192b1adIS.png" class="item-icon-img"><div class="item-label">壁纸</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+                <div class="settings-item" onclick="openBeautifyScreen()"><img src="https://file.uhsea.com/2602/fa1efacb329f8483d028876802d860892A.png" class="item-icon-img"><div class="item-label">主界面美化</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+                <div class="settings-item"><img src="https://file.uhsea.com/2602/557e1bdcb9ad2b8b0a0adb1d4741e5c1SJ.png" class="item-icon-img"><div class="item-label">通知</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+            </div>
+        </div>
+        <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeSettings()"></div></div>
+    </div>
+
+    <!-- NEW: 壁纸界面 -->
+    <div id="wallpaperScreen" class="settings-base-screen">
+        <div class="settings-nav-bar">
+            <div class="nav-btn back-btn" onclick="closeWallpaperScreen()" style="display: flex; align-items: center; margin-left: -8px;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            </div>
+            <div class="nav-title">壁纸</div>
+            <div class="nav-btn"></div>
+        </div>
+        <div class="settings-scroll-area">
+            <div class="wallpaper-preview-container">
+                <div class="wallpaper-preview-card" id="current-wallpaper-preview"></div>
+            </div>
+            <div class="settings-group">
+                <div class="settings-item beautify-action-btn" onclick="triggerWallpaperUpload()">
+                    <div class="item-label">添加新壁纸</div>
+                </div>
+            </div>
+            <div class="group-title">我的壁纸</div>
+            <div class="wallpaper-grid" id="wallpaper-list-container">
+                <!-- 壁纸项动态生成 -->
+            </div>
+        </div>
+        <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeWallpaperScreen()"></div></div>
+    </div>
+
+    <!-- NEW: 主界面美化页面 -->
+    <div id="beautifyScreen" class="settings-base-screen">
+        <div class="settings-nav-bar">
+    <!-- 左边改成 Save，灰色，正常粗细 -->
+    <div class="nav-btn back-btn" onclick="saveBeautification()" style="font-size: 17px; color: #8e8e93; font-weight: 600; display: flex; align-items: center;">Save</div>
+    
+    <div class="nav-title">主界面美化</div>
+    
+    <!-- 右边改成 Done，灰色，正常粗细 -->
+    <div class="nav-btn save-btn" onclick="closeBeautifyScreen()" style="font-size: 17px; color: #8e8e93; font-weight: 600;">Done</div>
+</div>
+        <div class="settings-scroll-area">
+            
+            <div class="group-title">顶栏ovo</div>
+            <div class="settings-group">
+                <div class="settings-item">
+                    <div class="item-label">顶栏显示</div>
+                    <div class="ios-switch on" id="beautify-toggle-topbar" onclick="this.classList.toggle('on')"></div>
+                </div>
+                <div class="settings-item">
+                    <div class="item-label img-upload-target" data-img-id="time-decorator" id="time-decorator-label" style="flex:1;">时间栏装饰 (点击更改)</div>
+                    <div class="reset-btn" onclick="resetBeautifyItem('time-decorator')">
+                        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                    </div>
+                </div>
+                <div class="settings-item">
+                    <div class="item-label">装饰大小</div>
+                    <input type="range" class="ios-slider" id="time-dec-slider" min="10" max="40" step="1" value="18" oninput="updateTimeDecPreview()">
+                    <div class="reset-btn" onclick="resetSlider('time-dec')">
+                        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="group-title">图标TvT</div>
+            <div class="settings-group" id="beautify-app-list">
+                <!-- App list will be dynamically generated here -->
+            </div>
+            
+            <div class="group-title">字体设置QAQ</div>
+            <div class="settings-group">
+                <div class="settings-item">
+                    <input type="text" id="custom-font-url" class="beautify-app-name-input" placeholder="输入 TTF/OTF 字体直链..." onchange="previewFont()" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="hajimi-font-url-random">
+                    <div class="reset-btn" onclick="resetBeautifyItem('font')">
+                        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                    </div>
+                </div>
+                <div class="settings-item">
+                    <div class="item-label">字体大小</div>
+                    <input type="range" class="ios-slider" id="font-size-slider" min="0.8" max="1.5" step="0.05" value="1" oninput="updateFontSizePreview()">
+                    <div class="reset-btn" onclick="resetSlider('font-size')">
+                        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                    </div>
+                </div>
+                <div class="settings-item">
+                    <div class="item-label">字体预设</div>
+                    <select id="font-preset-select" class="beautify-app-name-input" style="text-align: right; direction: rtl;" onchange="applyFontPreset()">
+                        <option value="">选择预设...</option>
+                    </select>
+                </div>
+                <div class="settings-item beautify-action-btn" onclick="saveFontPreset()">
+                    <div class="item-label">保存为新字体预设</div>
+                </div>
+                <div class="settings-item" style="flex-direction: column; align-items: stretch; padding: 16px;">
+                    <div class="font-preview-box" id="font-preview-box">小猫正在偷吃！</div>
+                </div>
+            </div>
+
+            <div class="group-title">全局美化代码TwT</div>
+            <div class="settings-group">
+                <div class="settings-item" style="padding: 0; position: relative;">
+                    <textarea id="custom-css-input" style="width: 100%; height: 120px; border: none; padding: 12px 16px; font-family: monospace; font-size: 13px; background: transparent; resize: none; outline: none;" placeholder="在此输入自定义 CSS 代码..." onchange="previewCSS()"></textarea>
+                    <div class="reset-btn" style="position: absolute; top: 10px; right: 10px;" onclick="resetBeautifyItem('css')">
+                        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                    </div>
+                </div>
+                <div class="settings-item">
+                    <div class="item-label">CSS 预设</div>
+                    <select id="css-preset-select" class="beautify-app-name-input" style="text-align: right; direction: rtl;" onchange="applyCSSPreset()">
+                        <option value="">选择预设...</option>
+                    </select>
+                </div>
+                <div class="settings-item beautify-action-btn" onclick="saveCSSPreset()">
+                    <div class="item-label">保存为新 CSS 预设</div>
+                </div>
+            </div>
+
+            <div class="group-title">管理owo</div>
+            <div class="settings-group">
+                <div class="settings-item beautify-action-btn" onclick="importBeautification()">
+                    <div class="item-label">导入美化配置</div>
+                </div>
+                <div class="settings-item beautify-action-btn" onclick="exportBeautification()">
+                    <div class="item-label">导出美化配置</div>
+                </div>
+            </div>
+             <div class="settings-group">
+                <div class="settings-item beautify-danger-btn" onclick="clearBeautification()">
+                    <div class="item-label">一键清空所有美化</div>
+                </div>
+            </div>
+        </div>
+        <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeBeautifyScreen()"></div></div>
+    </div>
+
     <!-- 图片上传弹窗 -->
     <div class="modal-overlay" id="uploadModal">
         <div class="modal-content">
@@ -750,37 +600,12 @@
     <input type="file" id="importFileInput" hidden accept=".json">
 
     <script src="script.js" defer></script>
-    
-    <!-- 微信界面专属 JS (直接内嵌，方便使用) -->
     <script>
-        // --- Wechat 界面控制逻辑 ---
-        function openWechat() {
-            const screen = document.getElementById('wechatScreen');
-            screen.style.display = 'flex';
-            setTimeout(() => screen.classList.add('active'), 10);
-        }
-
-        function closeWechat() {
-            const screen = document.getElementById('wechatScreen');
-            screen.classList.remove('active');
-            setTimeout(() => screen.style.display = 'none', 400);
-        }
-
-        function switchWxTab(el) {
-            document.querySelectorAll('.wx-text-tab').forEach(t => t.classList.remove('active'));
-            el.classList.add('active');
-        }
-
-        function switchWxDock(el) {
-            document.querySelectorAll('.wx-dock-item').forEach(d => d.classList.remove('active'));
-            el.classList.add('active');
-        }
-        
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW 注册失败:', err));
-            });
-        }
-    </script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW 注册失败:', err));
+        });
+    }
+</script>
 </body>
 </html>
