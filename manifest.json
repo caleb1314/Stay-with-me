@@ -1,17 +1,16 @@
 {
-    "name": "Hajimi Home",
-    "short_name": "Home",
-    "start_url": "./index.html",
-    "display": "fullscreen",
-    "background_color": "#e8e9eb",
-    "theme_color": "#e8e9eb",
-    "orientation": "portrait",
-    "icons": [
-        {
-            "src": "https://file.uhsea.com/2602/70da4faf682de2817a4b430809e0bce3NN.jpg",
-            "sizes": "192x192 512x512 any",
-            "type": "image/jpeg",
-            "purpose": "any maskable"
-        }
-    ]
+  "name": "Hajimi Home",
+  "short_name": "Home",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "background_color": "#e8e9eb",
+  "theme_color": "#e8e9eb",
+  "icons": [
+    {
+      "src": "https://file.uhsea.com/2602/70da4faf682de2817a4b430809e0bce3NN.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
 }
