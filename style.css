@@ -1,0 +1,549 @@
+/* 全局 CSS 变量 */
+:root {
+    --font-scale: 1;
+    --time-dec-size: 18px;
+}
+
+/* 全局重置 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+}
+
+body {
+    background-color: #e8e9eb;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    color: #333;
+    background-position: center;
+    background-repeat: no-repeat;
+    transition: background-image 0.3s ease, background-size 0.3s ease;
+}
+
+/* 暗色模式变量 */
+body.dark-mode {
+    --card-bg-opacity: 1;
+    --card-base-color: 28, 28, 30;
+    --text-main: #ffffff;
+    --text-sub: #98989d;
+}
+
+/* 编辑状态 */
+[contenteditable="true"] { outline: none; transition: all 0.3s ease; cursor: text; }
+[contenteditable="true"]:focus { background: rgba(255, 255, 255, 0.9); border-radius: 4px; padding: 0 2px; }
+
+/* 图片上传目标 */
+.img-upload-target {
+    cursor: pointer;
+    background-size: cover !important; 
+    background-position: center center !important;
+    background-repeat: no-repeat !important;
+    transition: opacity 0.2s ease;
+    background-color: rgba(255, 255, 255, 0.3);
+}
+.img-upload-target:active { opacity: 0.7; }
+
+/* 状态栏 - 强制修复 */
+.status-bar {
+    height: env(safe-area-inset-top, 44px);
+    min-height: 48px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 22px;
+    z-index: 99999; 
+    position: fixed; 
+    width: 100%;
+    top: 0;
+    left: 0;
+    transition: opacity 0.3s;
+    pointer-events: none; 
+    /* 强制使用系统字体，忽略自定义字体 */
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif !important;
+}
+/* 强制子元素也忽略全局字体设置 */
+.status-bar * {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif !important;
+}
+
+.time-container { display: flex; align-items: center; gap: 6px; pointer-events: auto; }
+.time { 
+    /* 强制固定大小，忽略 --font-scale */
+    font-size: 19px !important; 
+    font-weight: 680; 
+    margin-top: 8px; 
+    letter-spacing: -0.5px; 
+}
+.time-decorator {
+    width: var(--time-dec-size); height: var(--time-dec-size); margin-top: 8px;
+    background-size: contain; background-position: center; background-repeat: no-repeat;
+}
+.status-icons { display: flex; align-items: center; gap: 7px; padding-top: 4px; pointer-events: auto; }
+
+/* 翻页容器 */
+.pages-container {
+    flex: 1;
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding-top: 48px; 
+}
+.pages-container::-webkit-scrollbar { display: none; }
+
+.page {
+    width: 100vw;
+    flex-shrink: 0;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    display: flex;
+    flex-direction: column;
+    padding: 0 20px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* 第一页组件 */
+.top-widget-container { position: relative; width: 100%; height: 330px; display: flex; flex-direction: column; align-items: center; margin-top: 5px; }
+.connecting-lines { position: absolute; top: 0; left: 0; width: 100%; height: 250px; z-index: 1; pointer-events: none; }
+.avatars-wrapper { display: flex; justify-content: center; gap: 40px; z-index: 2; position: relative; margin-top: 5px; }
+.avatar-group { display: flex; flex-direction: column; align-items: center; }
+.speech-bubble {
+    background: #fff; padding: 6px 14px; border-radius: 14px; font-size: calc(12px * var(--font-scale)); font-weight: 600; margin-bottom: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05); position: relative;
+}
+.speech-bubble::after {
+    content: ''; position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%);
+    border-width: 6px 6px 0; border-style: solid; border-color: #fff transparent transparent transparent;
+}
+.avatar-circle { width: 72px; height: 72px; border-radius: 50%; border: 1.5px solid #fff; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+.center-text { position: absolute; top: 170px; font-size: calc(11px * var(--font-scale)); color: #777; letter-spacing: 0.8px; z-index: 2; font-style: italic; }
+
+/* 音乐播放器 */
+.music-player-v2 {
+    position: absolute; bottom: 0; width: 92%; display: flex; flex-direction: column; align-items: center;
+    padding: 20px; background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+    border: 1px solid rgba(255, 255, 255, 0.7); box-shadow: 0 10px 40px rgba(0,0,0,0.04); border-radius: 24px; z-index: 3;
+}
+.music-title { font-size: calc(16px * var(--font-scale)); font-weight: 700; color: #222; }
+.music-subtitle { font-size: calc(11px * var(--font-scale)); color: #666; margin-top: 4px; }
+.progress-container { width: 100%; display: flex; align-items: center; gap: 10px; margin: 12px 0; }
+.progress-bar { flex: 1; height: 4px; background: rgba(0,0,0,0.08); border-radius: 2px; }
+.progress-fill { width: 40%; height: 100%; background: #333; border-radius: 2px; }
+.time-label { font-size: 10px; color: #999; }
+.controls-row { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+.main-controls { display: flex; align-items: center; gap: 32px; }
+
+/* 第二页组件 */
+.large-rect-widget {
+    width: 100%; background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-radius: 28px; padding: 18px; margin-top: 15px; border: 1px solid rgba(255, 255, 255, 0.5);
+}
+.widget-top-row { display: flex; align-items: flex-start; gap: 15px; position: relative; }
+.rect-avatar { width: 65px; height: 65px; border-radius: 18px; }
+.text-content { flex: 1; display: flex; flex-direction: column; gap: 6px; padding-top: 4px; }
+.info-line { display: flex; align-items: center; gap: 6px; font-size: calc(14px * var(--font-scale)); font-weight: 600; color: #444; }
+.info-line svg { width: 14px; height: 14px; stroke: #666; stroke-width: 1.5; fill: none; }
+
+.widget-bottom-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 18px; }
+.mini-square { aspect-ratio: 1; border-radius: 15px; border: 1px solid rgba(255, 255, 255, 0.3); }
+
+.profile-widget { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0; }
+.profile-circle { width: 85px; height: 85px; border-radius: 50%; margin-bottom: 12px; border: 2px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+.profile-name { font-size: calc(15px * var(--font-scale)); font-weight: 700; color: #444; margin-bottom: 10px; }
+.status-pill {
+    background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    padding: 6px 14px 6px 6px; border-radius: 20px; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+}
+.pill-icon-circle { width: 20px; height: 20px; background: #555; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.pill-icon-circle svg { width: 11px; height: 11px; fill: none; stroke: #fff; stroke-width: 2.5; }
+.status-pill span { font-size: calc(11px * var(--font-scale)); color: #555; font-weight: 600; }
+
+.bottom-wide-widget {
+    width: 100%; height: 110px; background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-radius: 24px; margin-top: 10px; border: 1px solid rgba(255, 255, 255, 0.5); overflow: hidden;
+}
+
+/* 第三页组件 */
+.p3-top-widget { width: 100%; display: flex; flex-direction: column; align-items: center; padding: 20px 0; margin-top: 10px; }
+.p3-main-row { display: flex; align-items: center; justify-content: center; gap: 15px; width: 100%; }
+.p3-side-column { display: flex; flex-direction: column; gap: 15px; flex: 1; }
+.p3-text-bar {
+    background: rgba(255, 255, 255, 0.5); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+    padding: 10px 12px; border-radius: 18px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.4); height: 40px;
+}
+.p3-text-bar span { font-size: calc(12px * var(--font-scale)); font-weight: 700; color: #444; font-style: italic; }
+.p3-center-avatar { width: 100px; height: 100px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 8px 20px rgba(0,0,0,0.05); flex-shrink: 0; }
+.p3-sub-text { margin-top: 12px; font-size: calc(14px * var(--font-scale)); color: #666; letter-spacing: 2px; font-weight: 500; }
+
+/* 聊天组件 */
+.chat-widget { flex: 1; padding: 15px 0; display: flex; flex-direction: column; gap: 12px; }
+.chat-header { font-size: calc(15px * var(--font-scale)); font-weight: 700; color: #333; margin-bottom: 5px; padding-left: 5px; }
+.chat-bubble {
+    background: rgba(255, 255, 255, 0.6); padding: 8px 12px; border-radius: 22px; display: flex; align-items: center; gap: 10px; border: 1px solid rgba(255, 255, 255, 0.3); 
+    width: 100%;
+}
+.chat-bubble.right { flex-direction: row-reverse; }
+.mini-avatar { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; }
+.chat-text { font-size: calc(11px * var(--font-scale)); color: #444; font-weight: 600; flex: 1; }
+.chat-bubble.right .chat-text { text-align: right; }
+
+/* 通用布局 */
+.middle-section { display: flex; justify-content: space-between; margin-top: 20px; gap: 15px; padding-bottom: 10px; }
+.left-apps, .right-apps { flex: 1; display: grid; grid-template-columns: repeat(2, 1fr); grid-gap: 20px 12px; }
+.full-width-apps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 20px; width: 100%; }
+.app-item { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+
+.app-icon { 
+    width: 58px; height: 58px; border-radius: 14px; 
+    box-shadow: inset 0 1px 2px rgba(255,255,255,0.5), 0 3px 8px rgba(0,0,0,0.06); 
+    background-size: cover !important; 
+    background-position: center !important; 
+    background-repeat: no-repeat !important;
+}
+
+.gray-1 { background: linear-gradient(135deg, #f5f5f5, #dcdcdc); }
+.gray-2 { background: linear-gradient(135deg, #e8e8e8, #c0c0c0); }
+.gray-3 { background: linear-gradient(135deg, #dadada, #b0b0b0); }
+.gray-4 { background: linear-gradient(135deg, #cccccc, #a0a0a0); }
+.app-name { font-size: calc(11px * var(--font-scale)); color: #555; font-weight: 600; }
+.right-widget-wrap { flex: 1.2; display: flex; flex-direction: column; align-items: center; }
+.large-widget { width: 100%; aspect-ratio: 1; border-radius: 24px; }
+.centered-label { width: 100%; text-align: center; font-size: calc(12px * var(--font-scale)); color: #777; font-weight: 600; margin-top: 20px; letter-spacing: 0.5px; }
+.sub-label { font-size: calc(12px * var(--font-scale)); color: #777; margin-top: 12px; font-weight: 600; }
+
+/* 底部固定区 */
+.bottom-section { margin-top: auto; display: flex; flex-direction: column; align-items: center; padding-bottom: 25px; }
+.search-pill {
+    background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+    padding: 8px 18px; border-radius: 20px; display: flex; align-items: center; gap: 8px; margin-bottom: 25px;
+}
+.search-pill svg { width: 15px; height: 15px; fill: #555; }
+.search-pill span { font-size: 13px; color: #555; font-weight: 600; }
+.dock {
+    width: 92%; background: rgba(255, 255, 255, 0.5); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+    border-radius: 30px; padding: 18px 22px; display: flex; justify-content: space-between; border: 1px solid rgba(255,255,255,0.6);
+}
+.dock-text-icon { display: flex; align-items: center; justify-content: center; font-size: calc(11px * var(--font-scale)); font-weight: 700; color: #444; text-align: center; padding: 4px; cursor: pointer; }
+
+/* Dock 图标隐藏文字 */
+.dock-text-icon.has-custom-icon {
+    background-color: transparent !important;
+    box-shadow: none;
+}
+.dock-text-icon.has-custom-icon .app-name {
+    display: none;
+}
+
+/* --- iOS 设置界面 (通用) --- */
+.settings-base-screen {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: #f2f2f7; z-index: 1200; 
+    display: none; flex-direction: column;
+    transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.settings-base-screen.active { display: flex; transform: translateY(0); }
+
+.settings-nav-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 55px 16px 8px; position: sticky; top: 0;
+    background: #f2f2f7; z-index: 10;
+}
+.nav-btn { font-size: 16px; color: #007aff; cursor: pointer; min-width: 50px; }
+.nav-btn.back-btn { text-align: left; }
+.nav-btn.save-btn { text-align: right; font-weight: 600; }
+.nav-title { font-size: 17px; font-weight: 600; color: #000; position: absolute; left: 50%; transform: translateX(-50%); }
+
+.settings-scroll-area { flex: 1; overflow-y: auto; padding-bottom: 80px; }
+.settings-header { padding: 55px 16px 8px; }
+.settings-title { font-size: 32px; font-weight: 700; color: #000; margin-bottom: 12px; }
+
+.settings-search {
+    background: #e3e3e8; border-radius: 10px; padding: 8px 12px; margin: 0 16px 18px;
+    display: flex; align-items: center; gap: 8px;
+}
+.settings-search svg { width: 15px; height: 15px; fill: #8e8e93; }
+.settings-search span { color: #8e8e93; font-size: 16px; }
+
+.group-title {
+    font-size: 14px; color: #6d6d72; text-transform: uppercase;
+    padding: 0 16px 8px 32px; margin-top: 24px; font-weight: 600;
+}
+
+.settings-group {
+    background: #fff; border-radius: 10px; margin: 0 16px 18px; overflow: hidden;
+}
+.settings-item {
+    display: flex; align-items: center; padding: 10px 16px; gap: 14px;
+    position: relative; cursor: pointer; min-height: 44px;
+}
+.settings-item:active { background: #f2f2f7; }
+.settings-item:not(:last-child)::after {
+    content: ''; position: absolute; bottom: 0; left: 54px; right: 0; height: 0.5px; background: #c6c6c8;
+}
+
+.item-icon-img { width: 26px; height: 26px; border-radius: 6px; object-fit: contain; flex-shrink: 0; }
+.item-label { flex: 1; font-size: 16px; color: #000; line-height: 1.2; }
+.item-value { font-size: 15px; color: #8e8e93; margin-right: 4px; }
+.chevron { width: 12px; height: 12px; stroke: #c7c7cc; stroke-width: 2.4; fill: none; flex-shrink: 0; }
+
+.account-item { padding: 14px 16px; gap: 14px; min-height: 74px; }
+.account-avatar { width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0; background-color: #d1d1d6; }
+.account-info { display: flex; flex-direction: column; gap: 1px; flex: 1; justify-content: center; }
+.account-name { font-size: 19px; font-weight: 400; color: #000; }
+.account-sub { font-size: 12px; color: #8e8e93; }
+
+.ios-switch {
+    width: 48px; height: 28px; background: #e9e9ea; border-radius: 14px;
+    position: relative; transition: background 0.3s; cursor: pointer; flex-shrink: 0;
+}
+.ios-switch::after {
+    content: ''; position: absolute; top: 2px; left: 2px; width: 24px; height: 24px;
+    background: #fff; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    transition: transform 0.3s;
+}
+.ios-switch.on { background: #34c759; }
+.ios-switch.on::after { transform: translateX(20px); }
+
+.home-indicator-wrap {
+    position: absolute; bottom: 0; left: 0; width: 100%; height: 34px;
+    display: flex; justify-content: center; align-items: center;
+    background: transparent; z-index: 1200; pointer-events: none;
+}
+.home-indicator-bar {
+    width: 134px; height: 5px; background: #000; border-radius: 100px;
+    opacity: 0.2; cursor: pointer; pointer-events: auto;
+}
+
+/* --- 主界面美化页特定样式 --- */
+#beautifyScreen .settings-item:not(:last-child)::after { left: 16px; } 
+.beautify-app-item {
+    display: flex; align-items: center; gap: 12px; padding: 8px 16px;
+}
+
+.beautify-app-icon {
+    width: 42px; height: 42px; border-radius: 10px; flex-shrink: 0;
+    background-color: #eee;
+    background-size: cover !important; 
+    background-position: center !important; 
+    background-repeat: no-repeat !important;
+}
+
+.beautify-app-name-input {
+    flex: 1; border: none; background: transparent; font-size: 16px;
+    padding: 6px 10px; border-radius: 8px; transition: all 0.2s ease;
+}
+.beautify-app-name-input:focus { 
+    background: rgba(0, 0, 0, 0.05); 
+    outline: none;
+}
+
+select.beautify-app-name-input {
+    appearance: none; -webkit-appearance: none; color: #8e8e93; font-size: 15px; padding-right: 0;
+}
+
+.beautify-danger-btn { color: #ff3b30; justify-content: center !important; }
+.beautify-action-btn { color: #007aff; justify-content: center !important; }
+
+/* 重置按钮样式 */
+.reset-btn {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0; transition: all 0.2s;
+}
+.reset-btn:active { background: rgba(0,0,0,0.1); transform: scale(0.9); }
+.reset-btn svg { width: 14px; height: 14px; stroke: #8e8e93; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+/* 字体预览区 */
+.font-preview-box {
+    width: 100%; padding: 16px; background: #f9f9f9; border-radius: 8px;
+    text-align: center; font-size: 18px; color: #333; margin-top: 5px;
+    border: 1px dashed #ccc;
+}
+
+/* iOS 风格滑动条 */
+input[type=range].ios-slider {
+    -webkit-appearance: none; width: 120px; height: 4px; background: #e5e5ea; border-radius: 2px; outline: none;
+}
+input[type=range].ios-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: #fff;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.2); cursor: pointer;
+}
+
+/* --- 壁纸界面样式 --- */
+.wallpaper-preview-container {
+    width: 100%; display: flex; justify-content: center; padding: 20px 0;
+}
+.wallpaper-preview-card {
+    width: 160px; height: 340px; border-radius: 24px;
+    background-color: #e8e9eb; background-size: cover; background-position: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 4px solid #fff;
+    position: relative; transition: background-image 0.3s ease;
+}
+.wallpaper-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 16px;
+}
+.wallpaper-item {
+    aspect-ratio: 9/19.5; border-radius: 12px; background-size: cover; background-position: center;
+    cursor: pointer; position: relative; border: 2px solid transparent; transition: all 0.2s;
+    background-color: #eee;
+}
+.wallpaper-item.active { border-color: #007aff; transform: scale(0.95); }
+.wallpaper-delete {
+    position: absolute; top: -6px; right: -6px; width: 22px; height: 22px;
+    background: #ff3b30; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 10;
+}
+
+/* --- 韩系 ins 风格弹窗 --- */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(255,255,255,0.1); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+    display: none; justify-content: center; align-items: center; z-index: 2000;
+    opacity: 0; transition: opacity 0.3s ease;
+}
+.modal-overlay#music-more-modal {
+    z-index: 10000;
+    background: rgba(0,0,0,0.3);
+}
+
+.modal-content {
+    width: 78%; max-width: 280px; background: rgba(255, 255, 255, 0.85);
+    border: 0.5px solid rgba(255,255,255,0.6); border-radius: 32px; padding: 32px 22px;
+    transform: scale(0.95); transition: all 0.4s cubic-bezier(0.17, 0.67, 0.12, 1);
+    box-shadow: 0 25px 50px rgba(0,0,0,0.04); text-align: center;
+}
+.modal-overlay.active { display: flex; opacity: 1; }
+.modal-overlay.active .modal-content { transform: scale(1); }
+
+.modal-title { font-size: 13px; font-weight: 700; color: #777; margin-bottom: 28px; letter-spacing: 2px; text-transform: uppercase; }
+.upload-options { display: flex; flex-direction: column; gap: 10px; }
+.opt-btn {
+    width: 100%; padding: 14px; border-radius: 16px; border: none;
+    background: rgba(255,255,255,0.7); color: #444; font-size: 13px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    transition: all 0.2s; border: 0.5px solid rgba(0,0,0,0.02);
+    cursor: pointer;
+}
+.opt-btn:active { background: #fff; transform: scale(0.97); }
+.url-input-wrap { margin-top: 15px; display: none; flex-direction: column; gap: 10px; }
+.url-input-wrap.active { display: flex; }
+.url-input { 
+    width: 100%; padding: 12px; border-radius: 14px; border: none; 
+    background: rgba(0,0,0,0.04); font-size: 12px; outline: none; text-align: center; color: #333;
+}
+.confirm-btn { background: #333 !important; color: #fff !important; margin-top: 5px; }
+.close-modal-trigger { margin-top: 22px; font-size: 11px; color: #bbb; cursor: pointer; letter-spacing: 1px; }
+
+/* ========================================= */
+/* === MUSIC PLAYER OVERLAY (Fullscreen) === */
+/* ========================================= */
+#music-player-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background-color: #1a1a2e; 
+    z-index: 9900;
+    transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+    display: flex; flex-direction: column; overflow: hidden; color: #fff;
+}
+#music-player-overlay.open { transform: translateY(0); }
+
+.player-top-bar {
+    width: 100%; height: 60px; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px; position: absolute; top: 40px; left: 0; z-index: 100;
+}
+.player-nav-btn {
+    width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; border-radius: 50%; background: rgba(255,255,255,0.1); backdrop-filter: blur(10px);
+}
+.player-nav-btn svg { width: 20px; height: 20px; stroke: #fff; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+#music-player-overlay .player-bg {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+    background-size: cover; background-position: center; opacity: 1; transition: background 0.5s;
+}
+#music-player-overlay .player-bg::after {
+    content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.3); backdrop-filter: blur(60px); -webkit-backdrop-filter: blur(60px);
+}
+
+#music-player-overlay .player-container {
+    flex: 1; display: flex; flex-direction: column; padding: 100px 24px 20px 24px; position: relative; z-index: 10;
+}
+
+#music-player-overlay .album-section {
+    flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; max-height: 45vh; padding: 10px 0; position: relative; transition: all 0.4s ease;
+}
+#music-player-overlay .album-art {
+    width: 80vw; height: 80vw; max-width: 350px; max-height: 350px; border-radius: 12px; background: #ccc; box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+    background-size: cover; background-position: center; transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s; transform: scale(1); opacity: 1;
+}
+#music-player-overlay .album-art.paused { transform: scale(0.8); box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+
+#music-player-overlay .lyrics-display {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow-y: auto; text-align: center; opacity: 0; pointer-events: none; transition: opacity 0.4s; z-index: 20; background: transparent; border-radius: 12px;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%); mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+}
+#music-player-overlay .lyrics-display.visible { opacity: 1; pointer-events: auto; }
+#music-player-overlay .lyrics-display .lyric-line { padding: 12px 20px; font-size: 20px; font-weight: 700; color: rgba(255, 255, 255, 0.7); transition: all 0.3s; cursor: pointer; transform-origin: center; }
+#music-player-overlay .lyrics-display .lyric-line.active { color: #fff; transform: scale(1.1); text-shadow: 0 2px 10px rgba(255,255,255,0.3); }
+#music-player-overlay .album-section.lyrics-mode .album-art { opacity: 0; pointer-events: none; }
+
+#music-player-overlay .track-info-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; margin-top: 10px; padding: 0 4px; }
+#music-player-overlay .text-group { display: flex; flex-direction: column; gap: 2px; flex: 1; overflow: hidden; }
+#music-player-overlay .track-title { font-size: 22px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.5px; }
+#music-player-overlay .track-artist { font-size: 17px; font-weight: 400; color: rgba(255,255,255,0.8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#music-player-overlay .action-icons { display: flex; gap: 16px; align-items: center; }
+#music-player-overlay .icon-btn-circle { width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+#music-player-overlay .icon-btn-circle svg { width: 14px; height: 14px; fill: #fff; }
+
+#music-player-overlay .progress-section { margin-bottom: 5px; }
+#music-player-overlay .slider-container { width: 100%; height: 24px; display: flex; align-items: center; position: relative; cursor: pointer; }
+#music-player-overlay .slider-track { width: 100%; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; position: relative; overflow: hidden; }
+#music-player-overlay .slider-fill { position: absolute; top: 0; left: 0; height: 100%; width: 0%; background: #fff; border-radius: 3px; }
+#music-player-overlay .time-labels { display: flex; justify-content: space-between; font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.5); margin-top: -4px; font-variant-numeric: tabular-nums; }
+#music-player-overlay .dolby-tag { display: flex; align-items: center; justify-content: center; gap: 3px; font-size: 10px; color: rgba(255,255,255,0.6); margin-top: 5px; }
+#music-player-overlay .dolby-tag svg { width: 24px; height: 12px; fill: currentColor; }
+
+#music-player-overlay .controls-main { display: flex; justify-content: space-between; align-items: center; padding: 0 40px; margin-bottom: 20px; margin-top: 10px; }
+#music-player-overlay .ctrl-btn { cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.1s, opacity 0.2s; }
+#music-player-overlay .ctrl-btn:active { opacity: 0.5; transform: scale(0.9); }
+#music-player-overlay .ctrl-btn svg { fill: #fff; stroke: #fff; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+#music-player-overlay .btn-play { width: 70px; height: 70px; }
+#music-player-overlay .btn-play svg { width: 100%; height: 100%; }
+#music-player-overlay .btn-play svg.pause-icon rect { stroke: none; fill: #fff; }
+#music-player-overlay .btn-skip { width: 45px; height: 45px; }
+#music-player-overlay .btn-skip svg { width: 100%; height: 100%; }
+
+#music-player-overlay .volume-section { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding: 0 20px; }
+#music-player-overlay .vol-icon svg { width: 12px; height: 12px; fill: rgba(255,255,255,0.6); }
+#music-player-overlay .vol-slider-track { flex: 1; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; position: relative; cursor: pointer; }
+#music-player-overlay .vol-slider-fill { position: absolute; top: 0; left: 0; height: 100%; width: 60%; background: #fff; border-radius: 3px; }
+
+#music-player-overlay .bottom-actions { display: flex; justify-content: space-between; align-items: center; padding: 0 40px; }
+#music-player-overlay .bottom-btn { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: rgba(255,255,255,0.6); position: relative; }
+#music-player-overlay .bottom-btn.active { color: #fff; }
+#music-player-overlay .bottom-btn svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
+#music-player-overlay .bottom-btn.lyrics svg path.bubble { stroke-width: 2.3; }
+#music-player-overlay .bottom-btn.lyrics svg path.quote-fill { fill: currentColor; stroke: none; }
+#music-player-overlay .bottom-btn.airplay svg { stroke-width: initial; }
+#music-player-overlay .bottom-btn.airplay svg .triangle-fill { fill: currentColor; stroke: currentColor; }
+
+#music-search-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #1a1a2e; z-index: 9950; opacity: 0; pointer-events: none; transition: opacity 0.3s; display: flex; flex-direction: column; padding-top: 100px;
+}
+#music-search-overlay.open { opacity: 1; pointer-events: auto; }
+.search-container { padding: 0 20px; }
+.search-list { flex: 1; overflow-y: auto; padding: 20px; }
+.search-item { display: flex; align-items: center; gap: 15px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); cursor: pointer; }
+.search-cover { width: 50px; height: 50px; border-radius: 8px; background: #333; background-size: cover; }
+.search-info { flex: 1; color: #fff; }
+.search-title { font-size: 15px; font-weight: 600; }
+.search-artist { font-size: 12px; color: #aaa; margin-top: 4px; }
