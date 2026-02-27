@@ -26,7 +26,9 @@ input:-webkit-autofill:active{
 body {
     background-color: #e8e9eb;
     width: 100vw;
+    width: 100dvw; /* 优先使用动态视口宽度 */
     height: 100vh;
+    height: 100dvh; /* 优先使用动态视口高度，确保全屏覆盖 */
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -82,10 +84,13 @@ body.dark-mode {
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif !important;
 }
 
-.time-container { display: flex; align-items: center; gap: 6px; pointer-events: auto; }
+.time-container { 
+    display: flex; align-items: center; gap: 6px; pointer-events: auto; 
+    margin-left: 8px; /* 往右移动一点点 */
+}
 .time { 
-    /* 强制固定大小，忽略 --font-scale */
-    font-size: 19px !important; 
+    /* 强制固定大小，缩小一点点 */
+    font-size: 17px !important; 
     font-weight: 680; 
     margin-top: 8px; 
     letter-spacing: -0.5px; 
@@ -371,11 +376,23 @@ select.beautify-app-name-input {
 .reset-btn:active { background: rgba(0,0,0,0.1); transform: scale(0.9); }
 .reset-btn svg { width: 14px; height: 14px; stroke: #8e8e93; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 
-/* 字体预览区 */
+/* 字体预览区 - 升级版毛玻璃卡片 */
 .font-preview-box {
-    width: 100%; padding: 16px; background: #f9f9f9; border-radius: 8px;
-    text-align: center; font-size: 18px; color: #333; margin-top: 5px;
-    border: 1px dashed #ccc;
+    width: 100%; 
+    padding: 24px 16px; 
+    background: rgba(255, 255, 255, 0.8); 
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border-radius: 16px;
+    text-align: center; 
+    font-size: 20px; 
+    color: #1c1c1e; 
+    margin-top: 8px;
+    border: 1px solid rgba(0,0,0,0.05);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.04);
+    letter-spacing: 0.5px;
+    font-weight: 500;
+    transition: all 0.3s ease;
 }
 
 /* iOS 风格滑动条 */
