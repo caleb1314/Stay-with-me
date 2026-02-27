@@ -845,3 +845,106 @@ select.char-grid-input { appearance: none; -webkit-appearance: none; text-align-
     -webkit-text-fill-color: var(--text-main) !important;
     transition: background-color 5000s ease-in-out 0s;
 }
+/* ========================================= */
+/* === 独立聊天界面 (三层汉堡架构) === */
+/* ========================================= */
+
+#chatScreen {
+    --bg-layer-3: rgba(255, 255, 255, 0.55);
+    --glass-bubble-left: rgba(255, 255, 255, 0.45);
+    --glass-bubble-right: rgba(0, 0, 0, 0.5);
+    --glass-bar: rgba(255, 255, 255, 0.85);
+    --glass-border: rgba(255, 255, 255, 0.5);
+    --stroke-width: 1.7px; 
+}
+
+/* 第三层 (过渡层) */
+.layer-3-backdrop {
+    position: absolute;
+    top: 55px; /* 留出状态栏空间 */
+    left: 12px; right: 12px; bottom: 0;
+    background-color: var(--bg-layer-3);
+    border-radius: 36px 36px 0 0;
+    z-index: 1;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+}
+
+/* 第二层 (主卡片) */
+.chat-layer-card {
+    margin-top: 65px; /* 盖在第三层上，露出10px白边 */
+    flex: 1;
+    background-size: cover;
+    background-position: center;
+    border-radius: 32px 32px 0 0;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    z-index: 10;
+    box-shadow: 0 -5px 20px rgba(0,0,0,0.1);
+    overflow: hidden; 
+    background-color: #e5e5ea; /* 默认底色 */
+}
+.chat-layer-card::before {
+    content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(255, 255, 255, 0.1); pointer-events: none;
+}
+
+/* 顶栏 */
+.chat-header-flat {
+    height: 65px;
+    display: flex; align-items: center; padding: 0 20px;
+    flex-shrink: 0; position: relative; z-index: 20;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 100%);
+}
+.header-back-btn { width: 40px; height: 40px; display: flex; align-items: center; justify-content: flex-start; cursor: pointer; z-index: 10; }
+.header-back-btn svg { width: 26px; height: 26px; stroke: #000; stroke-width: var(--stroke-width); fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.header-text-group { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.header-remark { font-size: 18px; font-weight: 700; color: #000; margin-bottom: 2px; text-shadow: 0 1px 2px rgba(255,255,255,0.8); }
+.header-sub-text { font-size: 11px; font-weight: 800; color: #555; letter-spacing: 0.5px; text-transform: uppercase; text-shadow: 0 1px 2px rgba(255,255,255,0.8); }
+.header-right-icons { margin-left: auto; display: flex; align-items: center; gap: 14px; z-index: 10; }
+.header-icon-btn svg { width: 22px; height: 22px; stroke: #000; stroke-width: var(--stroke-width); fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+/* 聊天区域 */
+.chat-scroll-area {
+    flex: 1; overflow-y: auto; padding: 0 12px 10px 12px; 
+    display: flex; flex-direction: column; gap: 0; z-index: 20;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.chat-scroll-area::-webkit-scrollbar { display: none; }
+.chat-time-stamp { align-self: center; font-size: 12px; color: #fff; background: rgba(0,0,0,0.2); backdrop-filter: blur(5px); padding: 4px 10px; border-radius: 6px; margin: 15px 0 10px 0; text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+.msg-row { display: flex; align-items: flex-end; width: 100%; position: relative; margin-bottom: 2px; }
+.msg-row.right { flex-direction: row-reverse; }
+
+/* 气泡 */
+.msg-bubble {
+    max-width: 78%; padding: 7px 11px; font-size: 15px; line-height: 1.4;
+    position: relative; word-wrap: break-word; font-weight: 500;
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.msg-row.left .msg-bubble { background: var(--glass-bubble-left); color: #000; border: 0.5px solid rgba(255,255,255,0.6); text-shadow: 0 0 10px rgba(255,255,255,0.5); }
+.msg-row.left.group-start .msg-bubble { border-radius: 18px 18px 18px 4px; margin-top: 6px; }
+.msg-row.left.group-middle .msg-bubble { border-radius: 4px 18px 18px 4px; }
+.msg-row.left.group-end .msg-bubble { border-radius: 4px 18px 18px 18px; margin-bottom: 15px; }
+.msg-row.left.single .msg-bubble { border-radius: 18px; margin-bottom: 15px; margin-top: 6px; }
+
+.msg-row.right .msg-bubble { background: var(--glass-bubble-right); color: #fff; border: 0.5px solid rgba(255,255,255,0.15); text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+.msg-row.right.group-start .msg-bubble { border-radius: 18px 18px 4px 18px; margin-top: 6px; }
+.msg-row.right.group-middle .msg-bubble { border-radius: 18px 4px 4px 18px; }
+.msg-row.right.group-end .msg-bubble { border-radius: 18px 4px 18px 18px; margin-bottom: 15px; }
+.msg-row.right.single .msg-bubble { border-radius: 18px; margin-bottom: 15px; margin-top: 6px; }
+
+/* 底栏 */
+.bottom-bar-container { padding: 10px 16px 30px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; background: transparent; flex-shrink: 0; z-index: 30; }
+.glass-box { background: var(--glass-bar); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); border: 0.5px solid var(--glass-border); display: flex; align-items: center; justify-content: center; }
+.btn-circle { width: 48px; height: 48px; border-radius: 50%; flex-shrink: 0; cursor: pointer; transition: transform 0.1s; }
+.btn-circle:active { transform: scale(0.92); }
+.input-pill { flex: 1; min-width: 0; height: 48px; border-radius: 24px; padding: 0 6px 0 16px; display: flex; align-items: center; }
+.chat-input { flex: 1; height: 100%; background: transparent; border: none; outline: none; font-size: 16px; color: #333; min-width: 0; }
+.chat-input::placeholder { color: #888; }
+.emoji-btn-inner { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-left: 4px; flex-shrink: 0; }
+.emoji-btn-inner:active { background: rgba(0,0,0,0.05); }
+.svg-icon { width: 24px; height: 24px; stroke: #333; stroke-width: 1.8px; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.send-icon { width: 20px; height: 20px; stroke: #333; stroke-width: 1.8px; fill: none; transform: translateX(-1px) translateY(1px); }
