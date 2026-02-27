@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#e8e9eb">
+    <title>iOS Minimalist Home - Hajimi Edition</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- 状态栏 -->
+    <div class="status-bar">
+        <div class="time-container">
+            <div class="time" id="currentTime">16:17</div>
+            <div class="time-decorator" id="timeDecorator"></div>
+        </div>
+        <div class="status-icons">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#333"><rect x="0" y="12" width="4.5" height="6" rx="1.5"/><rect x="6.5" y="9" width="4.5" height="9" rx="1.5"/><rect x="13" y="6" width="4.5" height="12" rx="1.5"/><rect x="19.5" y="4" width="4.5" height="14" rx="1.5"/><rect x="0" y="20" width="4.5" height="4" rx="1.5"/><rect x="6.5" y="20" width="4.5" height="4" rx="1.5"/><rect x="13" y="20" width="4.5" height="4" rx="1.5"/><rect x="19.5" y="20" width="4.5" height="4" rx="1.5"/></svg>
+            <svg width="20" height="16" viewBox="0 0 24 20" fill="#333"><path d="M12 3c4.6 0 8.8 1.8 12 4.7l-1.5 1.8C19.8 7 16.1 5.3 12 5.3s-7.8 1.7-10.5 4.2L0 7.7C3.2 4.8 7.4 3 12 3z" stroke="#333" stroke-width="0.5"/><path d="M12 9.5c2.8 0 5.4 1.1 7.3 2.9l-1.5 1.8C16.5 13 14.4 12.2 12 12.2s-4.5.8-5.8 2L4.7 12.4c1.9-1.8 4.5-2.9 7.3-2.9z" stroke="#333" stroke-width="0.5"/><path d="M12 15.8c1.1 0 2.1.4 2.8 1.1l-2.8 3.4-2.8-3.4c.7-.7 1.7-1.1 2.8-1.1z" stroke="#333" stroke-width="0.5"/></svg>
+            <svg width="32" height="14" viewBox="0 0 32 14"><defs><mask id="battery-mask"><rect width="32" height="14" fill="white" /><text x="13.5" y="11.5" font-size="12" font-weight="900" fill="black" text-anchor="middle" letter-spacing="-0.5" id="batteryText">77</text></mask></defs><rect x="0" y="0" width="27" height="14" rx="4.5" fill="#333" mask="url(#battery-mask)" /><path d="M28 4.5 v5 a2 2 0 0 0 0 -5 z" fill="#333" /></svg>
+        </div>
+    </div>
+
+    <div class="pages-container" id="mainPages">
+        <!-- 第一页 -->
+        <div class="page">
+            <div class="top-widget-container">
+                <svg class="connecting-lines" viewBox="-50 0 400 250">
+                    <defs><linearGradient id="fade-grad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#888;stop-opacity:1" /><stop offset="85%" style="stop-color:#888;stop-opacity:0" /></linearGradient></defs>
+                    <circle cx="35" cy="78" r="4" fill="#888" /><circle cx="265" cy="78" r="4" fill="#888" />
+                    <path d="M 35 78 Q -50 110, 105 200" fill="none" stroke="url(#fade-grad)" stroke-width="1.3" stroke-linecap="round"/>
+                    <path d="M 265 78 Q 350 110, 195 200" fill="none" stroke="url(#fade-grad)" stroke-width="1.3" stroke-linecap="round"/>
+                </svg>
+                <div class="avatars-wrapper">
+                    <div class="avatar-group"><div class="speech-bubble" contenteditable="true" data-save="p1-bubble-l">你在左边</div><div class="avatar-circle img-upload-target" data-img-id="p1-avatar-l"></div></div>
+                    <div class="avatar-group"><div class="speech-bubble" contenteditable="true" data-save="p1-bubble-r">我紧靠右</div><div class="avatar-circle img-upload-target" data-img-id="p1-avatar-r"></div></div>
+                </div>
+                <div class="center-text">Twenty four seven with us</div>
+                <div class="music-player-v2">
+                    <div class="music-title">Pink Lavender</div>
+                    <div class="music-subtitle" contenteditable="true" data-save="p1-music-sub">· ⁺ ⋆ ‿ ıllıllı ‿ ⋆ ⁺ ·</div>
+                    <div class="progress-container">
+                        <div class="time-label">1:26</div>
+                        <div class="progress-bar"><div class="progress-fill"></div></div>
+                        <div class="time-label">3:48</div>
+                    </div>
+                    <div class="controls-row">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="#666"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <div class="main-controls">
+                            <svg width="24" height="24" viewBox="0 0 24 24"><path d="M11 18V6l-8.5 6z" fill="#333" stroke="#333" stroke-width="3" stroke-linejoin="round"/><path d="M22 18V6l-8.5 6z" fill="#333" stroke="#333" stroke-width="3" stroke-linejoin="round"/></svg>
+                            <svg width="32" height="32" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="2" fill="#333"/><rect x="14" y="5" width="4" height="14" rx="2" fill="#333"/></svg>
+                            <svg width="24" height="24" viewBox="0 0 24 24"><path d="M2 6v12l8.5-6z" fill="#333" stroke="#333" stroke-width="3" stroke-linejoin="round"/><path d="M13 6v12l8.5-6z" fill="#333" stroke="#333" stroke-width="3" stroke-linejoin="round"/></svg>
+                        </div>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2"><path d="M9.52 14.47 A 3.5 3.5 0 1 1 14.48 14.47"/><path d="M7.05 16.95 A 7 7 0 1 1 16.95 16.95"/><path d="M4.58 19.42 A 10.5 10.5 0 1 1 19.42 19.42"/><path d="M12 15.5L16.5 21H7.5L12 15.5Z" fill="#333"/></svg>
+                    </div>
+                </div>
+            </div>
+            <div class="centered-label">Colorful Widget</div>
+            <div class="middle-section">
+                <div class="left-apps">
+                    <div class="app-item" data-app-id="p1-app-wechat"><div class="app-icon gray-1"></div><span class="app-name">Wechat</span></div>
+                    <div class="app-item" data-app-id="p1-app-files"><div class="app-icon gray-2"></div><span class="app-name">文件</span></div>
+                    <div class="app-item" data-app-id="p1-app-world"><div class="app-icon gray-3"></div><span class="app-name">世界</span></div>
+                    <div class="app-item" data-app-id="p1-app-contacts"><div class="app-icon gray-4"></div><span class="app-name">通讯录</span></div>
+                </div>
+                <div class="right-widget-wrap">
+                    <div class="large-widget img-upload-target" data-img-id="p1-large-widget"></div>
+                    <div class="sub-label">Colorful Widget</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第二页 -->
+        <div class="page">
+            <div class="large-rect-widget">
+                <div class="widget-top-row">
+                    <div class="rect-avatar img-upload-target" data-img-id="p2-rect-avatar"></div>
+                    <div class="text-content">
+                        <div class="info-line"><span contenteditable="true" data-save="p2-today">Today is...</span> <svg viewBox="0 0 24 24"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg> <span contenteditable="true" data-save="p2-num">3."</span></div>
+                        <div class="info-line"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> <span contenteditable="true" data-save="p2-love">Love is more than that.</span></div>
+                    </div>
+                </div>
+                <div class="widget-bottom-row">
+                    <div class="mini-square img-upload-target" data-img-id="p2-sq-1"></div>
+                    <div class="mini-square img-upload-target" data-img-id="p2-sq-2"></div>
+                    <div class="mini-square img-upload-target" data-img-id="p2-sq-3"></div>
+                    <div class="mini-square img-upload-target" data-img-id="p2-sq-4"></div>
+                </div>
+            </div>
+            <div class="centered-label">Colorful Widget</div>
+            <div class="middle-section">
+                <div class="profile-widget">
+                    <div class="profile-circle img-upload-target" data-img-id="p2-profile-main"></div>
+                    <div class="profile-name" contenteditable="true" data-save="p2-name">小猫爱你</div>
+                    <div class="status-pill">
+                        <div class="pill-icon-circle"><svg viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18" stroke-linecap="round"/></svg></div>
+                        <span contenteditable="true" data-save="p2-status">我做了一个很长的梦</span>
+                    </div>
+                </div>
+                <div class="right-apps">
+                    <div class="app-item" data-app-id="p2-app-photos"><div class="app-icon gray-1"></div><span class="app-name">照片</span></div>
+                    <div class="app-item" data-app-id="p2-app-weather"><div class="app-icon gray-2"></div><span class="app-name">天气</span></div>
+                    <div class="app-item" data-app-id="p2-app-memories"><div class="app-icon gray-3"></div><span class="app-name">回忆</span></div>
+                    <div class="app-item" data-app-id="p2-app-games"><div class="app-icon gray-4"></div><span class="app-name">游戏</span></div>
+                </div>
+            </div>
+            <div class="bottom-wide-widget img-upload-target" data-img-id="p2-bottom-wide"></div>
+        </div>
+
+        <!-- 第三页 -->
+        <div class="page">
+            <div class="p3-top-widget">
+                <div class="p3-main-row">
+                    <div class="p3-side-column">
+                        <div class="p3-text-bar"><span contenteditable="true" data-save="p3-t1">Selcouth</span></div>
+                        <div class="p3-text-bar"><span contenteditable="true" data-save="p3-t2">Sonorous</span></div>
+                    </div>
+                    <div class="p3-center-avatar img-upload-target" data-img-id="p3-center-avatar"></div>
+                    <div class="p3-side-column">
+                        <div class="p3-text-bar"><span contenteditable="true" data-save="p3-t3">Syzygy</span></div>
+                        <div class="p3-text-bar"><span contenteditable="true" data-save="p3-t4">Palimpsest</span></div>
+                    </div>
+                </div>
+                <div class="p3-sub-text" contenteditable="true" data-save="p3-sub">† ☆ ⁺ † ☆ ⁺ ☆ †</div>
+            </div>
+            <div class="centered-label">Colorful Widget</div>
+            <div class="middle-section">
+                <div class="chat-widget">
+                    <div class="chat-header" contenteditable="true" data-save="p3-chat-h">✩* iwish..★</div>
+                    <div class="chat-bubble">
+                        <div class="mini-avatar img-upload-target" data-img-id="p3-chat-av-1"></div>
+                        <span class="chat-text" contenteditable="true" data-save="p3-chat-b1">★˚₊내 생각 하나:♬</span>
+                    </div>
+                    <div class="chat-bubble right">
+                        <div class="mini-avatar img-upload-target" data-img-id="p3-chat-av-2"></div>
+                        <span class="chat-text" contenteditable="true" data-save="p3-chat-b2">♡고목에서봉이올때▹</span>
+                    </div>
+                </div>
+                <div class="right-apps">
+                    <div class="app-item" data-app-id="p3-app-messages"><div class="app-icon gray-1"></div><span class="app-name">信息</span></div>
+                    <div class="app-item" data-app-id="p3-app-phone"><div class="app-icon gray-2"></div><span class="app-name">电话</span></div>
+                    <div class="app-item" data-app-id="p3-app-mail"><div class="app-icon gray-3"></div><span class="app-name">邮件</span></div>
+                    <div class="app-item" data-app-id="p3-app-store"><div class="app-icon gray-4"></div><span class="app-name">商城</span></div>
+                </div>
+            </div>
+            <div class="full-width-apps">
+                <div class="app-item" data-app-id="p3-app-weather2"><div class="app-icon gray-4"></div><span class="app-name">天气</span></div>
+                <div class="app-item" data-app-id="p3-app-books"><div class="app-icon gray-3"></div><span class="app-name">图书</span></div>
+                <div class="app-item" data-app-id="p3-app-forum"><div class="app-icon gray-2"></div><span class="app-name">论坛</span></div>
+                <div class="app-item" data-app-id="p3-app-more"><div class="app-icon gray-1"></div><span class="app-name">更多</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 底部固定区 -->
+    <div class="bottom-section">
+        <div class="search-pill">
+            <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+            <span>搜索</span>
+        </div>
+        <div class="dock">
+            <div class="app-icon gray-1 dock-text-icon" data-app-id="dock-music" onclick="openMusicPlayer()"><span class="app-name">音乐</span></div>
+            <div class="app-icon gray-2 dock-text-icon" data-app-id="dock-ins"><span class="app-name">ins</span></div>
+            <div class="app-icon gray-3 dock-text-icon" data-app-id="dock-settings" onclick="openSettings()"><span class="app-name">设置</span></div>
+            <div class="app-icon gray-4 dock-text-icon" data-app-id="dock-check"><span class="app-name">查手机</span></div>
+        </div>
+    </div>
+
+    <!-- iOS 设置界面 -->
+    <div id="settingsScreen" class="settings-base-screen">
+        <div class="settings-scroll-area">
+            <div class="settings-header">
+                <div class="settings-title">设置</div>
+            </div>
+            
+            <div class="settings-search">
+                <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                <span>搜索</span>
+            </div>
+
+            <div class="settings-group">
+                <div class="settings-item account-item">
+                    <div class="account-avatar img-upload-target" data-img-id="settings-avatar"></div>
+                    <div class="account-info">
+                        <div class="account-name" contenteditable="true" data-save="set-name">小猫</div>
+                        <div class="account-sub">Apple账户、iCloud等</div>
+                    </div>
+                    <svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <div class="settings-item"><img src="https://file.uhsea.com/2602/538354eb085d84606da233325e040f6aJ0.png" class="item-icon-img"><div class="item-label">飞行模式</div><div class="ios-switch" onclick="this.classList.toggle('on')"></div></div>
+                <div class="settings-item"><img src="https://file.uhsea.com/2602/84babb981b033253a802941af1fb4405GV.png" class="item-icon-img"><div class="item-label">无线局域网</div><div class="item-value">Hajimi_5G</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+                <div class="settings-item"><img src="https://file.uhsea.com/2602/68787c10639ebfce28afd3807f15f703BU.png" class="item-icon-img"><div class="item-label">蓝牙</div><div class="item-value">开启</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+                <div class="settings-item"><img src="https://file.uhsea.com/2602/3a891228cd11d1a3242d71ab61549496VF.png" class="item-icon-img"><div class="item-label">蜂窝网络</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+                <div class="settings-item"><img src="https://file.uhsea.com/2602/9bcb5c152ff545099c3f5b52c65af212IX.png" class="item-icon-img"><div class="item-label">个人热点</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+                <div class="settings-item"><img src="https://file.uhsea.com/2602/2fadc0e168eb400d4f0c811d690b0619FP.png" class="item-icon-img"><div class="item-label">电池</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+                <div class="settings-item"><img src="https://file.uhsea.com/2602/ef476cdfec0034da3ffe5c89182c552d1T.png" class="item-icon-img"><div class="item-label">VPN</div><div class="ios-switch" onclick="this.classList.toggle('on')"></div></div>
+            </div>
+
+            <div class="settings-group">
+                <div class="settings-item"><img src="https://file.uhsea.com/2602/52ee4e85a9e9bfdb727d6a5b16acdcd95R.png" class="item-icon-img"><div class="item-label">通用</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+                <div class="settings-item" onclick="openWallpaperScreen()"><img src="https://file.uhsea.com/2602/8a8ec510263c8e749a82f1d95192b1adIS.png" class="item-icon-img"><div class="item-label">壁纸</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+                <div class="settings-item" onclick="openBeautifyScreen()"><img src="https://file.uhsea.com/2602/fa1efacb329f8483d028876802d860892A.png" class="item-icon-img"><div class="item-label">主界面美化</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+                <div class="settings-item"><img src="https://file.uhsea.com/2602/557e1bdcb9ad2b8b0a0adb1d4741e5c1SJ.png" class="item-icon-img"><div class="item-label">通知</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+            </div>
+        </div>
+        <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeSettings()"></div></div>
+    </div>
+
+    <!-- NEW: 壁纸界面 -->
+    <div id="wallpaperScreen" class="settings-base-screen">
+        <div class="settings-nav-bar">
+            <div class="nav-btn back-btn" onclick="closeWallpaperScreen()" style="display: flex; align-items: center; margin-left: -8px;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            </div>
+            <div class="nav-title">壁纸</div>
+            <div class="nav-btn"></div>
+        </div>
+        <div class="settings-scroll-area">
+            <div class="wallpaper-preview-container">
+                <div class="wallpaper-preview-card" id="current-wallpaper-preview"></div>
+            </div>
+            <div class="settings-group">
+                <div class="settings-item beautify-action-btn" onclick="triggerWallpaperUpload()">
+                    <div class="item-label">添加新壁纸</div>
+                </div>
+            </div>
+            <div class="group-title">我的壁纸</div>
+            <div class="wallpaper-grid" id="wallpaper-list-container">
+                <!-- 壁纸项动态生成 -->
+            </div>
+        </div>
+        <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeWallpaperScreen()"></div></div>
+    </div>
+
+    <!-- NEW: 主界面美化页面 -->
+    <div id="beautifyScreen" class="settings-base-screen">
+        <div class="settings-nav-bar">
+            <div class="nav-btn back-btn" onclick="closeBeautifyScreen()" style="display: flex; align-items: center; margin-left: -8px;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            </div>
+            <div class="nav-title">主界面美化</div>
+            <div class="nav-btn save-btn" onclick="saveBeautification()" style="font-weight: 700; font-size: 17px; color: #8e8e93;">Save</div>
+        </div>
+        <div class="settings-scroll-area">
+            
+            <div class="group-title">顶栏ovo</div>
+            <div class="settings-group">
+                <div class="settings-item">
+                    <div class="item-label">顶栏显示</div>
+                    <div class="ios-switch on" id="beautify-toggle-topbar" onclick="this.classList.toggle('on')"></div>
+                </div>
+                <div class="settings-item">
+                    <div class="item-label img-upload-target" data-img-id="time-decorator" id="time-decorator-label" style="flex:1;">时间栏装饰 (点击更改)</div>
+                    <div class="reset-btn" onclick="resetBeautifyItem('time-decorator')">
+                        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                    </div>
+                </div>
+                <div class="settings-item">
+                    <div class="item-label">装饰大小</div>
+                    <input type="range" class="ios-slider" id="time-dec-slider" min="10" max="40" step="1" value="18" oninput="updateTimeDecPreview()">
+                    <div class="reset-btn" onclick="resetSlider('time-dec')">
+                        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="group-title">图标TvT</div>
+            <div class="settings-group" id="beautify-app-list">
+                <!-- App list will be dynamically generated here -->
+            </div>
+            
+            <div class="group-title">字体设置QAQ</div>
+            <div class="settings-group">
+                <div class="settings-item">
+                    <input type="text" id="custom-font-url" class="beautify-app-name-input" placeholder="输入 TTF/OTF 字体直链..." onchange="previewFont()">
+                    <div class="reset-btn" onclick="resetBeautifyItem('font')">
+                        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                    </div>
+                </div>
+                <div class="settings-item">
+                    <div class="item-label">字体大小</div>
+                    <input type="range" class="ios-slider" id="font-size-slider" min="0.8" max="1.5" step="0.05" value="1" oninput="updateFontSizePreview()">
+                    <div class="reset-btn" onclick="resetSlider('font-size')">
+                        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                    </div>
+                </div>
+                <div class="settings-item">
+                    <div class="item-label">字体预设</div>
+                    <select id="font-preset-select" class="beautify-app-name-input" style="text-align: right; direction: rtl;" onchange="applyFontPreset()">
+                        <option value="">选择预设...</option>
+                    </select>
+                </div>
+                <div class="settings-item beautify-action-btn" onclick="saveFontPreset()">
+                    <div class="item-label">保存为新字体预设</div>
+                </div>
+                <div class="settings-item" style="flex-direction: column; align-items: stretch; padding: 16px;">
+                    <div class="font-preview-box" id="font-preview-box">小猫正在偷吃！</div>
+                </div>
+            </div>
+
+            <div class="group-title">全局美化代码TwT</div>
+            <div class="settings-group">
+                <div class="settings-item" style="padding: 0; position: relative;">
+                    <textarea id="custom-css-input" style="width: 100%; height: 120px; border: none; padding: 12px 16px; font-family: monospace; font-size: 13px; background: transparent; resize: none; outline: none;" placeholder="在此输入自定义 CSS 代码..." onchange="previewCSS()"></textarea>
+                    <div class="reset-btn" style="position: absolute; top: 10px; right: 10px;" onclick="resetBeautifyItem('css')">
+                        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                    </div>
+                </div>
+                <div class="settings-item">
+                    <div class="item-label">CSS 预设</div>
+                    <select id="css-preset-select" class="beautify-app-name-input" style="text-align: right; direction: rtl;" onchange="applyCSSPreset()">
+                        <option value="">选择预设...</option>
+                    </select>
+                </div>
+                <div class="settings-item beautify-action-btn" onclick="saveCSSPreset()">
+                    <div class="item-label">保存为新 CSS 预设</div>
+                </div>
+            </div>
+
+            <div class="group-title">管理owo</div>
+            <div class="settings-group">
+                <div class="settings-item beautify-action-btn" onclick="importBeautification()">
+                    <div class="item-label">导入美化配置</div>
+                </div>
+                <div class="settings-item beautify-action-btn" onclick="exportBeautification()">
+                    <div class="item-label">导出美化配置</div>
+                </div>
+            </div>
+             <div class="settings-group">
+                <div class="settings-item beautify-danger-btn" onclick="clearBeautification()">
+                    <div class="item-label">一键清空所有美化</div>
+                </div>
+            </div>
+        </div>
+        <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeBeautifyScreen()"></div></div>
+    </div>
+
+    <!-- 图片上传弹窗 -->
+    <div class="modal-overlay" id="uploadModal">
+        <div class="modal-content">
+            <div class="modal-title">Edit Component</div>
+            <div class="upload-options">
+                <button class="opt-btn" onclick="triggerFileSelect()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                    Upload Photo
+                </button>
+                <button class="opt-btn" onclick="toggleUrlInput()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                    Web Link
+                </button>
+                <div class="url-input-wrap" id="urlInputWrap">
+                    <input type="text" class="url-input" id="imageUrlInput" placeholder="Paste image URL here...">
+                    <button class="opt-btn confirm-btn" onclick="saveUrlImage()">Confirm</button>
+                </div>
+            </div>
+            <div class="close-modal-trigger" onclick="closeModal()">Dismiss</div>
+        </div>
+    </div>
+    
+    <!-- 音乐播放器组件 -->
+    <div id="music-player-overlay">
+        <div class="player-bg" id="player-bg"></div>
+        <div class="player-top-bar">
+            <div class="player-nav-btn" onclick="closeMusicPlayer()">
+                <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </div>
+            <div class="player-nav-btn" onclick="openMusicSearch()">
+                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            </div>
+        </div>
+        <div class="player-container">
+            <div class="album-section" id="player-album-section">
+                <div class="album-art" id="playerAlbumArt"></div>
+                <div class="lyrics-display" id="player-lyrics-display"></div>
+            </div>
+            <div class="track-info-row">
+                <div class="text-group">
+                    <div class="track-title" id="player-track-title">Not Playing</div>
+                    <div class="track-artist" id="player-track-artist">...</div>
+                </div>
+                <div class="action-icons">
+                    <div class="icon-btn-circle">
+                        <svg viewBox="0 0 24 24" style="stroke:none;"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" fill="none" stroke="#fff" stroke-width="2"/></svg>
+                    </div>
+                    <div class="icon-btn-circle" onclick="openMoreMenu()">
+                        <svg viewBox="0 0 24 24" style="stroke:none;"><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="12" r="2"/></svg>
+                    </div>
+                </div>
+            </div>
+            <div class="progress-section">
+                <div class="slider-container" id="player-progress-container">
+                    <div class="slider-track"><div class="slider-fill" id="player-progress-fill"></div></div>
+                </div>
+                <div class="time-labels">
+                    <span id="player-current-time">0:00</span>
+                    <span id="player-total-time">0:00</span>
+                </div>
+                <div class="dolby-tag">
+                    <svg viewBox="0 0 64 32" style="stroke:none;"><path d="M16,2 C8.268,2 2,8.268 2,16 C2,23.732 8.268,30 16,30 L16,2 Z M48,2 L48,30 C55.732,30 62,23.732 62,16 C62,8.268 55.732,2 48,2 Z M32,2 L32,30 L32,2 Z M32,2 L16,2 L16,30 L32,30 L32,2 Z M32,2 L48,2 L48,30 L32,30 L32,2 Z" fill="currentColor"/></svg>
+                    <span>Dolby Atmos</span>
+                </div>
+            </div>
+            <div class="controls-main">
+                <div class="ctrl-btn btn-skip" onclick="playPrev()">
+                    <svg viewBox="0 0 24 24"><path d="M11 18V6l-8.5 6z" /><path d="M22 18V6l-8.5 6z" /></svg>
+                </div>
+                <div class="ctrl-btn btn-play" id="playerPlayBtn" onclick="togglePlay()">
+                    <svg id="playerPlayIcon" viewBox="0 0 24 24" style="display:block; transform: translateX(2px);"><path d="M6 5v14l13-7z" /></svg>
+                    <svg id="playerPauseIcon" class="pause-icon" viewBox="0 0 24 24" style="display:none;"><rect x="5" y="4" width="5" height="16" rx="2.5" /><rect x="14" y="4" width="5" height="16" rx="2.5" /></svg>
+                </div>
+                <div class="ctrl-btn btn-skip" onclick="playNext()">
+                    <svg viewBox="0 0 24 24"><path d="M2 6v12l8.5-6z" /><path d="M13 6v12l8.5-6z" /></svg>
+                </div>
+            </div>
+            <div class="volume-section">
+                <div class="vol-icon"><svg viewBox="0 0 24 24" style="stroke:none;"><path d="M7 9v6h4l5 5V4l-5 5H7z"/></svg></div>
+                <div class="vol-slider-track" id="player-volume-container">
+                    <div class="vol-slider-fill" id="player-volume-fill"></div>
+                </div>
+                <div class="vol-icon"><svg viewBox="0 0 24 24" style="stroke:none;"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg></div>
+            </div>
+            <div class="bottom-actions">
+                <div class="bottom-btn lyrics" id="btn-lyrics" onclick="toggleLyrics()">
+                    <svg viewBox="0 0 24 24"><path class="bubble" d="M3 6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-4l-3 3v-3h-5a3 3 0 0 1-3-3V6z" /><path class="quote-fill" d="M9 8c-.83 0-1.5.67-1.5 1.5v2c0 .83.67 1.5 1.5 1.5h1v-2h-1v-1.5h1.5V8H9zm5 0c-.83 0-1.5.67-1.5 1.5v2c0 .83.67 1.5 1.5 1.5h1v-2h-1v-1.5h1.5V8H14z" /></svg>
+                </div>
+                <div class="bottom-btn airplay">
+                    <svg viewBox="0 0 24 24" fill="none"><path d="M9.52 14.47 A 3.5 3.5 0 1 1 14.48 14.47" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.05 16.95 A 7 7 0 1 1 16.95 16.95" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.58 19.42 A 10.5 10.5 0 1 1 19.42 19.42" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path class="triangle-fill" d="M12 15.5L16.5 21H7.5L12 15.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+                </div>
+                <div class="bottom-btn">
+                    <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="music-search-overlay" onclick="closeMusicSearch()">
+        <div class="search-container" onclick="event.stopPropagation()">
+            <div class="search-list" id="music-search-results"></div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="music-more-modal" onclick="closeMoreMenu()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-title">Music Actions</div>
+            <div class="upload-options">
+                <button class="opt-btn" onclick="startListenTogether()">一起听</button>
+                <button class="opt-btn" onclick="togglePlayMode()" id="play-mode-btn">列表循环</button>
+                <button class="opt-btn" onclick="openChat()">聊天</button>
+                <button class="opt-btn">分享</button>
+            </div>
+            <div class="close-modal-trigger" onclick="closeMoreMenu()">Dismiss</div>
+        </div>
+    </div>
+    <audio id="audioPlayer" preload="metadata" crossorigin="anonymous"></audio>
+
+    <input type="file" id="fileInput" hidden accept="image/*">
+    <input type="file" id="importFileInput" hidden accept=".json">
+
+    <script src="script.js" defer></script>
+</body>
+</html>
