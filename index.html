@@ -109,14 +109,15 @@
         }
 
         .wx-chat-row {
-            display: flex; align-items: center; padding: 12px 16px; gap: 12px; position: relative;
+            display: flex; align-items: center; padding: 12px 16px; gap: 12px; position: relative; cursor: pointer;
         }
+        .wx-chat-row:active { background: rgba(0,0,0,0.05); }
         .wx-chat-row:not(:last-child)::after {
             content: ''; position: absolute; bottom: 0; right: 0; left: 76px;
             height: 0.5px; background-color: rgba(60, 60, 67, 0.15);
         }
 
-        .wx-avatar-gray { width: 48px; height: 48px; border-radius: 8px; background-color: #d1d1d6; flex-shrink: 0; }
+        .wx-avatar-gray { width: 48px; height: 48px; border-radius: 8px; background-color: #d1d1d6; flex-shrink: 0; background-size: cover; background-position: center; }
         .wx-chat-content { flex: 1; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
         .wx-row-top { display: flex; justify-content: space-between; align-items: baseline; }
         .wx-chat-title { font-size: 16px; font-weight: 600; color: #000; }
@@ -149,12 +150,10 @@
 
         .wx-dock-icon-img {
             object-fit: contain;
-            /* 0.3px 硬描边黑科技 */
             filter: drop-shadow(0.3px 0 0 #000) drop-shadow(-0.3px 0 0 #000) drop-shadow(0 0.3px 0 #000) drop-shadow(0 -0.3px 0 #000);
             transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
-        /* 图标尺寸微调 */
         .wx-dock-item:nth-child(1) .wx-dock-icon-img { width: 34px; height: 34px; }
         .wx-dock-item:nth-child(2) .wx-dock-icon-img { width: 29px; height: 29px; }
         .wx-dock-item:nth-child(3) .wx-dock-icon-img { width: 31px; height: 31px; transform: translateY(1px); }
@@ -370,7 +369,7 @@
         <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeSettings()"></div></div>
     </div>
 
-    <!-- NEW: 壁纸界面 -->
+    <!-- 壁纸界面 -->
     <div id="wallpaperScreen" class="settings-base-screen">
         <div class="settings-nav-bar">
             <div class="nav-btn back-btn" onclick="closeWallpaperScreen()" style="display: flex; align-items: center; margin-left: -8px;">
@@ -396,7 +395,7 @@
         <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeWallpaperScreen()"></div></div>
     </div>
 
-    <!-- NEW: 主界面美化页面 -->
+    <!-- 主界面美化页面 -->
     <div id="beautifyScreen" class="settings-base-screen">
         <div class="settings-nav-bar">
             <div class="nav-btn back-btn" onclick="saveBeautification()" style="font-size: 17px; color: #8e8e93; font-weight: 600; display: flex; align-items: center;">Save</div>
@@ -496,7 +495,7 @@
         <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeBeautifyScreen()"></div></div>
     </div>
 
-    <!-- Wechat 独立界面 (App Overlay) -->
+    <!-- Wechat 独立界面 -->
     <div id="wechatScreen" class="app-screen-overlay">
         <!-- 头部区域 -->
         <div class="wx-header-area">
@@ -507,8 +506,8 @@
                 </div>
                 <!-- 标题 -->
                 <div class="wx-page-title">Wechat</div>
-                <!-- 右侧星星 (功能键) -->
-                <div class="wx-star-btn">
+                <!-- 右侧星星 (触发角色添加) -->
+                <div class="wx-star-btn" onclick="openCharAddScreen()">
                     <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                 </div>
             </div>
@@ -539,75 +538,9 @@
                 <span>Mac 微信已登录，手机通知已关闭</span>
             </div>
 
-            <!-- 列表区块 1 -->
-            <div class="wx-group-block">
-                <div class="wx-chat-row">
-                    <div class="wx-avatar-gray"></div>
-                    <div class="wx-chat-content">
-                        <div class="wx-row-top"><span class="wx-chat-title">王逸凯</span><span class="wx-chat-date">星期四</span></div>
-                        <div class="wx-row-bottom"><span class="wx-chat-preview" style="color: #fa5151;">[红包] 王逸凯领取了你的红包</span></div>
-                    </div>
-                </div>
-                <div class="wx-chat-row">
-                    <div class="wx-avatar-gray"></div>
-                    <div class="wx-chat-content">
-                        <div class="wx-row-top"><span class="wx-chat-title">Bunny</span><span class="wx-chat-date">星期二</span></div>
-                        <div class="wx-row-bottom"><span class="wx-chat-preview">Test</span></div>
-                    </div>
-                </div>
-                <div class="wx-chat-row">
-                    <div class="wx-avatar-gray"></div>
-                    <div class="wx-chat-content">
-                        <div class="wx-row-top"><span class="wx-chat-title">文件传输助手</span><span class="wx-chat-date">11月16日</span></div>
-                        <div class="wx-row-bottom"><span class="wx-chat-preview">[图片]</span></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 列表区块 2 -->
-            <div class="wx-group-block">
-                <div class="wx-chat-row">
-                    <div class="wx-avatar-gray"></div>
-                    <div class="wx-chat-content">
-                        <div class="wx-row-top"><span class="wx-chat-title">DLIVE</span><span class="wx-chat-date">昨天 23:39</span></div>
-                        <div class="wx-row-bottom"><span class="wx-chat-preview">[图片]</span><div class="wx-badge-dot"></div></div>
-                    </div>
-                </div>
-                <div class="wx-chat-row">
-                    <div class="wx-avatar-gray"></div>
-                    <div class="wx-chat-content">
-                        <div class="wx-row-top"><span class="wx-chat-title">iOS 玩机交流分享</span><span class="wx-chat-date">昨天 21:17</span></div>
-                        <div class="wx-row-bottom"><span class="wx-chat-preview">[81条] 行者: [动画表情]</span></div>
-                    </div>
-                </div>
-                <div class="wx-chat-row">
-                    <div class="wx-avatar-gray"></div>
-                    <div class="wx-chat-content">
-                        <div class="wx-row-top"><span class="wx-chat-title">工作群</span><span class="wx-chat-date">昨天 16:30</span></div>
-                        <div class="wx-row-bottom"><span class="wx-chat-preview">【未回就是满】8点~5点。下班: [图片]</span></div>
-                    </div>
-                </div>
-                <div class="wx-chat-row">
-                    <div class="wx-avatar-gray"></div>
-                    <div class="wx-chat-content">
-                        <div class="wx-row-top"><span class="wx-chat-title">公众号</span><span class="wx-chat-date">星期五</span></div>
-                        <div class="wx-row-bottom"><span class="wx-chat-preview">热心网友Y: 更新 | WCRefine 1.1-3 强开内测功能</span></div>
-                    </div>
-                </div>
-                <div class="wx-chat-row">
-                    <div class="wx-avatar-gray"></div>
-                    <div class="wx-chat-content">
-                        <div class="wx-row-top"><span class="wx-chat-title">李维杰</span><span class="wx-chat-date">星期五</span></div>
-                        <div class="wx-row-bottom"><span class="wx-chat-preview">[链接] 邀请你加入群聊</span></div>
-                    </div>
-                </div>
-                <div class="wx-chat-row">
-                    <div class="wx-avatar-gray"></div>
-                    <div class="wx-chat-content">
-                        <div class="wx-row-top"><span class="wx-chat-title">微信支付</span><span class="wx-chat-date">星期四</span></div>
-                        <div class="wx-row-bottom"><span class="wx-chat-preview">证件过期提醒</span></div>
-                    </div>
-                </div>
+            <!-- 动态生成的角色列表容器 -->
+            <div class="wx-group-block" id="wx-chat-list-container">
+                <!-- JS 动态渲染 -->
             </div>
         </div>
 
@@ -630,7 +563,156 @@
         </div>
     </div>
 
-    <!-- 图片上传弹窗 -->
+    <!-- ========================================= -->
+    <!-- === 新增：角色添加界面 (全屏无状态栏) === -->
+    <!-- ========================================= -->
+    <div id="charAddScreen" class="app-screen-overlay char-add-wrap" style="z-index: 6000;">
+        <!-- Safari 顶栏 (无状态栏，大幅下移) -->
+        <div class="char-safari-header">
+            <div class="char-nav-actions">
+                <!-- 返回微信界面 -->
+                <div class="char-icon-btn" onclick="closeCharAddScreen()"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+                <div class="char-icon-btn" style="opacity: 0.3;"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+            </div>
+            <div class="char-url-bar">
+                <svg viewBox="0 0 24 24"><rect x="7" y="11" width="10" height="10" rx="2"/><path d="M12 11V7a3 3 0 00-6 0" stroke="#8e8e93" stroke-width="2" fill="none"/></svg>
+                <span>xiaomaoaini.com</span>
+            </div>
+            <div class="char-action-icons">
+                <!-- 修复的刷新按钮 -->
+                <div class="char-icon-btn" onclick="resetCharForm()">
+                    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 2v6h-6"></path>
+                        <path d="M3 12a9 9 0 1 0 2.81-6.73L21 8"></path>
+                    </svg>
+                </div>
+                <!-- 保存按钮 -->
+                <div class="char-icon-btn char-star-btn" id="charSaveBtn" onclick="saveCharacter()"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
+            </div>
+        </div>
+
+        <!-- 全屏滚动内容 -->
+        <div class="char-scroll-content">
+            <!-- 顶部背景图 -->
+            <div class="char-cover-image" id="charBgTarget" onclick="openCharUploadModal('charBgTarget')"></div>
+
+            <div class="char-header-section">
+                <div class="char-avatar" id="charAvatarTarget" onclick="openCharUploadModal('charAvatarTarget')"></div>
+                <div class="char-name-tag-wrap">
+                    <!-- 备注名 -->
+                    <input type="text" class="char-name-input" id="charRemark" placeholder="角色备注">
+                    <div class="char-tags-row" id="charTagsContainer">
+                        <div class="char-tag char-gender" id="charGenderTag" onclick="toggleCharGender()">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="10" r="4"/><path d="M12 14v7M9 18h6"/></svg> 女
+                        </div>
+                        <div class="char-tag char-add" onclick="addCharTag()">+ 添加</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 主题色自定义区 -->
+            <div class="char-theme-pickers-row">
+                <div class="char-theme-item">
+                    <span class="char-theme-label">顶栏</span>
+                    <div class="char-color-picker-wrap"><input type="color" id="charColorHeader" value="#f2f2f7" oninput="updateCharColor('--header-bg', this.value)"></div>
+                </div>
+                <div class="char-theme-item">
+                    <span class="char-theme-label">搜索栏</span>
+                    <div class="char-color-picker-wrap"><input type="color" id="charColorUrl" value="#ffffff" oninput="updateCharColor('--url-bg', this.value)"></div>
+                </div>
+                <div class="char-theme-item">
+                    <span class="char-theme-label">背景</span>
+                    <div class="char-color-picker-wrap"><input type="color" id="charColorBg" value="#ffffff" oninput="updateCharColor('--content-bg', this.value)"></div>
+                </div>
+            </div>
+
+            <div class="char-divider"></div>
+
+            <!-- 基础信息网格 -->
+            <div class="char-grid-info">
+                <div class="char-grid-item">
+                    <span class="char-grid-label">姓名</span>
+                    <input class="char-grid-input" id="charName" placeholder="未填写">
+                </div>
+                <div class="char-grid-item">
+                    <span class="char-grid-label">昵称</span>
+                    <input class="char-grid-input" id="charNickname" placeholder="未填写">
+                </div>
+                <div class="char-grid-item">
+                    <span class="char-grid-label">年龄</span>
+                    <input class="char-grid-input" id="charAge" placeholder="--">
+                </div>
+                <div class="char-grid-item">
+                    <span class="char-grid-label">MBTI</span>
+                    <input class="char-grid-input" id="charMbti" placeholder="----">
+                </div>
+            </div>
+
+            <div class="char-divider"></div>
+
+            <!-- 底部信息网格 -->
+            <div class="char-grid-info">
+                <div class="char-grid-item">
+                    <span class="char-grid-label">世界书</span>
+                    <select class="char-grid-input" id="charWorld"><option value="">未选择</option><option value="cyber">赛博朋克</option></select>
+                </div>
+                <div class="char-grid-item">
+                    <span class="char-grid-label">User 绑定</span>
+                    <select class="char-grid-input" id="charUser"><option value="default">默认</option><option value="main">主人设</option></select>
+                </div>
+                <div class="char-grid-item">
+                    <span class="char-grid-label">手机号</span>
+                    <input class="char-grid-input" id="charPhone" placeholder="选填">
+                </div>
+            </div>
+
+            <div class="char-divider" style="margin-top: 15px;"></div>
+
+            <div class="char-grid-info" style="justify-content: flex-start; gap: 0;">
+                <div class="char-grid-item" style="flex: 0.5;">
+                    <span class="char-grid-label">Ins 账号</span>
+                    <input class="char-grid-input" id="charIns" placeholder="选填">
+                </div>
+                <div class="char-grid-item" style="flex: 0.5;">
+                    <span class="char-grid-label">邮箱</span>
+                    <input class="char-grid-input" id="charEmail" placeholder="选填">
+                </div>
+            </div>
+
+            <div class="char-divider"></div>
+
+            <!-- 人设区 (固定高度) -->
+            <div class="char-section-block">
+                <div class="char-section-title">人设 ◍˃ᵕ˂◍</div>
+                <textarea class="char-fixed-textarea" id="charPersona" placeholder="在这里输入人设详情... (固定高度，内容过多可滑动)"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- 角色界面专属图片上传弹窗 (完美还原原版样式) -->
+    <div class="modal-overlay" id="charUploadModal" style="z-index: 7000;">
+        <div class="modal-content">
+            <div class="modal-title">Edit Component</div>
+            <div class="upload-options">
+                <button class="opt-btn" onclick="triggerCharFileSelect()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                    Upload Photo
+                </button>
+                <button class="opt-btn" onclick="toggleCharUrlInput()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                    Web Link
+                </button>
+                <div class="url-input-wrap" id="charUrlInputWrap">
+                    <input type="text" class="url-input" id="charImageUrlInput" placeholder="Paste image URL here...">
+                    <button class="opt-btn confirm-btn" onclick="saveCharUrlImage()">Confirm</button>
+                </div>
+            </div>
+            <div class="close-modal-trigger" onclick="closeCharUploadModal()">Dismiss</div>
+        </div>
+    </div>
+    <input type="file" id="charFileInput" hidden accept="image/*">
+
+    <!-- 原有图片上传弹窗 -->
     <div class="modal-overlay" id="uploadModal">
         <div class="modal-content">
             <div class="modal-title">Edit Component</div>
@@ -758,6 +840,7 @@
             const screen = document.getElementById('wechatScreen');
             screen.style.display = 'flex';
             setTimeout(() => screen.classList.add('active'), 10);
+            renderWxChatList(); // 每次打开微信刷新列表
         }
 
         function closeWechat() {
