@@ -26,9 +26,9 @@ input:-webkit-autofill:active{
 body {
     background-color: #e8e9eb;
     width: 100vw;
-    width: 100dvw; /* 优先使用动态视口宽度 */
+    width: 100dvw;
     height: 100vh;
-    height: 100dvh; /* 优先使用动态视口高度，确保全屏覆盖 */
+    height: 100dvh;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -76,25 +76,14 @@ body.dark-mode {
     left: 0;
     transition: opacity 0.3s;
     pointer-events: none; 
-    /* 强制使用系统字体，忽略自定义字体 */
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif !important;
 }
-/* 强制子元素也忽略全局字体设置 */
 .status-bar * {
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif !important;
 }
 
-.time-container { 
-    display: flex; align-items: center; gap: 6px; pointer-events: auto; 
-    margin-left: 8px; /* 往右移动一点点 */
-}
-.time { 
-    /* 强制固定大小，缩小一点点 */
-    font-size: 17px !important; 
-    font-weight: 680; 
-    margin-top: 8px; 
-    letter-spacing: -0.5px; 
-}
+.time-container { display: flex; align-items: center; gap: 6px; pointer-events: auto; margin-left: 8px; }
+.time { font-size: 17px !important; font-weight: 680; margin-top: 8px; letter-spacing: -0.5px; }
 .time-decorator {
     width: var(--time-dec-size); height: var(--time-dec-size); margin-top: 8px;
     background-size: contain; background-position: center; background-repeat: no-repeat;
@@ -339,9 +328,15 @@ body.dark-mode {
 
 /* --- 主界面美化页特定样式 --- */
 #beautifyScreen .settings-item:not(:last-child)::after { left: 16px; } 
+
+/* 恢复原有的 padding，直接用 margin 移动按键 */
 .beautify-app-item {
-    display: flex; align-items: center; gap: 12px; 
-    padding: 8px 24px 8px 16px; /* 增加右侧内边距，防止按钮溢出 */
+    display: flex; align-items: center; gap: 12px; padding: 8px 16px;
+}
+
+/* 直接把重置按钮往左推 */
+.beautify-app-item .reset-btn {
+    margin-right: 20px; /* 往左移 20px */
 }
 
 .beautify-app-icon {
