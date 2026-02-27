@@ -13,6 +13,16 @@
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
 }
 
+/* 修复 Input 自动填充背景色问题 */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active{
+    -webkit-box-shadow: 0 0 0 30px #fff inset !important;
+    box-shadow: 0 0 0 30px #fff inset !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
 body {
     background-color: #e8e9eb;
     width: 100vw;
