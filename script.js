@@ -854,3 +854,25 @@ document.addEventListener('DOMContentLoaded', () => {
         if (savedValue) el.innerText = savedValue;
     });
 });
+// --- Wechat 界面控制逻辑 ---
+function openWechat() {
+    const screen = document.getElementById('wechatScreen');
+    screen.style.display = 'flex';
+    setTimeout(() => screen.classList.add('active'), 10);
+}
+
+function closeWechat() {
+    const screen = document.getElementById('wechatScreen');
+    screen.classList.remove('active');
+    setTimeout(() => screen.style.display = 'none', 400);
+}
+
+function switchWxTab(el) {
+    document.querySelectorAll('.wx-text-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+}
+
+function switchWxDock(el) {
+    document.querySelectorAll('.wx-dock-item').forEach(d => d.classList.remove('active'));
+    el.classList.add('active');
+}
