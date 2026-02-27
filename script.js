@@ -242,14 +242,17 @@ const dbName = "HajimiStorage";
 const storeName = "images";
 let db;
 
-const request = indexedDB.open(dbName, 1);
+const request = indexedDB.open(dbName, 2); // 注意：这里版本号改成了 2
 request.onupgradeneeded = (e) => {
     db = e.target.result;
     if (!db.objectStoreNames.contains(storeName)) db.createObjectStore(storeName, { keyPath: "id" });
+    // 新增：用于存储角色数据的 store
+    if (!db.objectStoreNames.contains("characters")) db.createObjectStore("characters", { keyPath: "id" });
 };
 request.onsuccess = (e) => {
     db = e.target.result;
     loadAllImages();
+    renderWxChatList(); // 初始化时渲染微信列表
 };
 
 function saveImageToDB(id, data) {
@@ -875,4 +878,197 @@ function switchWxTab(el) {
 function switchWxDock(el) {
     document.querySelectorAll('.wx-dock-item').forEach(d => d.classList.remove('active'));
     el.classList.add('active');
+}
+// =========================================
+// === 角色添加界面 & 微信列表 逻辑 ===
+// =========================================
+
+// 1. 界面开关
+function openCharAddScreen() {
+    const screen = document.getElementById('charAddScreen');
+    screen.style.display = 'flex';
+    setTimeout(() => screen.classList.add('active'), 10);
+}
+
+function closeCharAddScreen() {
+    const screen = document.getElementById('charAddScreen');
+    screen.classList.remove('active');
+    setTimeout(() => screen.style.display = 'none', 400);
+}
+
+// 2. 动态更新主题色
+function updateCharColor(variable, color) {
+    const wrap = document.querySelector('.char-add-wrap');
+    wrap.style.setProperty(variable, color);
+    if(variable === '--content-bg') {
+        const hex = color.replace('#', '');
+        const r = parseInt(hex.substr(0, 2), 16), g = parseInt(hex.substr(2, 2), 16), b = parseInt(hex.substr(4, 2), 16);
+        const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+        const textColor = (yiq >= 128) ? '#000000' : '#ffffff';
+        const subColor = (yiq >= 128) ? '#8e8e93' : '#cccccc';
+        wrap.style.setProperty('--text-main', textColor);
+        wrap.style.setProperty('--text-sub', subColor);
+    }
+}
+
+// 3. 标签与性别
+function addCharTag() {
+    const t = prompt("新标签:");
+    if(t) {
+        const div = document.createElement('div');
+        div.className = 'char-tag';
+        div.innerText = t;
+        div.onclick = function(){ this.remove() };
+        document.getElementById('charTagsContainer').insertBefore(div, document.querySelector('.char-tag.char-add'));
+    }
+}
+
+const charGenders = [
+    {t:'女', icon:'<circle cx="12" cy="10" r="4"/><path d="M12 14v7M9 18h6"/>'}, 
+    {t:'男', icon:'<circle cx="10" cy="14" r="4"/><path d="M12.83 11.17L18 6M14 6h4v4"/>'}, 
+    {t:'保密', icon:'<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>'}
+];
+let charGIdx = 0;
+function toggleCharGender() {
+    charGIdx = (charGIdx+1)%3;
+    const tag = document.getElementById('charGenderTag');
+    tag.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">${charGenders[charGIdx].icon}</svg> ${charGenders[charGIdx].t}`;
+}
+
+// 4. 图片上传弹窗
+let charCurrentUploadTarget = null;
+const charModal = document.getElementById('charUploadModal');
+const charFileInput = document.getElementById('charFileInput');
+const charUrlWrap = document.getElementById('charUrlInputWrap');
+
+function openCharUploadModal(id) {
+    charCurrentUploadTarget = id;
+    charModal.style.display = 'flex';
+    setTimeout(() => charModal.classList.add('active'), 10);
+}
+
+function closeCharUploadModal() {
+    charModal.classList.remove('active');
+    setTimeout(() => { 
+        charModal.style.display = 'none'; 
+        charUrlWrap.classList.remove('active'); 
+        document.getElementById('charImageUrlInput').value = ''; 
+    }, 300);
+}
+
+function triggerCharFileSelect() { charFileInput.click(); }
+function toggleCharUrlInput() { charUrlWrap.classList.toggle('active'); }
+
+charFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file && charCurrentUploadTarget) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            document.getElementById(charCurrentUploadTarget).style.backgroundImage = `url(${event.target.result})`;
+            closeCharUploadModal();
+        };
+        reader.readAsDataURL(file);
+    }
+});
+
+function saveCharUrlImage() { 
+    const url = document.getElementById('charImageUrlInput').value; 
+    if (url && charCurrentUploadTarget) {
+        document.getElementById(charCurrentUploadTarget).style.backgroundImage = `url(${url})`;
+        closeCharUploadModal();
+    }
+}
+
+// 5. 保存角色数据到 IndexedDB
+function saveCharacter() {
+    const btn = document.getElementById('charSaveBtn');
+    btn.classList.add('saved');
+    setTimeout(() => btn.classList.remove('saved'), 1000);
+
+    // 获取背景图和头像的 URL (去掉 url("") 包装)
+    const bgStyle = document.getElementById('charBgTarget').style.backgroundImage;
+    const avatarStyle = document.getElementById('charAvatarTarget').style.backgroundImage;
+    const bgUrl = bgStyle ? bgStyle.slice(5, -2) : '';
+    const avatarUrl = avatarStyle ? avatarStyle.slice(5, -2) : '';
+
+    const charData = {
+        id: 'char_' + Date.now(),
+        remark: document.getElementById('charRemark').value || '未命名角色',
+        name: document.getElementById('charName').value,
+        nickname: document.getElementById('charNickname').value,
+        age: document.getElementById('charAge').value,
+        mbti: document.getElementById('charMbti').value,
+        world: document.getElementById('charWorld').value,
+        userBind: document.getElementById('charUser').value,
+        phone: document.getElementById('charPhone').value,
+        ins: document.getElementById('charIns').value,
+        email: document.getElementById('charEmail').value,
+        persona: document.getElementById('charPersona').value,
+        bgImage: bgUrl,
+        avatarImage: avatarUrl,
+        gender: charGenders[charGIdx].t,
+        timestamp: Date.now()
+    };
+
+    const transaction = db.transaction(["characters"], "readwrite");
+    const store = transaction.objectStore("characters");
+    store.put(charData);
+
+    transaction.oncomplete = () => {
+        alert("角色已保存到微信列表！");
+        renderWxChatList(); // 刷新微信列表
+        closeCharAddScreen(); // 保存后自动关闭
+    };
+}
+
+// 6. 渲染微信列表
+function renderWxChatList() {
+    if(!db) return;
+    const container = document.getElementById('wx-chat-list-container');
+    container.innerHTML = ''; // 清空列表
+
+    const transaction = db.transaction(["characters"], "readonly");
+    const store = transaction.objectStore("characters");
+    const req = store.getAll();
+
+    req.onsuccess = () => {
+        const chars = req.result.sort((a, b) => b.timestamp - a.timestamp); // 按时间倒序
+        
+        if(chars.length === 0) {
+            container.innerHTML = '<div style="text-align:center; padding: 30px; color:#8e8e93; font-size:14px;">暂无角色，点击右上角添加</div>';
+            return;
+        }
+
+        chars.forEach(char => {
+            const avatarStyle = char.avatarImage ? `background-image: url(${char.avatarImage});` : '';
+            const html = `
+                <div class="wx-chat-row" onclick="alert('进入与 ${char.remark} 的聊天界面 (背景图已保存)')">
+                    <div class="wx-avatar-gray" style="${avatarStyle}"></div>
+                    <div class="wx-chat-content">
+                        <div class="wx-row-top">
+                            <span class="wx-chat-title">${char.remark}</span>
+                            <span class="wx-chat-date">刚刚</span>
+                        </div>
+                        <div class="wx-row-bottom">
+                            <span class="wx-chat-preview">点击进入聊天...</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', html);
+        });
+    };
+}
+
+// 7. 刷新/清空表单
+function resetCharForm() {
+    if(confirm('确定要清空当前填写的内容吗？')) {
+        document.querySelectorAll('.char-grid-input, .char-name-input, .char-fixed-textarea').forEach(el => el.value = '');
+        document.getElementById('charBgTarget').style.backgroundImage = '';
+        document.getElementById('charAvatarTarget').style.backgroundImage = '';
+        // 恢复默认颜色
+        updateCharColor('--header-bg', '#f2f2f7'); document.getElementById('charColorHeader').value = '#f2f2f7';
+        updateCharColor('--url-bg', '#ffffff'); document.getElementById('charColorUrl').value = '#ffffff';
+        updateCharColor('--content-bg', '#ffffff'); document.getElementById('charColorBg').value = '#ffffff';
+    }
 }
