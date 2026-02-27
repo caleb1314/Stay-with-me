@@ -8,14 +8,14 @@
     "orientation": "portrait",
     "icons": [
         {
-            "src": "icon.png",
+            "src": "https://file.uhsea.com/2602/70da4faf682de2817a4b430809e0bce3NN.jpg",
             "sizes": "192x192",
-            "type": "image/png"
+            "type": "image/jpeg"
         },
         {
-            "src": "icon.png",
+            "src": "https://file.uhsea.com/2602/70da4faf682de2817a4b430809e0bce3NN.jpg",
             "sizes": "512x512",
-            "type": "image/png"
+            "type": "image/jpeg"
         }
     ]
 }
