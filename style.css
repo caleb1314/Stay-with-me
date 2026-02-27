@@ -329,14 +329,8 @@ body.dark-mode {
 /* --- 主界面美化页特定样式 --- */
 #beautifyScreen .settings-item:not(:last-child)::after { left: 16px; } 
 
-/* 恢复原有的 padding，直接用 margin 移动按键 */
 .beautify-app-item {
     display: flex; align-items: center; gap: 12px; padding: 8px 16px;
-}
-
-/* 直接把重置按钮往左推 */
-.beautify-app-item .reset-btn {
-    margin-right: 20px; /* 往左移 20px */
 }
 
 .beautify-app-icon {
@@ -347,9 +341,17 @@ body.dark-mode {
     background-repeat: no-repeat !important;
 }
 
+/* 修复：给输入框添加右边距，并限制最小宽度，防止挤压重置键 */
 .beautify-app-name-input {
-    flex: 1; border: none; background: transparent; font-size: 16px;
-    padding: 6px 10px; border-radius: 8px; transition: all 0.2s ease;
+    flex: 1; 
+    border: none; 
+    background: transparent; 
+    font-size: 16px;
+    padding: 6px 10px; 
+    border-radius: 8px; 
+    transition: all 0.2s ease;
+    margin-right: 15px; /* 强制右边距，把重置键推开 */
+    min-width: 0; /* 防止 flex 子元素溢出 */
 }
 .beautify-app-name-input:focus { 
     background: rgba(0, 0, 0, 0.05); 
