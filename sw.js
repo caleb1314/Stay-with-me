@@ -1,17 +1,21 @@
-// 完整的 Service Worker，满足 Chrome 的安装审查
-self.addEventListener('install', (event) => {
-    self.skipWaiting();
+const CACHE_NAME = 'hajimi-home-v1';
+const urlsToCache = [
+  './',
+  './index.html',
+  './style.css',
+  './script.js'
+];
+
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(urlsToCache))
+  );
 });
 
-self.addEventListener('activate', (event) => {
-    event.waitUntil(clients.claim());
-});
-
-self.addEventListener('fetch', (event) => {
-    // 拦截请求，让浏览器认为我们具备离线能力
-    event.respondWith(
-        fetch(event.request).catch(() => {
-            return new Response('Offline');
-        })
-    );
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    caches.match(event.request)
+      .then(response => response || fetch(event.request))
+  );
 });
