@@ -340,7 +340,8 @@ body.dark-mode {
 /* --- 主界面美化页特定样式 --- */
 #beautifyScreen .settings-item:not(:last-child)::after { left: 16px; } 
 .beautify-app-item {
-    display: flex; align-items: center; gap: 12px; padding: 8px 16px;
+    display: flex; align-items: center; gap: 12px; 
+    padding: 8px 24px 8px 16px; /* 增加右侧内边距，防止按钮溢出 */
 }
 
 .beautify-app-icon {
