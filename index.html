@@ -580,12 +580,13 @@
             </div>
             <div class="char-action-icons">
                 <!-- 修复的刷新按钮 -->
-                <div class="char-icon-btn" onclick="resetCharForm()">
-                    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 2v6h-6"></path>
-                        <path d="M3 12a9 9 0 1 0 2.81-6.73L21 8"></path>
-                    </svg>
-                </div>
+                <!-- 修复后的刷新按钮 -->
+<div class="char-icon-btn" onclick="resetCharForm()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 2v6h-6"></path>
+        <path d="M3 12a9 9 0 1 0 2.81-6.73L21 8"></path>
+    </svg>
+</div>
                 <!-- 保存按钮 -->
                 <div class="char-icon-btn char-star-btn" id="charSaveBtn" onclick="saveCharacter()"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
             </div>
@@ -600,7 +601,7 @@
                 <div class="char-avatar" id="charAvatarTarget" onclick="openCharUploadModal('charAvatarTarget')"></div>
                 <div class="char-name-tag-wrap">
                     <!-- 备注名 -->
-                    <input type="text" class="char-name-input" id="charRemark" placeholder="角色备注">
+                    <input type="text" class="char-name-input" id="charRemark" placeholder="角色备注" autocomplete="off">
                     <div class="char-tags-row" id="charTagsContainer">
                         <div class="char-tag char-gender" id="charGenderTag" onclick="toggleCharGender()">
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="10" r="4"/><path d="M12 14v7M9 18h6"/></svg> 女
@@ -632,11 +633,11 @@
             <div class="char-grid-info">
                 <div class="char-grid-item">
                     <span class="char-grid-label">姓名</span>
-                    <input class="char-grid-input" id="charName" placeholder="未填写">
+                    <input class="char-grid-input" id="charName" placeholder="未填写" autocomplete="off">
                 </div>
                 <div class="char-grid-item">
                     <span class="char-grid-label">昵称</span>
-                    <input class="char-grid-input" id="charNickname" placeholder="未填写">
+                    <input class="char-grid-input" id="charNickname" placeholder="未填写" autocomplete="off">
                 </div>
                 <div class="char-grid-item">
                     <span class="char-grid-label">年龄</span>
