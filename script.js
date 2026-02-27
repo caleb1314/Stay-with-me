@@ -883,19 +883,29 @@ function switchWxDock(el) {
 // === 角色添加界面 & 微信列表 逻辑 ===
 // =========================================
 
-// 1. 界面开关
+// 1. 界面开关 (增加状态栏隐藏逻辑)
 function openCharAddScreen() {
     const screen = document.getElementById('charAddScreen');
+    const statusBar = document.querySelector('.status-bar');
+    
+    // 隐藏主界面的状态栏
+    if(statusBar) statusBar.style.display = 'none';
+    
     screen.style.display = 'flex';
     setTimeout(() => screen.classList.add('active'), 10);
 }
 
 function closeCharAddScreen() {
     const screen = document.getElementById('charAddScreen');
+    const statusBar = document.querySelector('.status-bar');
+    
     screen.classList.remove('active');
-    setTimeout(() => screen.style.display = 'none', 400);
+    setTimeout(() => {
+        screen.style.display = 'none';
+        // 恢复主界面的状态栏
+        if(statusBar) statusBar.style.display = 'flex';
+    }, 400);
 }
-
 // 2. 动态更新主题色
 function updateCharColor(variable, color) {
     const wrap = document.querySelector('.char-add-wrap');
