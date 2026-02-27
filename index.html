@@ -6,8 +6,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
-    <!-- 引入 PWA Manifest，强制全屏，隐藏系统顶栏，让壁纸完美延伸 -->
-    <link rel="manifest" href='data:application/manifest+json,{"name":"Hajimi Home","short_name":"Home","display":"fullscreen","start_url":".","background_color":"#e8e9eb"}'>
+    <!-- 引入外部 manifest.json 以支持安卓全屏安装 -->
+    <link rel="manifest" href="manifest.json">
     <title>iOS Minimalist Home - Hajimi Edition</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -243,8 +243,8 @@
     <!-- 主界面美化页面 -->
     <div id="beautifyScreen" class="settings-base-screen">
         <div class="settings-nav-bar">
-            <!-- 左侧改为 Save，右侧改为 Done -->
-            <div class="nav-btn save-btn" onclick="saveBeautification()" style="font-weight: 600; font-size: 17px; color: #007aff; margin-left: 8px; cursor: pointer;">Save</div>
+            <!-- Save 按钮颜色已改为 #8e8e93 (灰色) -->
+            <div class="nav-btn save-btn" onclick="saveBeautification()" style="font-weight: 600; font-size: 17px; color: #8e8e93; margin-left: 8px; cursor: pointer;">Save</div>
             <div class="nav-title">主界面美化</div>
             <div class="nav-btn" onclick="closeBeautifyScreen()" style="font-weight: 600; font-size: 17px; color: #8e8e93; cursor: pointer;">Done</div>
         </div>
