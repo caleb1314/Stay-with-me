@@ -1052,7 +1052,7 @@ function renderWxChatList() {
         chars.forEach(char => {
             const avatarStyle = char.avatarImage ? `background-image: url(${char.avatarImage});` : '';
             const html = `
-                <div class="wx-chat-row" onclick="alert('进入与 ${char.remark} 的聊天界面 (背景图已保存)')">
+                <div class="wx-chat-row" onclick="openChatScreen('${char.id}')">
                     <div class="wx-avatar-gray" style="${avatarStyle}"></div>
                     <div class="wx-chat-content">
                         <div class="wx-row-top">
@@ -1081,4 +1081,96 @@ function resetCharForm() {
         updateCharColor('--url-bg', '#ffffff'); document.getElementById('charColorUrl').value = '#ffffff';
         updateCharColor('--content-bg', '#ffffff'); document.getElementById('charColorBg').value = '#ffffff';
     }
+}
+// =========================================
+// === 独立聊天界面逻辑 ===
+// =========================================
+
+function openChatScreen(charId) {
+    if (!db) return;
+    const transaction = db.transaction(["characters"], "readonly");
+    const store = transaction.objectStore("characters");
+    const req = store.get(charId);
+
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char) {
+            // 1. 设置备注名
+            document.getElementById('chatHeaderRemark').innerText = char.remark || '未命名';
+            
+            // 2. 设置背景图 (如果有的话，没有就用默认的粉色天空)
+            const bgUrl = char.bgImage ? char.bgImage : 'https://file.uhsea.com/2602/1b3a98d096fe3a0dbc43593650c79bf0PY.jpg';
+            document.getElementById('chatLayerCard').style.backgroundImage = `url(${bgUrl})`;
+
+            // 3. 打开界面
+            const screen = document.getElementById('chatScreen');
+            screen.style.display = 'flex';
+            setTimeout(() => screen.classList.add('active'), 10);
+            
+            // 滚动到底部
+            setTimeout(scrollToChatBottom, 50);
+        }
+    };
+}
+
+function closeChatScreen() {
+    const screen = document.getElementById('chatScreen');
+    screen.classList.remove('active');
+    setTimeout(() => screen.style.display = 'none', 400);
+}
+
+// 聊天发送逻辑
+const chatInput = document.getElementById('chatInput');
+const chatScrollArea = document.getElementById('chatScrollArea');
+
+if(chatInput) {
+    chatInput.addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            sendChatMessage();
+        }
+    });
+}
+
+function sendChatMessage() {
+    const text = chatInput.value.trim();
+    if (!text) return;
+
+    const lastMsg = chatScrollArea.lastElementChild;
+    let newMsgClass = 'single'; 
+
+    // 气泡圆角拼接逻辑
+    if (lastMsg && lastMsg.classList.contains('right')) {
+        if (lastMsg.classList.contains('single')) {
+            lastMsg.classList.remove('single');
+            lastMsg.classList.add('group-start');
+        } 
+        else if (lastMsg.classList.contains('group-end')) {
+            lastMsg.classList.remove('group-end');
+            lastMsg.classList.add('group-middle');
+        }
+        newMsgClass = 'group-end';
+    }
+
+    const msgRow = document.createElement('div');
+    msgRow.className = `msg-row right ${newMsgClass}`; 
+    msgRow.innerHTML = `<div class="msg-bubble">${escapeHTML(text)}</div>`;
+
+    chatScrollArea.appendChild(msgRow);
+    chatInput.value = '';
+    chatInput.focus();
+    scrollToChatBottom();
+}
+
+function scrollToChatBottom() {
+    if(chatScrollArea) {
+        chatScrollArea.scrollTo({
+            top: chatScrollArea.scrollHeight,
+            behavior: 'smooth'
+        });
+    }
+}
+
+function escapeHTML(str) {
+    return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
 }
