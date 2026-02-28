@@ -636,14 +636,14 @@ function populateBeautifyList() {
         const defaultName = appEl.dataset.defaultName;
 
         const itemHTML = `
-            <div class="beautify-app-item" data-app-id="${appId}" id="beautify-item-${appId}">
-                <div class="beautify-app-icon img-upload-target" data-img-id="beautify-app-icon-${appId}" style="${bgStyle}"></div>
-                <input type="text" class="beautify-app-name-input" value="${currentName}">
-                <div class="reset-btn" onclick="resetAppIcon('${appId}', '${defaultName}')">
-                    <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                </div>
-            </div>
-        `;
+    <div class="beautify-app-item" data-app-id="${appId}" id="beautify-item-${appId}">
+        <div class="beautify-app-icon img-upload-target" data-img-id="beautify-app-icon-${appId}" style="${bgStyle}"></div>
+        <input type="text" class="beautify-app-name-input" value="${currentName}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        <div class="reset-btn" onclick="resetAppIcon('${appId}', '${defaultName}')">
+            <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        </div>
+    </div>
+`;
         beautifyAppList.insertAdjacentHTML('beforeend', itemHTML);
     });
 
