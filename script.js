@@ -470,7 +470,16 @@ function updateTimeStylePreview() {
     document.documentElement.style.setProperty('--time-offset-x', x + 'px');
     document.documentElement.style.setProperty('--time-offset-y', y + 'px');
 }
-
+// --- 时间字体跟随开关实时预览 ---
+function updateTimeFontPreview() {
+    const isCustom = document.getElementById('beautify-toggle-time-font').classList.contains('on');
+    const statusBar = document.querySelector('.status-bar');
+    if (isCustom) {
+        statusBar.classList.remove('force-system-font');
+    } else {
+        statusBar.classList.add('force-system-font');
+    }
+}
 // --- 壁纸功能逻辑 ---
 const wallpaperScreen = document.getElementById('wallpaperScreen');
 let wallpapers = JSON.parse(localStorage.getItem('hajimi_wallpapers') || '[]');
@@ -706,6 +715,7 @@ async function saveBeautification() {
         timeFontSize: document.getElementById('time-size-input').value,
         timeOffsetX: document.getElementById('time-x-input').value,
         timeOffsetY: document.getElementById('time-y-input').value,
+        timeFontCustom: document.getElementById('beautify-toggle-time-font').classList.contains('on'),
         apps: {}
     };
 
@@ -790,7 +800,21 @@ function applyBeautification(data) {
         if(input) input.value = data.timeOffsetY;
     }
     // === 新增结束 ===
-
+    // === 新增：应用时间字体跟随开关 ===
+if (data.timeFontCustom !== undefined) {
+    const toggle = document.getElementById('beautify-toggle-time-font');
+    if (toggle) toggle.classList.toggle('on', data.timeFontCustom);
+    
+    const statusBar = document.querySelector('.status-bar');
+    if (data.timeFontCustom) {
+        statusBar.classList.remove('force-system-font');
+    } else {
+        statusBar.classList.add('force-system-font');
+    }
+} else {
+    // 兼容旧数据，默认开启跟随
+    document.querySelector('.status-bar').classList.remove('force-system-font');
+}
     if(data.apps) {
         for (const appId in data.apps) {
             const appEl = document.querySelector(`[data-app-id="${appId}"]`);
