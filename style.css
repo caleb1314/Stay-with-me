@@ -981,3 +981,8 @@ select.char-grid-input { appearance: none; -webkit-appearance: none; text-align-
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.5px;
 }
+/* --- 强制系统字体覆盖类 --- */
+.status-bar.force-system-font,
+.status-bar.force-system-font * {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif !important;
+}
