@@ -360,7 +360,8 @@
             </div>
 
             <div class="settings-group">
-                <div class="settings-item"><img src="https://file.uhsea.com/2602/52ee4e85a9e9bfdb727d6a5b16acdcd95R.png" class="item-icon-img"><div class="item-label">通用</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+                <!-- 修改了这里的 onclick 事件，绑定到新的通用设置界面 -->
+                <div class="settings-item" onclick="openGeneralSettings()"><img src="https://file.uhsea.com/2602/52ee4e85a9e9bfdb727d6a5b16acdcd95R.png" class="item-icon-img"><div class="item-label">通用</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
                 <div class="settings-item" onclick="openWallpaperScreen()"><img src="https://file.uhsea.com/2602/8a8ec510263c8e749a82f1d95192b1adIS.png" class="item-icon-img"><div class="item-label">壁纸</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
                 <div class="settings-item" onclick="openBeautifyScreen()"><img src="https://file.uhsea.com/2602/fa1efacb329f8483d028876802d860892A.png" class="item-icon-img"><div class="item-label">主界面美化</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
                 <div class="settings-item"><img src="https://file.uhsea.com/2602/557e1bdcb9ad2b8b0a0adb1d4741e5c1SJ.png" class="item-icon-img"><div class="item-label">通知</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
@@ -512,6 +513,125 @@
             </div>
         </div>
         <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeBeautifyScreen()"></div></div>
+    </div>
+
+    <!-- 通用设置界面 (API & 模型) -->
+    <div id="generalSettingsScreen" class="settings-base-screen">
+        <div class="settings-nav-bar">
+            <div class="nav-btn back-btn" onclick="closeGeneralSettings()" style="display: flex; align-items: center;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+                <span style="font-size: 17px; margin-left: -4px;">设置</span>
+            </div>
+            <div class="nav-title">通用设置</div>
+            <div class="nav-btn"></div>
+        </div>
+        
+        <div class="settings-scroll-area">
+            
+            <!-- 1. API 配置 -->
+            <div class="vertical-bar-title">
+                <div class="bar"></div>
+                <span>API 配置</span>
+            </div>
+            <div class="settings-group">
+                <div class="settings-item">
+                    <div class="item-label">API 地址</div>
+                    <input type="text" id="gen-api-url" class="beautify-app-name-input" style="text-align: right; width: 65%;" placeholder="https://api.openai.com/v1" autocomplete="off">
+                </div>
+                <div class="settings-item">
+                    <div class="item-label">API Key</div>
+                    <input type="password" id="gen-api-key" class="beautify-app-name-input" style="text-align: right; width: 65%;" placeholder="sk-..." autocomplete="off">
+                </div>
+            </div>
+
+            <!-- 2. Model 模型 -->
+            <div class="vertical-bar-title">
+                <div class="bar"></div>
+                <span>Model</span>
+            </div>
+            <div class="settings-group" style="padding: 12px 16px; gap: 12px; display: flex; flex-direction: column; align-items: flex-start;">
+                <!-- 模型选择与拉取行 -->
+                <div style="width: 100%; display: flex; gap: 10px;">
+                    <select id="gen-model-select" class="beautify-app-name-input" style="flex: 1; background: rgba(0,0,0,0.05); border-radius: 8px; padding: 8px 12px; height: 40px;">
+                        <option value="">请先拉取...</option>
+                    </select>
+                    <!-- 方形拉取按键 -->
+                    <div class="square-hash-btn" onclick="fetchRealModels()">
+                        <span>#</span> 拉取
+                    </div>
+                </div>
+                <!-- 保存模型选择按键 -->
+                <div class="square-hash-btn full-width" onclick="saveCurrentModelSelection()">
+                    <span>#</span> 锁定当前模型 (下次自动加载)
+                </div>
+            </div>
+
+            <!-- 3. 预设管理 -->
+            <div class="vertical-bar-title">
+                <div class="bar"></div>
+                <span>预设管理</span>
+            </div>
+            <div class="settings-group" style="background: transparent; box-shadow: none;">
+                <!-- iOS 分段开关 (图2样式) -->
+                <div class="ios-segment-control">
+                    <div class="segment-bg"></div>
+                    <div class="segment-item active" onclick="switchApiTab(0, this)">主 API</div>
+                    <div class="segment-item" onclick="switchApiTab(1, this)">副 API</div>
+                </div>
+            </div>
+            
+            <div class="settings-group">
+                <div class="settings-item beautify-action-btn" onclick="saveApiPreset()">
+                    <div class="item-label">保存当前配置为预设</div>
+                </div>
+                <div class="settings-item beautify-action-btn" onclick="loadApiPreset()">
+                    <div class="item-label">加载选中预设</div>
+                </div>
+                <div class="settings-item beautify-danger-btn" onclick="deleteApiPreset()">
+                    <div class="item-label">删除选中预设</div>
+                </div>
+                <!-- 预设列表容器 -->
+                <div id="gen-preset-list" style="max-height: 150px; overflow-y: auto; border-top: 0.5px solid rgba(0,0,0,0.1);">
+                    <!-- JS 动态生成 -->
+                </div>
+            </div>
+
+            <!-- 4. 其他调节 -->
+            <div class="vertical-bar-title">
+                <div class="bar"></div>
+                <span>模型调节</span>
+            </div>
+            <div class="settings-group">
+                <!-- Temperature -->
+                <div class="settings-item" style="flex-direction: column; align-items: stretch; gap: 8px; padding: 12px 16px;">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span class="item-label">Temperature</span>
+                        <span id="val-temp" style="color:#8e8e93; font-size:14px;">1.0</span>
+                    </div>
+                    <input type="range" class="ios-slider" id="slider-temp" min="0" max="2" step="0.1" value="1.0" oninput="document.getElementById('val-temp').innerText = this.value">
+                </div>
+                <!-- Top P -->
+                <div class="settings-item" style="flex-direction: column; align-items: stretch; gap: 8px; padding: 12px 16px;">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span class="item-label">Top P</span>
+                        <span id="val-topp" style="color:#8e8e93; font-size:14px;">1.0</span>
+                    </div>
+                    <input type="range" class="ios-slider" id="slider-topp" min="0" max="1" step="0.05" value="1.0" oninput="document.getElementById('val-topp').innerText = this.value">
+                </div>
+                <!-- Top K -->
+                <div class="settings-item" style="flex-direction: column; align-items: stretch; gap: 8px; padding: 12px 16px;">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span class="item-label">Top K</span>
+                        <span id="val-topk" style="color:#8e8e93; font-size:14px;">40</span>
+                    </div>
+                    <input type="range" class="ios-slider" id="slider-topk" min="0" max="100" step="1" value="40" oninput="document.getElementById('val-topk').innerText = this.value">
+                </div>
+            </div>
+
+            <!-- 底部留白 -->
+            <div style="height: 40px;"></div>
+        </div>
+        <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeGeneralSettings()"></div></div>
     </div>
 
     <!-- Wechat 独立界面 -->
@@ -887,7 +1007,7 @@
                     <span id="player-total-time">0:00</span>
                 </div>
                 <div class="dolby-tag">
-                    <svg viewBox="0 0 64 32" style="stroke:none;"><path d="M16,2 C8.268,2 2,8.268 2,16 C2,23.732 8.268,30 16,30 L16,2 Z M48,2 L48,30 C55.732,30 62,23.732 62,16 C62,8.268 55.732,2 48,2 Z M32,2 L32,30 L32,2 Z M32,2 L16,2 L16,30 L32,30 L32,2 Z M32,2 L48,2 L48,30 L32,30 L32,2 Z M32,2 L48,2 L48,30 L32,30 L32,2 Z" fill="currentColor"/></svg>
+                    <svg viewBox="0 0 64 32" style="stroke:none;"><path d="M16,2 C8.268,2 2,8.268 2,16 C2,23.732 8.268,30 16,30 L16,2 Z M48,2 L48,30 C55.732,30 62,23.732 62,16 C62,8.268 55.732,2 48,2 Z M32,2 L32,30 L32,2 Z M32,2 L16,2 L16,30 L32,30 L32,2 Z M32,2 L48,2 L48,30 L32,30 L32,2 Z M32,2 L48,2 L48,30 L32,30 L32,2 Z M32,2 L48,2 L48,30 L32,30 L32,2 Z" fill="currentColor"/></svg>
                     <span>Dolby Atmos</span>
                 </div>
             </div>
