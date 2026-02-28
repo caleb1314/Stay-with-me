@@ -1169,3 +1169,24 @@ input[type=range].ios-range::-webkit-slider-thumb {
 }
 .icon-wrap svg { width: 22px; height: 22px; stroke: #333; fill: none; }
 .ios-list-arrow { width: 18px; height: 18px; stroke: #c7c7cc; stroke-width: 2; fill: none; flex-shrink: 0; }
+/* ========================================= */
+/* === 细节修复：按钮颜色与输入框去蓝 === */
+/* ========================================= */
+
+/* 1. 统一导航栏按钮样式 (Done/Save 改为灰色加粗) */
+.nav-text-btn {
+    color: #8e8e93 !important; /* 覆盖之前的蓝色 */
+    font-weight: 600 !important;
+}
+
+/* 2. 彻底去除输入框自动填充的蓝色/黄色背景 */
+/* 原理：让背景色变化的过渡时间无限长，从而保持初始的透明状态 */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+    -webkit-transition: background-color 99999s ease-in-out 0s;
+    transition: background-color 99999s ease-in-out 0s;
+    -webkit-text-fill-color: #1c1c1e !important; /* 强制文字颜色 */
+    background-color: transparent !important;
+}
