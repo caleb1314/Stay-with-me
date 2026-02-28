@@ -1101,45 +1101,181 @@ function saveCharacter() {
     };
 }
 
-// 6. 渲染微信列表
+// 6. 渲染微信列表 (支持置顶分离)
 function renderWxChatList() {
     if(!db) return;
-    const container = document.getElementById('wx-chat-list-container');
-    container.innerHTML = ''; // 清空列表
+    const pinnedContainer = document.getElementById('wx-chat-list-pinned');
+    const normalContainer = document.getElementById('wx-chat-list-normal');
+    
+    pinnedContainer.innerHTML = '';
+    normalContainer.innerHTML = '';
 
     const transaction = db.transaction(["characters"], "readonly");
     const store = transaction.objectStore("characters");
     const req = store.getAll();
 
     req.onsuccess = () => {
-        const chars = req.result.sort((a, b) => b.timestamp - a.timestamp); // 按时间倒序
+        const chars = req.result.sort((a, b) => b.timestamp - a.timestamp);
         
+        const pinnedChars = chars.filter(c => c.isPinned);
+        const normalChars = chars.filter(c => !c.isPinned);
+
         if(chars.length === 0) {
-            container.innerHTML = '<div style="text-align:center; padding: 30px; color:#8e8e93; font-size:14px;">暂无角色，点击右上角添加</div>';
+            normalContainer.innerHTML = '<div style="text-align:center; padding: 30px; color:#8e8e93; font-size:14px;">暂无角色，点击右上角添加</div>';
+            pinnedContainer.style.display = 'none';
             return;
         }
 
-        chars.forEach(char => {
-            const avatarStyle = char.avatarImage ? `background-image: url(${char.avatarImage});` : '';
-            const html = `
-                <div class="wx-chat-row" onclick="openChatScreen('${char.id}')">
-                    <div class="wx-avatar-gray" style="${avatarStyle}"></div>
-                    <div class="wx-chat-content">
-                        <div class="wx-row-top">
-                            <span class="wx-chat-title">${char.remark}</span>
-                            <span class="wx-chat-date">刚刚</span>
-                        </div>
-                        <div class="wx-row-bottom">
-                            <span class="wx-chat-preview">点击进入聊天...</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-            container.insertAdjacentHTML('beforeend', html);
-        });
+        if (pinnedChars.length > 0) {
+            pinnedContainer.style.display = 'block';
+            pinnedChars.forEach(char => pinnedContainer.insertAdjacentHTML('beforeend', generateChatRowHTML(char)));
+        } else {
+            pinnedContainer.style.display = 'none';
+        }
+
+        if (normalChars.length > 0) {
+            normalContainer.style.display = 'block';
+            normalChars.forEach(char => normalContainer.insertAdjacentHTML('beforeend', generateChatRowHTML(char)));
+        } else {
+            normalContainer.style.display = 'none';
+        }
+
+        bindLongPressEvents(); // 绑定长按事件
     };
 }
 
+// 生成单行 HTML
+function generateChatRowHTML(char) {
+    const avatarStyle = char.avatarImage ? `background-image: url(${char.avatarImage});` : '';
+    let lastMsg = "点击进入聊天...";
+    if (char.history && char.history.length > 0) {
+        lastMsg = char.history[char.history.length - 1].content;
+    }
+    
+    return `
+        <div class="wx-chat-row" data-char-id="${char.id}" onclick="handleChatRowClick(event, '${char.id}')">
+            <div class="wx-avatar-gray" style="${avatarStyle}"></div>
+            <div class="wx-chat-content">
+                <div class="wx-row-top">
+                    <span class="wx-chat-title">${char.remark}</span>
+                    <span class="wx-chat-date">刚刚</span>
+                </div>
+                <div class="wx-row-bottom">
+                    <span class="wx-chat-preview">${escapeHTML(lastMsg)}</span>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// === 长按菜单核心逻辑 ===
+let currentContextMenuCharId = null;
+let longPressTimer;
+let isLongPress = false;
+
+function bindLongPressEvents() {
+    const rows = document.querySelectorAll('.wx-chat-row');
+    rows.forEach(row => {
+        // 移除旧监听器防重复
+        const newRow = row.cloneNode(true);
+        row.parentNode.replaceChild(newRow, row);
+        
+        newRow.addEventListener('touchstart', handleTouchStart, { passive: true });
+        newRow.addEventListener('touchmove', handleTouchMove, { passive: true });
+        newRow.addEventListener('touchend', handleTouchEnd);
+        newRow.addEventListener('contextmenu', handleContextMenu);
+    });
+}
+
+function handleTouchStart(e) {
+    const row = e.currentTarget;
+    isLongPress = false;
+    row.classList.add('pressing');
+    longPressTimer = setTimeout(() => {
+        isLongPress = true;
+        openContextMenu(row.dataset.charId);
+    }, 500); // 500ms 触发长按
+}
+
+function handleTouchMove(e) {
+    clearTimeout(longPressTimer);
+    e.currentTarget.classList.remove('pressing');
+}
+
+function handleTouchEnd(e) {
+    clearTimeout(longPressTimer);
+    e.currentTarget.classList.remove('pressing');
+    if (isLongPress) e.preventDefault();
+}
+
+function handleContextMenu(e) {
+    e.preventDefault();
+    openContextMenu(e.currentTarget.dataset.charId);
+}
+
+function handleChatRowClick(e, charId) {
+    if (isLongPress) return; // 长按不触发点击
+    openChatScreen(charId);
+}
+
+function openContextMenu(charId) {
+    if (navigator.vibrate) navigator.vibrate(50);
+    currentContextMenuCharId = charId;
+    
+    const transaction = db.transaction(["characters"], "readonly");
+    const store = transaction.objectStore("characters");
+    const req = store.get(charId);
+    req.onsuccess = () => {
+        const char = req.result;
+        const pinText = document.getElementById('ctx-pin-text');
+        if (char && char.isPinned) {
+            pinText.innerText = "Unpin from Top"; // 已置顶则显示取消置顶
+        } else {
+            pinText.innerText = "Pin to Top";
+        }
+        document.getElementById('wxContextMenuOverlay').classList.add('active');
+    };
+}
+
+function closeContextMenu() {
+    document.getElementById('wxContextMenuOverlay').classList.remove('active');
+    currentContextMenuCharId = null;
+}
+
+function togglePinCharacter() {
+    if (!currentContextMenuCharId || !db) return;
+    const transaction = db.transaction(["characters"], "readwrite");
+    const store = transaction.objectStore("characters");
+    const req = store.get(currentContextMenuCharId);
+    
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char) {
+            char.isPinned = !char.isPinned; // 切换状态
+            store.put(char);
+            transaction.oncomplete = () => {
+                renderWxChatList();
+                closeContextMenu();
+            };
+        }
+    };
+}
+
+function deleteCharacterAction() {
+    if (!currentContextMenuCharId || !db) return;
+    if (confirm("确定要彻底删除该角色及所有聊天记录吗？此操作不可逆。")) {
+        const transaction = db.transaction(["characters"], "readwrite");
+        const store = transaction.objectStore("characters");
+        store.delete(currentContextMenuCharId); // 彻底删除
+        
+        transaction.oncomplete = () => {
+            renderWxChatList();
+            closeContextMenu();
+        };
+    } else {
+        closeContextMenu();
+    }
+}
 // 7. 刷新/清空表单
 function resetCharForm() {
     if(confirm('确定要清空当前填写的内容吗？')) {
