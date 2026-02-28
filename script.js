@@ -1229,255 +1229,249 @@ function escapeHTML(str) {
     return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
 }
 // =========================================
-// === 通用设置 (API & 模型) 逻辑 ===
+// === 新增：通用设置与API配置逻辑 ===
 // =========================================
 
-// 1. 界面开关
+// 1. 界面开关逻辑
 function openGeneralSettings() {
-    // 可以在主设置界面加个入口调用此函数
     const screen = document.getElementById('generalSettingsScreen');
     screen.style.display = 'flex';
     setTimeout(() => screen.classList.add('active'), 10);
-    
-    // 打开时加载当前 API 配置
-    loadApiConfig();
-    renderPresetList();
 }
 
 function closeGeneralSettings() {
     const screen = document.getElementById('generalSettingsScreen');
     screen.classList.remove('active');
     setTimeout(() => screen.style.display = 'none', 400);
-    
-    // 关闭时自动保存当前填写的配置到 LocalStorage
-    saveApiConfig();
 }
 
-// 2. 状态管理 (主/副 API)
-let currentApiTab = 0; // 0: Main, 1: Sub
-const API_STORAGE_KEYS = ['hajimi_api_main', 'hajimi_api_sub'];
-const PRESET_STORAGE_KEY = 'hajimi_api_presets';
-
-function switchApiTab(index, el) {
-    // 保存当前页面的数据到旧的 Tab
-    saveApiConfig();
-    
-    // 切换 UI
-    currentApiTab = index;
-    const container = document.querySelector('.ios-segment-control');
-    if(index === 1) container.classList.add('right-active');
-    else container.classList.remove('right-active');
-    
-    document.querySelectorAll('.segment-item').forEach(item => item.classList.remove('active'));
-    el.classList.add('active');
-    
-    // 加载新 Tab 的数据
-    loadApiConfig();
+function openApiSettings() {
+    const screen = document.getElementById('apiSettingsScreen');
+    screen.style.display = 'flex';
+    setTimeout(() => screen.classList.add('active'), 10);
 }
 
-// 3. 数据保存与加载
-function saveApiConfig() {
-    const config = {
-        url: document.getElementById('gen-api-url').value,
-        key: document.getElementById('gen-api-key').value,
-        model: document.getElementById('gen-model-select').value,
-        temp: document.getElementById('slider-temp').value,
-        topp: document.getElementById('slider-topp').value,
-        topk: document.getElementById('slider-topk').value
-    };
-    localStorage.setItem(API_STORAGE_KEYS[currentApiTab], JSON.stringify(config));
+function closeApiSettings() {
+    const screen = document.getElementById('apiSettingsScreen');
+    screen.classList.remove('active');
+    setTimeout(() => screen.style.display = 'none', 400);
 }
 
-function loadApiConfig() {
-    const data = JSON.parse(localStorage.getItem(API_STORAGE_KEYS[currentApiTab]) || '{}');
-    
-    document.getElementById('gen-api-url').value = data.url || '';
-    document.getElementById('gen-api-key').value = data.key || '';
-    
-    // 恢复滑块
-    document.getElementById('slider-temp').value = data.temp || 1.0;
-    document.getElementById('val-temp').innerText = data.temp || 1.0;
-    
-    document.getElementById('slider-topp').value = data.topp || 1.0;
-    document.getElementById('val-topp').innerText = data.topp || 1.0;
-    
-    document.getElementById('slider-topk').value = data.topk || 40;
-    document.getElementById('val-topk').innerText = data.topk || 40;
+// 2. 真实模型拉取逻辑
+async function fetchModels() {
+    const urlInput = document.getElementById('apiUrl').value.trim();
+    const keyInput = document.getElementById('apiKey').value.trim();
+    const selectEl = document.getElementById('modelSelect');
 
-    // 恢复模型选择 (如果下拉框里没有这个模型，临时加进去)
-    const select = document.getElementById('gen-model-select');
-    if (data.model) {
-        let exists = false;
-        for (let i = 0; i < select.options.length; i++) {
-            if (select.options[i].value === data.model) exists = true;
-        }
-        if (!exists) {
-            const opt = document.createElement('option');
-            opt.value = data.model;
-            opt.innerText = data.model;
-            select.appendChild(opt);
-        }
-        select.value = data.model;
-    }
-}
+    if (!urlInput) { alert("请先填写 API URL"); return; }
 
-// 4. 真实模型拉取逻辑
-async function fetchRealModels() {
-    const urlInput = document.getElementById('gen-api-url').value.trim();
-    const keyInput = document.getElementById('gen-api-key').value.trim();
-    const selectEl = document.getElementById('gen-model-select');
-
-    if (!urlInput) return alert("请先填写 API 地址");
-    
-    // 智能修正 URL：确保以 /models 结尾
+    // 处理 URL 格式
     let fetchUrl = urlInput;
-    if (!fetchUrl.endsWith('/models')) {
-        fetchUrl = fetchUrl.replace(/\/+$/, '') + '/models';
+    if (!fetchUrl.endsWith('/models')) { 
+        fetchUrl = fetchUrl.replace(/\/+$/, '') + '/models'; 
     }
 
-    selectEl.innerHTML = '<option>拉取中...</option>';
+    selectEl.innerHTML = '<option value="">拉取中...</option>';
 
     try {
-        const res = await fetch(fetchUrl, {
+        const response = await fetch(fetchUrl, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${keyInput}`,
-                'Content-Type': 'application/json'
+            headers: { 
+                'Authorization': `Bearer ${keyInput}`, 
+                'Content-Type': 'application/json' 
             }
         });
+
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
         
-        if (!res.ok) throw new Error('网络请求失败: ' + res.status);
-        
-        const data = await res.json();
         let models = [];
-        
-        // 兼容 OpenAI 标准格式 { data: [{id: '...'}, ...] }
-        if (data.data && Array.isArray(data.data)) {
-            models = data.data.map(m => m.id);
-        } else if (Array.isArray(data)) {
-            // 兼容直接返回数组的情况
-            models = data.map(m => m.id || m);
-        }
+        // 兼容不同的 API 返回格式
+        if (data && Array.isArray(data.data)) { models = data.data.map(m => m.id); } 
+        else if (Array.isArray(data)) { models = data.map(m => m.id || m); }
 
         if (models.length > 0) {
             selectEl.innerHTML = '';
-            models.forEach(m => {
-                const opt = document.createElement('option');
-                opt.value = m;
-                opt.innerText = m;
-                selectEl.appendChild(opt);
+            models.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model;
+                option.textContent = model;
+                selectEl.appendChild(option);
             });
-            alert(`成功拉取 ${models.length} 个模型`);
-            // 自动选择第一个
-            selectEl.selectedIndex = 0;
-            saveApiConfig(); // 立即保存
+            alert("模型拉取成功！");
+            saveCurrentContext(); // 拉取成功后自动保存
         } else {
             selectEl.innerHTML = '<option value="">未找到模型</option>';
+            alert("接口返回成功，但未解析到模型列表。");
         }
-    } catch (e) {
-        alert('拉取失败: ' + e.message);
+    } catch (error) {
+        console.error("Fetch error:", error);
         selectEl.innerHTML = '<option value="">拉取失败</option>';
+        alert("拉取失败: " + error.message);
     }
 }
 
-function saveCurrentModelSelection() {
-    saveApiConfig();
-    alert("模型选择已锁定，下次进入将自动加载。");
-}
+// 3. 上下文切换 & 预设管理核心逻辑
+let currentContext = 0; 
+let apiPresets = [];
+let selectedPresetId = null; 
 
-// 5. 预设管理逻辑
-let selectedPresetIndex = -1;
-
-function getPresets() {
-    return JSON.parse(localStorage.getItem(PRESET_STORAGE_KEY) || '[]');
-}
-
-function renderPresetList() {
-    const list = document.getElementById('gen-preset-list');
-    list.innerHTML = '';
-    const presets = getPresets();
+function switchContext(index) {
+    saveCurrentContext(); 
+    currentContext = index;
+    const segment = document.getElementById('contextSegment');
+    segment.setAttribute('data-active', index);
     
-    if (presets.length === 0) {
-        list.innerHTML = '<div style="padding:15px; text-align:center; color:#ccc; font-size:12px;">暂无预设</div>';
-        return;
-    }
-
-    presets.forEach((p, index) => {
-        const div = document.createElement('div');
-        div.className = `preset-list-item ${index === selectedPresetIndex ? 'selected' : ''}`;
-        div.innerHTML = `
-            <span>${p.name}</span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        `;
-        div.onclick = () => {
-            selectedPresetIndex = index;
-            renderPresetList();
-        };
-        list.appendChild(div);
-    });
+    const tabs = segment.querySelectorAll('.segment-tab');
+    tabs[0].classList.toggle('active', index === 0);
+    tabs[1].classList.toggle('active', index === 1);
+    
+    loadContext(index); 
+    selectedPresetId = null; 
+    loadPresetsForCurrentContext(); 
 }
 
-function saveApiPreset() {
-    const name = prompt("请输入预设名称:");
-    if (!name) return;
-    
-    const config = {
-        name: name,
-        url: document.getElementById('gen-api-url').value,
-        key: document.getElementById('gen-api-key').value,
-        model: document.getElementById('gen-model-select').value,
+function getContextKey(index) { return index === 0 ? 'hajimi_api_context_main' : 'hajimi_api_context_sub'; }
+
+function saveCurrentContext() {
+    const data = {
+        url: document.getElementById('apiUrl').value,
+        key: document.getElementById('apiKey').value,
+        model: document.getElementById('modelSelect').value,
         temp: document.getElementById('slider-temp').value,
         topp: document.getElementById('slider-topp').value,
         topk: document.getElementById('slider-topk').value
     };
-    
-    const presets = getPresets();
-    presets.push(config);
-    localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(presets));
-    renderPresetList();
+    localStorage.setItem(getContextKey(currentContext), JSON.stringify(data));
 }
 
-function loadApiPreset() {
-    if (selectedPresetIndex === -1) return alert("请先选择一个预设");
-    const presets = getPresets();
-    const data = presets[selectedPresetIndex];
-    
-    if (data) {
-        document.getElementById('gen-api-url').value = data.url || '';
-        document.getElementById('gen-api-key').value = data.key || '';
+function loadContext(index) {
+    const dataStr = localStorage.getItem(getContextKey(index));
+    if (dataStr) {
+        const data = JSON.parse(dataStr);
+        document.getElementById('apiUrl').value = data.url || '';
+        document.getElementById('apiKey').value = data.key || '';
         
-        // 恢复滑块
-        document.getElementById('slider-temp').value = data.temp || 1.0;
-        document.getElementById('val-temp').innerText = data.temp || 1.0;
-        document.getElementById('slider-topp').value = data.topp || 1.0;
-        document.getElementById('val-topp').innerText = data.topp || 1.0;
-        document.getElementById('slider-topk').value = data.topk || 40;
-        document.getElementById('val-topk').innerText = data.topk || 40;
+        const selectEl = document.getElementById('modelSelect');
+        if (data.model) {
+            // 如果保存的模型不在列表中，临时添加进去
+            let exists = false;
+            for(let i=0; i<selectEl.options.length; i++) { if(selectEl.options[i].value === data.model) exists = true; }
+            if(!exists) {
+                const option = document.createElement('option');
+                option.value = data.model; option.textContent = data.model;
+                selectEl.appendChild(option);
+            }
+            selectEl.value = data.model;
+        } else { selectEl.innerHTML = '<option value="">请先拉取模型...</option>'; }
 
-        // 恢复模型
-        const select = document.getElementById('gen-model-select');
-        // 如果预设里的模型不在当前列表里，加进去
-        let exists = false;
-        for(let i=0; i<select.options.length; i++) { if(select.options[i].value === data.model) exists = true; }
-        if(!exists && data.model) {
-            const opt = document.createElement('option');
-            opt.value = data.model; opt.innerText = data.model;
-            select.appendChild(opt);
-        }
-        select.value = data.model;
-        
-        saveApiConfig(); // 加载后立即保存到当前 Tab
-        alert(`已加载预设: ${data.name}`);
+        if(data.temp) { document.getElementById('slider-temp').value = data.temp; updateSlider('temp'); }
+        if(data.topp) { document.getElementById('slider-topp').value = data.topp; updateSlider('topp'); }
+        if(data.topk) { document.getElementById('slider-topk').value = data.topk; updateSlider('topk'); }
+    } else {
+        // 默认值
+        document.getElementById('apiUrl').value = '';
+        document.getElementById('apiKey').value = '';
+        document.getElementById('modelSelect').innerHTML = '<option value="">请先拉取模型...</option>';
+        document.getElementById('slider-temp').value = 1.0; updateSlider('temp');
+        document.getElementById('slider-topp').value = 1.0; updateSlider('topp');
+        document.getElementById('slider-topk').value = 40; updateSlider('topk');
     }
 }
 
-function deleteApiPreset() {
-    if (selectedPresetIndex === -1) return alert("请先选择一个预设");
-    if (!confirm("确定删除该预设吗？")) return;
-    
-    const presets = getPresets();
-    presets.splice(selectedPresetIndex, 1);
-    localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(presets));
-    selectedPresetIndex = -1;
-    renderPresetList();
+function getPresetListKey() { return currentContext === 0 ? 'hajimi_api_presets_list_main' : 'hajimi_api_presets_list_sub'; }
+
+function loadPresetsForCurrentContext() {
+    const stored = localStorage.getItem(getPresetListKey());
+    if (stored) { apiPresets = JSON.parse(stored); } else { apiPresets = []; }
+    renderPresets();
 }
+
+function renderPresets() {
+    const container = document.getElementById('presetList');
+    container.innerHTML = '';
+    if (apiPresets.length === 0) {
+        container.innerHTML = '<div style="padding:20px; text-align:center; color:#999; font-size:13px;">暂无预设</div>'; return;
+    }
+    apiPresets.forEach(p => {
+        const isActive = p.id === selectedPresetId;
+        const item = document.createElement('div');
+        item.className = `preset-item ${isActive ? 'active' : ''}`;
+        item.onclick = () => selectPreset(p.id); 
+        item.innerHTML = `<div class="preset-name">${p.name}</div><div class="check-circle"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div>`;
+        container.appendChild(item);
+    });
+}
+
+function selectPreset(id) { selectedPresetId = id; renderPresets(); }
+
+function saveNewPreset() {
+    const name = prompt("请输入预设名称：");
+    if (!name) return;
+    const newPreset = {
+        id: 'preset_' + Date.now(), name: name,
+        url: document.getElementById('apiUrl').value, key: document.getElementById('apiKey').value,
+        model: document.getElementById('modelSelect').value, temp: document.getElementById('slider-temp').value,
+        topp: document.getElementById('slider-topp').value, topk: document.getElementById('slider-topk').value
+    };
+    apiPresets.push(newPreset);
+    localStorage.setItem(getPresetListKey(), JSON.stringify(apiPresets));
+    selectPreset(newPreset.id);
+}
+
+function loadSelectedPreset() {
+    if (!selectedPresetId) { alert("请先在列表中选择一个预设"); return; }
+    const p = apiPresets.find(item => item.id === selectedPresetId);
+    if (!p) return;
+
+    document.getElementById('apiUrl').value = p.url || '';
+    document.getElementById('apiKey').value = p.key || '';
+    
+    const selectEl = document.getElementById('modelSelect');
+    if (p.model) {
+        let exists = false;
+        for(let i=0; i<selectEl.options.length; i++) { if(selectEl.options[i].value === p.model) exists = true; }
+        if(!exists) {
+            const option = document.createElement('option');
+            option.value = p.model; option.textContent = p.model;
+            selectEl.appendChild(option);
+        }
+        selectEl.value = p.model;
+    }
+
+    if(p.temp !== undefined) { document.getElementById('slider-temp').value = p.temp; updateSlider('temp'); }
+    if(p.topp !== undefined) { document.getElementById('slider-topp').value = p.topp; updateSlider('topp'); }
+    if(p.topk !== undefined) { document.getElementById('slider-topk').value = p.topk; updateSlider('topk'); }
+
+    saveCurrentContext(); 
+    alert(`已加载预设: ${p.name}`);
+}
+
+function deleteSelectedPreset() {
+    if (!selectedPresetId) { alert("请先在列表中选择一个预设"); return; }
+    if (confirm("确定要删除选中的预设吗？")) {
+        apiPresets = apiPresets.filter(p => p.id !== selectedPresetId);
+        localStorage.setItem(getPresetListKey(), JSON.stringify(apiPresets));
+        selectedPresetId = null; renderPresets();
+    }
+}
+
+// 4. 辅助功能
+function updateSlider(type) {
+    const val = document.getElementById(`slider-${type}`).value;
+    document.getElementById(`val-${type}`).innerText = val;
+}
+
+function manualSave() {
+    saveCurrentContext();
+    const btn = document.getElementById('apiSaveBtn');
+    const originalText = btn.innerText;
+    btn.innerText = "Saved";
+    setTimeout(() => { btn.innerText = originalText; }, 1000);
+}
+
+// 5. 初始化加载
+document.addEventListener('DOMContentLoaded', () => {
+    loadContext(0); 
+    loadPresetsForCurrentContext(); 
+});
