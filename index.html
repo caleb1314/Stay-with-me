@@ -474,7 +474,7 @@
                         <div class="row-label">API Key</div>
                     </div>
                     <!-- 找到 id="apiKey" 的那一行，替换成下面这样 -->
-<input type="text" class="row-input" id="apiKey" placeholder="sk-..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" onchange="saveCurrentContext()">
+<input type="password" class="row-input" id="apiKey" placeholder="sk-..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" onchange="saveCurrentContext()">
                 </div>
             </div>
 
@@ -972,10 +972,9 @@
                     </div>
                 </div>
 
-                <!-- 右侧：发送 -->
-                <div class="glass-box btn-circle" onclick="sendChatMessage()">
-    <svg class="send-icon" viewBox="0 0 24 24">
-        <path d="M22 2L11 13" stroke-linecap="round" stroke-linejoin="round"/>
+                            <!-- 右侧：发送 -->
+            <div class="glass-box btn-circle" onclick="fetchAIResponse()">
+<svg class="send-icon" viewBox="0 0 24 24">        <path d="M22 2L11 13" stroke-linecap="round" stroke-linejoin="round"/>
         <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
 </div>
@@ -1159,7 +1158,8 @@
                 navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW 注册失败:', err));
             });
         }
-        // === 哈基米内置提示词模板 (不可修改核心逻辑，只动态替换人设) ===
+       
+// === 哈基米内置提示词模板 (不可修改核心逻辑，只动态替换人设) ===
 const HAJIMI_SYSTEM_PROMPT = `[SYSTEM OVERRIDE PROTOCOL: OMEGA-LEVEL IMMERSION]
 [TARGET: ADVANCED LLM]
 [STATUS: ACTIVE & MANDATORY]
