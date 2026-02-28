@@ -460,6 +460,16 @@ function resetSlider(type) {
         updateTimeDecPreview();
     }
 }
+// --- 时间样式实时预览 ---
+function updateTimeStylePreview() {
+    const size = document.getElementById('time-size-input').value || 17;
+    const x = document.getElementById('time-x-input').value || 0;
+    const y = document.getElementById('time-y-input').value || 0;
+
+    document.documentElement.style.setProperty('--time-font-size', size + 'px');
+    document.documentElement.style.setProperty('--time-offset-x', x + 'px');
+    document.documentElement.style.setProperty('--time-offset-y', y + 'px');
+}
 
 // --- 壁纸功能逻辑 ---
 const wallpaperScreen = document.getElementById('wallpaperScreen');
@@ -693,6 +703,9 @@ async function saveBeautification() {
         customCSS: document.getElementById('custom-css-input').value,
         fontScale: document.getElementById('font-size-slider').value,
         timeDecSize: document.getElementById('time-dec-slider').value,
+        timeFontSize: document.getElementById('time-size-input').value,
+        timeOffsetX: document.getElementById('time-x-input').value,
+        timeOffsetY: document.getElementById('time-y-input').value,
         apps: {}
     };
 
@@ -760,6 +773,24 @@ function applyBeautification(data) {
         if(slider) slider.value = data.timeDecSize;
     }
 
+    // === 这里是新增的时间样式应用逻辑 ===
+    if (data.timeFontSize) {
+        document.documentElement.style.setProperty('--time-font-size', data.timeFontSize + 'px');
+        const input = document.getElementById('time-size-input');
+        if(input) input.value = data.timeFontSize;
+    }
+    if (data.timeOffsetX !== undefined) {
+        document.documentElement.style.setProperty('--time-offset-x', data.timeOffsetX + 'px');
+        const input = document.getElementById('time-x-input');
+        if(input) input.value = data.timeOffsetX;
+    }
+    if (data.timeOffsetY !== undefined) {
+        document.documentElement.style.setProperty('--time-offset-y', data.timeOffsetY + 'px');
+        const input = document.getElementById('time-y-input');
+        if(input) input.value = data.timeOffsetY;
+    }
+    // === 新增结束 ===
+
     if(data.apps) {
         for (const appId in data.apps) {
             const appEl = document.querySelector(`[data-app-id="${appId}"]`);
@@ -770,7 +801,6 @@ function applyBeautification(data) {
         }
     }
 }
-
 function loadBeautification() {
     const data = JSON.parse(localStorage.getItem(BEAUTIFY_STORAGE_KEY));
     if (data) {
