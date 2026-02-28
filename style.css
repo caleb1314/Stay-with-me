@@ -1222,3 +1222,28 @@ input:-webkit-autofill:active {
     background-color: transparent !important;
     -webkit-text-fill-color: #1c1c1e !important; /* 确保文字颜色正确 */
 }
+/* ========================================= */
+/* === 性能优化：微信与聊天界面弹出加速 === */
+/* ========================================= */
+
+/* 覆盖 .app-screen-overlay 原有的 0.4s 慢速动画 */
+.app-screen-overlay,
+#wechatScreen,
+#chatScreen,
+#charAddScreen {
+    /* 时间缩短至 0.25s，使用更跟手的物理曲线 */
+    transition: transform 0.25s cubic-bezier(0.1, 0.9, 0.2, 1) !important;
+    
+    /* 开启硬件加速，防止掉帧 */
+    will-change: transform;
+    -webkit-transform: translate3d(0, 100%, 0); /* 初始状态强制 3D */
+}
+
+/* 激活状态 */
+.app-screen-overlay.active,
+#wechatScreen.active,
+#chatScreen.active,
+#charAddScreen.active {
+    -webkit-transform: translate3d(0, 0, 0) !important;
+    transform: translate3d(0, 0, 0) !important;
+}
