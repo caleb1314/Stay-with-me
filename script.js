@@ -1201,12 +1201,44 @@ const chatInput = document.getElementById('chatInput');
 const chatScrollArea = document.getElementById('chatScrollArea');
 
 if(chatInput) {
-    chatInput.addEventListener('keypress', function (e) {
+    // 修复：改用 keydown，并增加 isComposing 判断，完美适配安卓/iOS手机输入法
+    chatInput.addEventListener('keydown', function (e) {
+        // 如果正在使用输入法拼音选词，绝对不触发发送
+        if (e.isComposing || e.keyCode === 229) {
+            return;
+        }
         if (e.key === 'Enter') {
             e.preventDefault();
             sendUserMessageOnly();
         }
     });
+}
+
+// 通用添加气泡函数 (支持左/右，自动拼接圆角) - 确保这个函数没有被删掉
+function appendMessage(text, isRight) {
+    const lastMsg = chatScrollArea.lastElementChild;
+    let newMsgClass = 'single'; 
+    const sideClass = isRight ? 'right' : 'left';
+
+    // 气泡圆角拼接逻辑
+    if (lastMsg && lastMsg.classList.contains(sideClass)) {
+        if (lastMsg.classList.contains('single')) {
+            lastMsg.classList.remove('single');
+            lastMsg.classList.add('group-start');
+        } 
+        else if (lastMsg.classList.contains('group-end')) {
+            lastMsg.classList.remove('group-end');
+            lastMsg.classList.add('group-middle');
+        }
+        newMsgClass = 'group-end';
+    }
+
+    const msgRow = document.createElement('div');
+    msgRow.className = `msg-row ${sideClass} ${newMsgClass}`; 
+    msgRow.innerHTML = `<div class="msg-bubble">${escapeHTML(text)}</div>`;
+
+    chatScrollArea.appendChild(msgRow);
+    scrollToChatBottom();
 }
 
 // 新增：将当前聊天记录同步到 IndexedDB
@@ -1234,7 +1266,11 @@ function sendUserMessageOnly() {
     chatHistory.push({ role: "user", content: text });
 
     chatInput.value = '';
-    chatInput.focus();
+    
+    // 修复：加个极小的延迟保持焦点，防止手机键盘发送后闪退收起
+    setTimeout(() => {
+        chatInput.focus();
+    }, 10);
     
     // 2. 保存到数据库
     saveChatHistoryToDB();
