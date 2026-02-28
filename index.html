@@ -371,65 +371,75 @@
         <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeSettings()"></div></div>
     </div>
 
-    <!-- ========================================= -->
-    <!-- === 新增：通用设置界面 (一级菜单) === -->
-    <!-- ========================================= -->
-    <div id="generalSettingsScreen" class="settings-base-screen sub-screen">
-        <!-- 顶部全屏雪景图 -->
-        <div class="top-bg-header"></div>
+<!-- ========================================= -->
+<!-- === 通用设置界面 (一级菜单) === -->
+<!-- ========================================= -->
+<div id="generalSettingsScreen" class="settings-base-screen sub-screen">
+    <!-- 顶部全屏雪景图 -->
+    <div class="top-bg-header"></div>
 
-        <div class="nav-header">
-            <!-- 左侧返回按钮，返回到主设置 -->
-            <div class="nav-text-btn left" onclick="closeGeneralSettings()">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#007aff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:2px;"><path d="M15 18l-6-6 6-6"/></svg>
-                <span style="color:#007aff; vertical-align:middle;">设置</span>
-            </div>
-            <div class="nav-title">通用设置</div>
-        </div>
-        
-        <div class="screen-content">
-            <!-- 交接处文字 -->
-            <div class="transition-text">₊⁺₊ ❅ 𝑻𝒉𝒐𝒖𝒈𝒉𝒕𝒔 𝒊𝒏 𝑾𝒊𝒏𝒕𝒆𝒓 ❅ ₊⁺₊</div>
-            
-            <!-- iOS 连体卡片组 -->
-            <div class="ios-list-group">
-                <!-- 列表项 1：API 配置 -->
-                <div class="ios-list-item" onclick="openApiSettings()">
-                    <div class="icon-wrap">
-                        <svg viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 2.5v19M3.77 7.25l16.46 9.5M3.77 16.75l16.46-9.5"/>
-                            <path d="M12 2.5l-2 2M12 2.5l2 2M12 21.5l-2-2M12 21.5l2-2"/>
-                            <path d="M3.77 7.25l2.5 1.5M3.77 7.25l0.5 2.8"/>
-                            <path d="M20.23 16.75l-2.5-1.5M20.23 16.75l-0.5-2.8"/>
-                            <path d="M3.77 16.75l2.5-1.5M3.77 16.75l0.5-2.8"/>
-                            <path d="M20.23 7.25l-2.5 1.5M20.23 7.25l-0.5 2.8"/>
-                        </svg>
-                    </div>
-                    <div class="ios-list-text">API 配置</div>
-                    <svg class="ios-list-arrow" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                </div>
-
-                <!-- 列表项 2：提示词设置 (预留) -->
-                <div class="ios-list-item">
-                    <div class="icon-wrap">
-                        <svg viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                    </div>
-                    <div class="ios-list-text">提示词设置</div>
-                    <svg class="ios-list-arrow" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                </div>
-
-                <!-- 列表项 3：数据管理 (预留) -->
-                <div class="ios-list-item">
-                    <div class="icon-wrap">
-                        <svg viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v5"/><path d="M3 12l9 9 9-9"/><path d="M12 3v18"/></svg>
-                    </div>
-                    <div class="ios-list-text">数据管理</div>
-                    <svg class="ios-list-arrow" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                </div>
-            </div>
-        </div>
-        <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeGeneralSettings()"></div></div>
+    <div class="nav-header">
+        <!-- 左侧返回按钮已移除 -->
+        <div class="nav-title">通用设置</div>
     </div>
+    
+    <div class="screen-content">
+        <!-- 交接处文字 -->
+        <div class="transition-text">₊⁺₊ ❅ 𝑻𝒉𝒐𝒖𝒈𝒉𝒕𝒔 𝒊𝒏 𝑾𝒊𝒏𝒕𝒆𝒓 ❅ ₊⁺₊</div>
+        
+        <!-- iOS 连体卡片组 -->
+        <div class="ios-list-group">
+            <!-- 列表项 1：API 配置 -->
+            <div class="ios-list-item" onclick="openApiSettings()">
+                <div class="icon-wrap">
+                    <svg viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2.5v19M3.77 7.25l16.46 9.5M3.77 16.75l16.46-9.5"/>
+                        <path d="M12 2.5l-2 2M12 2.5l2 2M12 21.5l-2-2M12 21.5l2-2"/>
+                        <path d="M3.77 7.25l2.5 1.5M3.77 7.25l0.5 2.8"/>
+                        <path d="M20.23 16.75l-2.5-1.5M20.23 16.75l-0.5-2.8"/>
+                        <path d="M3.77 16.75l2.5-1.5M3.77 16.75l0.5-2.8"/>
+                        <path d="M20.23 7.25l-2.5 1.5M20.23 7.25l-0.5 2.8"/>
+                    </svg>
+                </div>
+                <div class="ios-list-text">API 配置</div>
+                <svg class="ios-list-arrow" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </div>
+
+            <!-- 列表项 2：提示词设置 (图标已换成雪花) -->
+            <div class="ios-list-item">
+                <div class="icon-wrap">
+                    <svg viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2.5v19M3.77 7.25l16.46 9.5M3.77 16.75l16.46-9.5"/>
+                        <path d="M12 2.5l-2 2M12 2.5l2 2M12 21.5l-2-2M12 21.5l2-2"/>
+                        <path d="M3.77 7.25l2.5 1.5M3.77 7.25l0.5 2.8"/>
+                        <path d="M20.23 16.75l-2.5-1.5M20.23 16.75l-0.5-2.8"/>
+                        <path d="M3.77 16.75l2.5-1.5M3.77 16.75l0.5-2.8"/>
+                        <path d="M20.23 7.25l-2.5 1.5M20.23 7.25l-0.5 2.8"/>
+                    </svg>
+                </div>
+                <div class="ios-list-text">提示词设置</div>
+                <svg class="ios-list-arrow" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </div>
+
+            <!-- 列表项 3：数据管理 (图标已换成雪花) -->
+            <div class="ios-list-item">
+                <div class="icon-wrap">
+                    <svg viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2.5v19M3.77 7.25l16.46 9.5M3.77 16.75l16.46-9.5"/>
+                        <path d="M12 2.5l-2 2M12 2.5l2 2M12 21.5l-2-2M12 21.5l2-2"/>
+                        <path d="M3.77 7.25l2.5 1.5M3.77 7.25l0.5 2.8"/>
+                        <path d="M20.23 16.75l-2.5-1.5M20.23 16.75l-0.5-2.8"/>
+                        <path d="M3.77 16.75l2.5-1.5M3.77 16.75l0.5-2.8"/>
+                        <path d="M20.23 7.25l-2.5 1.5M20.23 7.25l-0.5 2.8"/>
+                    </svg>
+                </div>
+                <div class="ios-list-text">数据管理</div>
+                <svg class="ios-list-arrow" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </div>
+        </div>
+    </div>
+    <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeGeneralSettings()"></div></div>
+</div>
 
     <!-- ========================================= -->
     <!-- === 新增：API 配置界面 (二级菜单) === -->
