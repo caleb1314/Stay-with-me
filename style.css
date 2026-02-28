@@ -1190,3 +1190,35 @@ input:-webkit-autofill:active {
     -webkit-text-fill-color: #1c1c1e !important; /* 强制文字颜色 */
     background-color: transparent !important;
 }
+/* ========================================= */
+/* === 最终修复：字体、卡顿与输入框背景 === */
+/* ========================================= */
+
+/* 1. 修复字体大小异常 */
+/* 强制所有输入框继承 iOS 标准字体大小，防止忽大忽小 */
+.row-input {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif !important;
+    font-size: 17px !important; /* iOS 标准输入框字号 */
+    color: #1c1c1e !important;
+    line-height: normal;
+}
+
+/* 2. 优化页面滑出速度 (拒绝卡顿) */
+/* 覆盖之前的 transition 设置，加快速度 */
+.screen, .sub-screen {
+    transition: transform 0.25s cubic-bezier(0.1, 0.9, 0.2, 1), opacity 0.25s !important;
+}
+
+/* 3. 终极去除蓝色背景方案 */
+/* 利用超长过渡时间，让浏览器“永远”处于变色过程中，从而保持透明 */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+    -webkit-transition: color 99999s ease-out, background-color 99999s ease-out;
+    transition: color 99999s ease-out, background-color 99999s ease-out;
+    -webkit-transition-delay: 99999s;
+    transition-delay: 99999s;
+    background-color: transparent !important;
+    -webkit-text-fill-color: #1c1c1e !important; /* 确保文字颜色正确 */
+}
