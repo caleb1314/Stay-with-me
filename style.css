@@ -1130,3 +1130,42 @@ input[type=range].ios-range::-webkit-slider-thumb {
     -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: #fff;
     box-shadow: 0 2px 6px rgba(0,0,0,0.2); cursor: pointer;
 }
+/* ========================================= */
+/* === 修复：通用设置与API界面基础布局 === */
+/* ========================================= */
+
+/* 1. 修复顶部导航栏重叠问题 (留出状态栏空间) */
+.nav-header {
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; z-index: 100;
+    padding-top: 55px; /* 避开刘海和时间 */
+    padding-bottom: 12px;
+}
+.nav-title { font-size: 17px; font-weight: 600; color: #000; }
+
+/* 2. 修复左右两侧文字按钮 (返回/保存) */
+.nav-text-btn {
+    position: absolute; bottom: 10px;
+    font-size: 17px; color: #007aff; /* iOS 经典蓝 */
+    cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center;
+}
+.nav-text-btn.left { left: 16px; }
+.nav-text-btn.right { right: 16px; font-weight: 600; }
+.nav-text-btn:active { opacity: 0.5; }
+
+/* 3. 修复内容区挤在一起的问题 (撑开并允许滚动) */
+.screen-content {
+    flex: 1; overflow-y: auto; padding-bottom: 80px; position: relative; z-index: 1;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.screen-content::-webkit-scrollbar { display: none; }
+
+/* 4. 修复巨大的黑色三角形和图标大小 */
+.icon-wrap {
+    width: 28px; height: 28px; 
+    display: flex; justify-content: center; align-items: center; flex-shrink: 0;
+}
+.icon-wrap svg { width: 22px; height: 22px; stroke: #333; fill: none; }
+.ios-list-arrow { width: 18px; height: 18px; stroke: #c7c7cc; stroke-width: 2; fill: none; flex-shrink: 0; }
