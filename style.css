@@ -2,9 +2,6 @@
 :root {
     --font-scale: 1;
     --time-dec-size: 18px;
-    --time-font-size: 17px;
-    --time-offset-x: 0px;
-    --time-offset-y: 0px;
 }
 
 /* 全局重置 */
@@ -66,7 +63,7 @@ body.dark-mode {
 }
 .img-upload-target:active { opacity: 0.7; }
 
-/* 状态栏 - 修复字体继承与布局 */
+/* 状态栏 - 强制修复 */
 .status-bar {
     height: env(safe-area-inset-top, 44px);
     min-height: 48px;
@@ -81,31 +78,21 @@ body.dark-mode {
     left: 0;
     transition: opacity 0.3s;
     pointer-events: none; 
-    /* 修改：允许字体继承，这样自定义字体才能生效 */
-    font-family: inherit; 
+    /* 强制使用系统字体，忽略自定义字体 */
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif !important;
 }
-
-/* 强制子元素继承字体，除非特殊指定 */
+/* 强制子元素也忽略全局字体设置 */
 .status-bar * {
-    font-family: inherit;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif !important;
 }
 
-.time-container { 
-    display: flex; 
-    align-items: center; 
-    gap: 6px; 
-    pointer-events: auto; 
-    /* 应用位置偏移 */
-    transform: translate(var(--time-offset-x), var(--time-offset-y));
-}
-
+.time-container { display: flex; align-items: center; gap: 6px; pointer-events: auto; }
 .time { 
-    /* 修改：使用变量控制大小，并强制继承字体 */
-    font-size: var(--time-font-size) !important; 
+    /* 强制固定大小，忽略 --font-scale */
+    font-size: 17px !important; 
     font-weight: 680; 
     margin-top: 4px; 
-    letter-spacing: -0.5px;
-    font-family: inherit !important; 
+    letter-spacing: -0.5px; 
 }
 .time-decorator {
     width: var(--time-dec-size); height: var(--time-dec-size); margin-top: 3px;
@@ -961,23 +948,3 @@ select.char-grid-input { appearance: none; -webkit-appearance: none; text-align-
 .emoji-btn-inner:active { background: rgba(0,0,0,0.05); }
 .svg-icon { width: 24px; height: 24px; stroke: #333; stroke-width: 1.8px; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .send-icon { width: 20px; height: 20px; stroke: #333; stroke-width: 1.8px; fill: none; transform: translateX(-1px) translateY(1px); }
-/* --- 美化界面字体加粗优化 --- */
-#beautifyScreen .item-label,
-#beautifyScreen .settings-item,
-#beautifyScreen input,
-#beautifyScreen select,
-#beautifyScreen .group-title {
-    font-weight: 600 !important; /* 强制加粗 */
-    color: #1c1c1e;
-}
-
-#beautifyScreen .beautify-app-name-input {
-    font-weight: 700 !important; /* 输入框文字更粗一点 */
-    color: #007aff; /* 输入内容用蓝色高亮，更像iOS编辑态 */
-}
-
-/* 针对数字输入框的微调 */
-#beautifyScreen input[type="number"] {
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.5px;
-}
