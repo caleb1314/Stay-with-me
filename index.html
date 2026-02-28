@@ -163,6 +163,48 @@
 
         .wx-dock-item:active .wx-dock-icon-img { transform: scale(0.9) translateY(0); }
         .wx-dock-item:nth-child(3):active .wx-dock-icon-img { transform: scale(0.9) translateY(1px); }
+        /* === 微信长按菜单样式 === */
+.wx-context-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.05); 
+    z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.wx-context-overlay.active { opacity: 1; pointer-events: auto; }
+
+.wx-context-menu {
+    width: 250px; background: rgba(255, 255, 255, 0.85); 
+    backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+    border-radius: 14px; display: flex; flex-direction: column;
+    transform: scale(0.9); opacity: 0;
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+}
+.wx-context-overlay.active .wx-context-menu { transform: scale(1); opacity: 1; }
+
+.wx-ctx-item {
+    height: 44px; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px; font-size: 15px; color: #000; font-weight: 500; 
+    position: relative; cursor: pointer;
+}
+.wx-ctx-item:active { background: rgba(0,0,0,0.08); }
+.wx-ctx-item:first-child { border-radius: 14px 14px 0 0; }
+.wx-ctx-item:last-child { border-radius: 0 0 14px 14px; }
+.wx-ctx-item:not(:last-child)::after {
+    content: ''; position: absolute; bottom: 0; right: 0; left: 0;
+    height: 0.5px; background: rgba(0, 0, 0, 0.08); 
+}
+.wx-ctx-icon {
+    width: 18px; height: 18px; fill: none; stroke: #000; stroke-width: 1.5; 
+    stroke-linecap: round; stroke-linejoin: round;
+}
+.wx-ctx-item.danger { color: #ff3b30; }
+.wx-ctx-item.danger .wx-ctx-icon { stroke: #ff3b30; }
+
+.wx-chat-row { transition: transform 0.2s, background-color 0.2s; }
+.wx-chat-row.pressing { transform: scale(0.98); background: rgba(0,0,0,0.05); }
     </style>
 </head>
 <body>
@@ -731,18 +773,21 @@
         </div>
 
         <!-- 滚动内容区 -->
-        <div class="wx-scroll-content">
-            <!-- 电脑登录提示条 -->
-            <div class="wx-mac-login-bar">
-                <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" fill="none" stroke="#555" stroke-width="2"/><line x1="8" y1="21" x2="16" y2="21" stroke="#555" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="17" x2="12" y2="21" stroke="#555" stroke-width="2"/></svg>
-                <span>Mac 微信已登录，手机通知已关闭</span>
-            </div>
+<div class="wx-scroll-content">
+    <!-- 电脑登录提示条 -->
+    <div class="wx-mac-login-bar">
+        <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" fill="none" stroke="#555" stroke-width="2"/><line x1="8" y1="21" x2="16" y2="21" stroke="#555" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="17" x2="12" y2="21" stroke="#555" stroke-width="2"/></svg>
+        <span>Mac 微信已登录，手机通知已关闭</span>
+    </div>
 
-            <!-- 动态生成的角色列表容器 -->
-            <div class="wx-group-block" id="wx-chat-list-container">
-                <!-- JS 动态渲染 -->
-            </div>
-        </div>
+    <!-- 置顶角色列表容器 (默认隐藏) -->
+    <div class="wx-group-block" id="wx-chat-list-pinned" style="display: none;"></div>
+
+    <!-- 普通角色列表容器 -->
+    <div class="wx-group-block" id="wx-chat-list-normal">
+        <!-- JS 动态渲染 -->
+    </div>
+</div>
 
         <!-- 底部悬浮胶囊栏 -->
         <div class="wx-capsule-dock-container">
@@ -1128,6 +1173,27 @@
     <script src="script.js" defer></script>
     
     <!-- 微信界面专属 JS (直接内嵌) -->
+    <!-- 微信长按菜单弹窗 -->
+<div id="wxContextMenuOverlay" class="wx-context-overlay" onclick="closeContextMenu()">
+    <div class="wx-context-menu" onclick="event.stopPropagation()">
+        <div class="wx-ctx-item" onclick="togglePinCharacter()">
+            <span id="ctx-pin-text">Pin to Top</span>
+            <svg class="wx-ctx-icon" viewBox="0 0 24 24"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path></svg>
+        </div>
+        <div class="wx-ctx-item" onclick="closeContextMenu()">
+            <span>Mark as Read</span>
+            <svg class="wx-ctx-icon" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+        </div>
+        <div class="wx-ctx-item" onclick="closeContextMenu()">
+            <span>Add to Group</span>
+            <svg class="wx-ctx-icon" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        </div>
+        <div class="wx-ctx-item danger" onclick="deleteCharacterAction()">
+            <span>Delete</span>
+            <svg class="wx-ctx-icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+        </div>
+    </div>
+</div>
     <script>
         // --- Wechat 界面控制逻辑 ---
         function openWechat() {
