@@ -422,6 +422,20 @@
                         <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
                     </div>
                 </div>
+                 <!-- 新增：时间样式设置 -->
+    <div class="settings-item">
+        <div class="item-label">时间大小 (px)</div>
+        <input type="number" id="time-size-input" class="beautify-app-name-input" style="text-align: right; width: 60px;" value="17" oninput="updateTimeStylePreview()">
+    </div>
+    <div class="settings-item">
+        <div class="item-label">时间位置 X (px)</div>
+        <input type="number" id="time-x-input" class="beautify-app-name-input" style="text-align: right; width: 60px;" value="0" placeholder="0" oninput="updateTimeStylePreview()">
+    </div>
+    <div class="settings-item">
+        <div class="item-label">时间位置 Y (px)</div>
+        <input type="number" id="time-y-input" class="beautify-app-name-input" style="text-align: right; width: 60px;" value="0" placeholder="0" oninput="updateTimeStylePreview()">
+    </div>
+    <!-- 新增结束 -->
             </div>
             
             <div class="group-title">图标TvT</div>
