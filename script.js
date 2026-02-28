@@ -1146,7 +1146,7 @@ let chatHistory = []; // 维护当前会话历史
 function openChatScreen(charId) {
     if (!db) return;
     currentChatCharId = charId;
-    chatHistory = []; // 每次打开新聊天清空历史
+    chatHistory = []; 
     
     const transaction = db.transaction(["characters"], "readonly");
     const store = transaction.objectStore("characters");
@@ -1166,7 +1166,22 @@ function openChatScreen(charId) {
             const chatScrollArea = document.getElementById('chatScrollArea');
             chatScrollArea.innerHTML = '<div class="chat-time-stamp">刚刚</div>';
 
-            // 4. 打开界面
+            // 4. 恢复历史记录
+            if (char.history && char.history.length > 0) {
+                chatHistory = char.history;
+                chatHistory.forEach(msg => {
+                    if (msg.role === 'user') {
+                        appendMessage(msg.content, true);
+                    } else if (msg.role === 'assistant') {
+                        const lines = msg.content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                        lines.forEach(line => appendMessage(line, false));
+                    }
+                });
+            } else {
+                chatHistory = [];
+            }
+
+            // 5. 打开界面
             const screen = document.getElementById('chatScreen');
             screen.style.display = 'flex';
             setTimeout(() => screen.classList.add('active'), 10);
@@ -1189,40 +1204,28 @@ if(chatInput) {
     chatInput.addEventListener('keypress', function (e) {
         if (e.key === 'Enter') {
             e.preventDefault();
-            sendChatMessage();
+            sendUserMessageOnly();
         }
     });
 }
 
-// 通用添加气泡函数 (支持左/右，自动拼接圆角)
-function appendMessage(text, isRight) {
-    const lastMsg = chatScrollArea.lastElementChild;
-    let newMsgClass = 'single'; 
-    const sideClass = isRight ? 'right' : 'left';
-
-    // 气泡圆角拼接逻辑
-    if (lastMsg && lastMsg.classList.contains(sideClass)) {
-        if (lastMsg.classList.contains('single')) {
-            lastMsg.classList.remove('single');
-            lastMsg.classList.add('group-start');
-        } 
-        else if (lastMsg.classList.contains('group-end')) {
-            lastMsg.classList.remove('group-end');
-            lastMsg.classList.add('group-middle');
+// 新增：将当前聊天记录同步到 IndexedDB
+function saveChatHistoryToDB() {
+    if (!db || !currentChatCharId) return;
+    const transaction = db.transaction(["characters"], "readwrite");
+    const store = transaction.objectStore("characters");
+    const req = store.get(currentChatCharId);
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char) {
+            char.history = chatHistory;
+            store.put(char);
         }
-        newMsgClass = 'group-end';
-    }
-
-    const msgRow = document.createElement('div');
-    msgRow.className = `msg-row ${sideClass} ${newMsgClass}`; 
-    msgRow.innerHTML = `<div class="msg-bubble">${escapeHTML(text)}</div>`;
-
-    chatScrollArea.appendChild(msgRow);
-    scrollToChatBottom();
+    };
 }
 
-// 发送消息核心逻辑
-function sendChatMessage() {
+// 发送用户消息核心逻辑 (仅发送，不触发AI)
+function sendUserMessageOnly() {
     const text = chatInput.value.trim();
     if (!text) return;
 
@@ -1233,8 +1236,8 @@ function sendChatMessage() {
     chatInput.value = '';
     chatInput.focus();
     
-    // 2. 触发 AI 回复
-    fetchAIResponse();
+    // 2. 保存到数据库
+    saveChatHistoryToDB();
 }
 
 // 正在输入动画
@@ -1364,11 +1367,14 @@ ${char.persona || '无详细设定'}
             removeTypingIndicator(typingId);
 
             if (data.choices && data.choices.length > 0) {
-                const aiText = data.choices[0].message.content.trim();
-                chatHistory.push({ role: "assistant", content: aiText });
-                
-                // 按行分割，过滤空行
-                const lines = aiText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const aiText = data.choices[0].message.content.trim();
+    chatHistory.push({ role: "assistant", content: aiText });
+    
+    // 保存AI回复到数据库
+    saveChatHistoryToDB();
+    
+    // 按行分割，过滤空行
+    const lines = aiText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
                 
                 // 模拟连续发送 (带延迟)
                 let delay = 0;
