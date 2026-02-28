@@ -986,3 +986,125 @@ select.char-grid-input { appearance: none; -webkit-appearance: none; text-align-
 .status-bar.force-system-font * {
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif !important;
 }
+/* --- 通用设置界面专属样式 --- */
+
+/* 1. 竖杠标题 (参考图4) */
+.vertical-bar-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 24px 16px 8px;
+}
+.vertical-bar-title .bar {
+    width: 4px;
+    height: 16px;
+    background-color: #000; /* 黑色竖杠 */
+    border-radius: 2px;
+}
+.vertical-bar-title span {
+    font-size: 14px;
+    font-weight: 700;
+    color: #6d6d72;
+    letter-spacing: 0.5px;
+}
+
+/* 2. 方形井号按键 (参考图2及描述) */
+.square-hash-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    background: #e5e5ea; /* 浅灰背景 */
+    border-radius: 8px;
+    padding: 0 16px;
+    height: 40px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+}
+.square-hash-btn:active {
+    background: #d1d1d6;
+    transform: scale(0.96);
+}
+.square-hash-btn span {
+    font-weight: 800;
+    opacity: 0.5;
+}
+.square-hash-btn.full-width {
+    width: 100%;
+    margin-top: 4px;
+    background: #333;
+    color: #fff;
+}
+.square-hash-btn.full-width span {
+    color: #fff;
+}
+
+/* 3. iOS 分段开关 (参考图2) */
+.ios-segment-control {
+    background: rgba(118, 118, 128, 0.12);
+    border-radius: 9px;
+    padding: 2px;
+    display: flex;
+    position: relative;
+    height: 32px;
+    margin-bottom: 10px;
+}
+/* 滑块背景 */
+.ios-segment-control .segment-bg {
+    position: absolute;
+    top: 2px; left: 2px;
+    width: calc(50% - 2px);
+    height: 28px;
+    background: #fff;
+    border-radius: 7px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.12), 0 3px 1px rgba(0,0,0,0.04);
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    z-index: 1;
+}
+/* 激活右侧时的滑块位置 */
+.ios-segment-control.right-active .segment-bg {
+    transform: translateX(100%);
+}
+/* 选项文字 */
+.segment-item {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #000;
+    z-index: 2;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+.segment-item:not(.active) {
+    opacity: 0.6;
+}
+
+/* 预设列表项样式 */
+.preset-list-item {
+    padding: 12px 16px;
+    border-bottom: 0.5px solid rgba(0,0,0,0.05);
+    font-size: 15px;
+    color: #333;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+}
+.preset-list-item.selected {
+    background: rgba(0,0,0,0.03);
+    font-weight: 600;
+}
+.preset-list-item svg {
+    width: 16px; height: 16px;
+    stroke: #007aff;
+    opacity: 0;
+}
+.preset-list-item.selected svg {
+    opacity: 1;
+}
