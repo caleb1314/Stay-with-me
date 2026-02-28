@@ -830,6 +830,22 @@ function loadBeautification() {
     if (data) {
         applyBeautification(data);
         document.getElementById('beautify-toggle-topbar').classList.toggle('on', data.topBarVisible);
+    } else {
+        // 修复：首次进入时，强制将美化界面的默认值注入全局变量，防止 Safari 初始 CSS 变量解析失效导致字体变大
+        const fontSlider = document.getElementById('font-size-slider');
+        if (fontSlider) document.documentElement.style.setProperty('--font-scale', fontSlider.value);
+        
+        const timeDecSlider = document.getElementById('time-dec-slider');
+        if (timeDecSlider) document.documentElement.style.setProperty('--time-dec-size', timeDecSlider.value + 'px');
+        
+        const timeSizeInput = document.getElementById('time-size-input');
+        if (timeSizeInput) document.documentElement.style.setProperty('--time-font-size', timeSizeInput.value + 'px');
+        
+        const timeXInput = document.getElementById('time-x-input');
+        if (timeXInput) document.documentElement.style.setProperty('--time-offset-x', timeXInput.value + 'px');
+        
+        const timeYInput = document.getElementById('time-y-input');
+        if (timeYInput) document.documentElement.style.setProperty('--time-offset-y', timeYInput.value + 'px');
     }
 }
 
