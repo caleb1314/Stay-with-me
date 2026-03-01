@@ -1453,3 +1453,72 @@ input:-webkit-autofill:active {
 .set-item.danger .set-text { color: var(--folder-danger-color); }
 
 .list-divider { height: 1px; background: rgba(0,0,0,0.04); margin: 4px 0; border-radius: 1px; }
+/* ========================================= */
+/* === 数据管理弹窗样式 === */
+/* ========================================= */
+:root {
+    --dm-card-bg: rgba(255, 255, 255, 0.85);
+    --dm-text-main: #1c1c1e;
+    --dm-text-sub: #8e8e93;
+    --dm-danger: #ff3b30;
+    --dm-icon-color: #333333;
+    --dm-border: rgba(0, 0, 0, 0.05);
+}
+
+.dm-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9000; opacity: 0; pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+.dm-overlay.active { opacity: 1; pointer-events: auto; }
+
+.dm-card {
+    width: 88%; max-width: 360px; background: var(--dm-card-bg);
+    backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+    border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+    border: 0.5px solid rgba(255,255,255,0.6);
+    display: flex; flex-direction: column; overflow: hidden;
+    transform: scale(0.95) translateY(10px);
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.1);
+}
+.dm-overlay.active .dm-card { transform: scale(1) translateY(0); }
+
+.dm-header { padding: 18px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 0.5px solid var(--dm-border); }
+.dm-title { font-size: 17px; font-weight: 700; color: var(--dm-text-main); letter-spacing: 0.5px; }
+.dm-close-btn { width: 28px; height: 28px; border-radius: 50%; background: rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.2s; }
+.dm-close-btn:active { background: rgba(0,0,0,0.1); transform: scale(0.9); }
+.dm-close-btn svg { width: 12px; height: 12px; stroke: #555; stroke-width: 2.5; stroke-linecap: round; }
+
+.dm-storage-section { padding: 20px 20px 10px 20px; display: flex; flex-direction: column; gap: 8px; }
+.dm-storage-info { display: flex; justify-content: space-between; align-items: flex-end; }
+.dm-storage-label { font-size: 13px; color: var(--dm-text-main); font-weight: 600; }
+.dm-storage-val { font-size: 12px; color: var(--dm-text-sub); font-variant-numeric: tabular-nums; }
+
+.dm-progress-track { width: 100%; height: 6px; background: rgba(0,0,0,0.06); border-radius: 3px; overflow: hidden; display: flex; }
+.dm-bar-seg { height: 100%; transition: width 0.5s ease-out; }
+.dm-bar-chat { background: #333333; } 
+.dm-bar-img { background: #8e8e93; }  
+.dm-bar-sys { background: #d1d1d6; }  
+
+.dm-legend { display: flex; gap: 12px; margin-top: 4px; }
+.dm-legend-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--dm-text-sub); font-weight: 500; }
+.dm-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+.dm-list-group { margin: 10px 16px; background: rgba(255,255,255,0.5); border-radius: 12px; overflow: hidden; border: 0.5px solid rgba(255,255,255,0.4); }
+.dm-item { display: flex; align-items: center; gap: 14px; padding: 14px 16px; position: relative; cursor: pointer; transition: background 0.2s; }
+.dm-item:active { background: rgba(0,0,0,0.05); }
+.dm-item:not(:last-child)::after { content: ''; position: absolute; bottom: 0; left: 48px; right: 0; height: 0.5px; background: var(--dm-border); }
+
+.dm-icon-wrap { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.dm-icon-wrap svg { width: 20px; height: 20px; stroke: var(--dm-icon-color); stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+.dm-item-content { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.dm-item-title { font-size: 15px; font-weight: 600; color: var(--dm-text-main); }
+.dm-item-desc { font-size: 11px; color: var(--dm-text-sub); }
+
+.dm-danger-icon svg { stroke: var(--dm-danger); }
+.dm-danger-text { color: var(--dm-danger); }
+.dm-footer { padding: 10px 0 20px; text-align: center; font-size: 11px; color: rgba(0,0,0,0.3); font-weight: 500; letter-spacing: 0.5px; }
