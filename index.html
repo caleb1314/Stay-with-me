@@ -1231,10 +1231,13 @@
                 </div>
             </div>
             <div class="cs-album-grid">
-                <div class="cs-album-item img-upload-target" data-img-id="cs-album-1"></div>
-                <div class="cs-album-item img-upload-target" data-img-id="cs-album-2"></div>
-                <div class="cs-album-item img-upload-target" data-img-id="cs-album-3"></div>
-            </div>
+    <!-- 去掉了全局的 img-upload-target，加上了专属的点击事件和 ID -->
+    <div class="cs-album-item" id="cs-album-0" onclick="triggerCsAlbumUpload(0)"></div>
+    <div class="cs-album-item" id="cs-album-1" onclick="triggerCsAlbumUpload(1)"></div>
+    <div class="cs-album-item" id="cs-album-2" onclick="triggerCsAlbumUpload(2)"></div>
+</div>
+<!-- 专属的隐藏文件选择器 -->
+<input type="file" id="csAlbumFileInput" hidden accept="image/*">
         </div>
     </div>
     
