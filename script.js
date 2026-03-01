@@ -1902,22 +1902,31 @@ function openChatSettings() {
                 avatarEl.style.backgroundImage = '';
             }
 
-            // 2. 设置姓名和昵称 (读取添加角色时填写的)
+            // 2. 设置姓名和昵称
             document.getElementById('csCharName').innerText = char.name || '未填写';
             document.getElementById('csCharNickname').innerText = char.nickname || '未填写';
 
-            // 3. 读取用户自定义的介绍和备注 (如果没有则为空)
+            // 3. 读取用户自定义的介绍和备注
             document.getElementById('csAboutText').value = char.csAbout || '';
             document.getElementById('csNoteText').value = char.csNote || '';
 
-            // 4. 打开界面
+            // 4. 读取该角色的专属相册 (新增这部分)
+            for (let i = 0; i < 3; i++) {
+                const albumEl = document.getElementById(`cs-album-${i}`);
+                if (char.albums && char.albums[i]) {
+                    albumEl.style.backgroundImage = `url(${char.albums[i]})`;
+                } else {
+                    albumEl.style.backgroundImage = '';
+                }
+            }
+
+            // 5. 打开界面
             const screen = document.getElementById('chatSettingsScreen');
             screen.style.display = 'flex';
             setTimeout(() => screen.classList.add('active'), 10);
         }
     };
 }
-
 function closeChatSettings() {
     const screen = document.getElementById('chatSettingsScreen');
     screen.classList.remove('active');
@@ -1959,4 +1968,48 @@ function updateCsColor(type, inputEl, hex) {
     
     // 更新小圆点颜色
     inputEl.previousElementSibling.style.background = hex;
+}
+// =========================================
+// === 角色专属相册上传逻辑 ===
+// =========================================
+let currentAlbumIndex = null;
+const csAlbumFileInput = document.getElementById('csAlbumFileInput');
+
+// 点击方块触发本地文件选择
+function triggerCsAlbumUpload(index) {
+    currentAlbumIndex = index;
+    if (csAlbumFileInput) csAlbumFileInput.click();
+}
+
+// 监听文件选择并保存到当前角色数据库
+if (csAlbumFileInput) {
+    csAlbumFileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file && currentAlbumIndex !== null && currentChatCharId && db) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const base64Data = event.target.result;
+                
+                // 1. 立即在界面上显示图片
+                document.getElementById(`cs-album-${currentAlbumIndex}`).style.backgroundImage = `url(${base64Data})`;
+                
+                // 2. 保存到 IndexedDB 当前角色的数据中
+                const transaction = db.transaction(["characters"], "readwrite");
+                const store = transaction.objectStore("characters");
+                const req = store.get(currentChatCharId);
+                
+                req.onsuccess = () => {
+                    const char = req.result;
+                    if (char) {
+                        if (!char.albums) char.albums = []; // 如果没有相册数组则初始化
+                        char.albums[currentAlbumIndex] = base64Data; // 更新对应位置的图片
+                        store.put(char); // 存回数据库
+                    }
+                };
+            };
+            reader.readAsDataURL(file);
+        }
+        // 清空 input，保证下次选同一张图也能触发 change 事件
+        e.target.value = ''; 
+    });
 }
