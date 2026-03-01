@@ -1876,3 +1876,87 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchModels(true); // true 代表自动模式，不弹窗
     }
 });
+// =========================================
+// === 聊天设置界面逻辑 ===
+// =========================================
+
+function openChatSettings() {
+    if (!currentChatCharId || !db) {
+        alert("请先进入某个角色的聊天界面！");
+        return;
+    }
+    
+    // 从数据库读取当前角色的信息
+    const transaction = db.transaction(["characters"], "readonly");
+    const store = transaction.objectStore("characters");
+    const req = store.get(currentChatCharId);
+
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char) {
+            // 1. 设置头像
+            const avatarEl = document.getElementById('csAvatar');
+            if (char.avatarImage) {
+                avatarEl.style.backgroundImage = `url(${char.avatarImage})`;
+            } else {
+                avatarEl.style.backgroundImage = '';
+            }
+
+            // 2. 设置姓名和昵称 (读取添加角色时填写的)
+            document.getElementById('csCharName').innerText = char.name || '未填写';
+            document.getElementById('csCharNickname').innerText = char.nickname || '未填写';
+
+            // 3. 读取用户自定义的介绍和备注 (如果没有则为空)
+            document.getElementById('csAboutText').value = char.csAbout || '';
+            document.getElementById('csNoteText').value = char.csNote || '';
+
+            // 4. 打开界面
+            const screen = document.getElementById('chatSettingsScreen');
+            screen.style.display = 'flex';
+            setTimeout(() => screen.classList.add('active'), 10);
+        }
+    };
+}
+
+function closeChatSettings() {
+    const screen = document.getElementById('chatSettingsScreen');
+    screen.classList.remove('active');
+    setTimeout(() => screen.style.display = 'none', 400);
+}
+
+// 自动保存用户在设置里输入的文字
+function saveChatSettingsData() {
+    if (!currentChatCharId || !db) return;
+    const transaction = db.transaction(["characters"], "readwrite");
+    const store = transaction.objectStore("characters");
+    const req = store.get(currentChatCharId);
+
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char) {
+            char.csAbout = document.getElementById('csAboutText').value;
+            char.csNote = document.getElementById('csNoteText').value;
+            store.put(char); // 更新到数据库
+        }
+    };
+}
+
+// 颜色选择器逻辑
+function updateCsColor(type, inputEl, hex) {
+    const root = document.documentElement;
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+
+    if (type === 'big') {
+        root.style.setProperty('--cs-big-glass', `rgba(${r}, ${g}, ${b}, 0.2)`);
+    } else if (type === 'small') {
+        root.style.setProperty('--cs-small-glass', `rgba(${r}, ${g}, ${b}, 0.35)`);
+    } else if (type === 'tag') {
+        root.style.setProperty('--cs-tag-line', hex);
+        root.style.setProperty('--cs-tag-bg-start', `rgba(${r}, ${g}, ${b}, 0.25)`);
+    }
+    
+    // 更新小圆点颜色
+    inputEl.previousElementSibling.style.background = hex;
+}
