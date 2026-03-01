@@ -2013,3 +2013,230 @@ if (csAlbumFileInput) {
         e.target.value = ''; 
     });
 }
+// =========================================
+// === 基础设置 (文件夹弹窗) 逻辑 ===
+// =========================================
+
+// 打开基础设置弹窗
+function openBasicSettings() {
+    if (!currentChatCharId || !db) {
+        alert("请先进入某个角色的聊天界面！");
+        return;
+    }
+
+    const modal = document.getElementById('basicSettingsModal');
+    modal.style.display = 'flex';
+    setTimeout(() => modal.classList.add('active'), 10);
+
+    // 读取当前角色状态，更新开关 UI
+    const transaction = db.transaction(["characters"], "readonly");
+    const store = transaction.objectStore("characters");
+    const req = store.get(currentChatCharId);
+    
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char) {
+            // 更新置顶开关
+            const pinSwitch = document.getElementById('setting-pin-switch');
+            if (char.isPinned) pinSwitch.classList.add('on');
+            else pinSwitch.classList.remove('on');
+
+            // 更新双语开关 (预留字段 isBilingual)
+            const biSwitch = document.getElementById('setting-bilingual-switch');
+            if (char.isBilingual) biSwitch.classList.add('on');
+            else biSwitch.classList.remove('on');
+        }
+    };
+}
+
+// 关闭基础设置弹窗
+function closeBasicSettings() {
+    const modal = document.getElementById('basicSettingsModal');
+    modal.classList.remove('active');
+    setTimeout(() => modal.style.display = 'none', 300);
+}
+
+// 1. 置顶聊天逻辑
+function togglePinFromSettings() {
+    if (!currentChatCharId || !db) return;
+    const switchEl = document.getElementById('setting-pin-switch');
+    
+    const transaction = db.transaction(["characters"], "readwrite");
+    const store = transaction.objectStore("characters");
+    const req = store.get(currentChatCharId);
+    
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char) {
+            char.isPinned = !char.isPinned;
+            store.put(char);
+            // 更新 UI
+            if (char.isPinned) switchEl.classList.add('on');
+            else switchEl.classList.remove('on');
+            
+            // 刷新微信列表 (后台静默刷新)
+            renderWxChatList();
+        }
+    };
+}
+
+// 2. 双语设置逻辑 (预留)
+function toggleBilingualFromSettings() {
+    if (!currentChatCharId || !db) return;
+    const switchEl = document.getElementById('setting-bilingual-switch');
+    
+    const transaction = db.transaction(["characters"], "readwrite");
+    const store = transaction.objectStore("characters");
+    const req = store.get(currentChatCharId);
+    
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char) {
+            char.isBilingual = !char.isBilingual;
+            store.put(char);
+            if (char.isBilingual) switchEl.classList.add('on');
+            else switchEl.classList.remove('on');
+        }
+    };
+}
+
+// 3. 开启新对话 (清空上下文，保留人设)
+function startNewChat() {
+    if(confirm("开启新对话将清空当前的聊天记录，确定吗？")) {
+        clearChatHistoryLogic("新对话已开启");
+    }
+}
+
+// 4. 导出聊天记录
+function exportChatHistory() {
+    if (!currentChatCharId || !db) return;
+    const transaction = db.transaction(["characters"], "readonly");
+    const store = transaction.objectStore("characters");
+    const req = store.get(currentChatCharId);
+    
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char && char.history) {
+            const dataStr = JSON.stringify(char.history, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${char.name || 'chat'}_history_${Date.now()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } else {
+            alert("暂无聊天记录可导出");
+        }
+    };
+}
+
+// 5. 导入聊天记录
+function triggerImportChat() {
+    document.getElementById('importChatInput').click();
+}
+
+// 监听文件选择
+document.getElementById('importChatInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file || !currentChatCharId || !db) return;
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        try {
+            const history = JSON.parse(event.target.result);
+            if (Array.isArray(history)) {
+                const transaction = db.transaction(["characters"], "readwrite");
+                const store = transaction.objectStore("characters");
+                const req = store.get(currentChatCharId);
+                
+                req.onsuccess = () => {
+                    const char = req.result;
+                    if (char) {
+                        char.history = history;
+                        store.put(char);
+                        alert("导入成功！");
+                        // 刷新聊天界面
+                        chatHistory = history;
+                        const chatScrollArea = document.getElementById('chatScrollArea');
+                        chatScrollArea.innerHTML = '<div class="chat-time-stamp">刚刚</div>';
+                        chatHistory.forEach(msg => {
+                            if (msg.role === 'user') appendMessage(msg.content, true);
+                            else if (msg.role === 'assistant') appendMessage(msg.content, false);
+                        });
+                        closeBasicSettings();
+                        closeChatSettings(); // 关闭上层设置
+                    }
+                };
+            } else {
+                alert("文件格式错误：必须是聊天记录数组");
+            }
+        } catch (err) {
+            alert("导入失败：JSON 解析错误");
+        }
+    };
+    reader.readAsText(file);
+    e.target.value = ''; // 重置
+});
+
+// 6. 清除聊天记录 (危险)
+function clearChatHistoryAction() {
+    if(confirm("确定要彻底清除所有聊天记录吗？此操作不可逆。")) {
+        clearChatHistoryLogic("聊天记录已清除");
+    }
+}
+
+// 通用清空逻辑
+function clearChatHistoryLogic(toastMsg) {
+    if (!currentChatCharId || !db) return;
+    const transaction = db.transaction(["characters"], "readwrite");
+    const store = transaction.objectStore("characters");
+    const req = store.get(currentChatCharId);
+    
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char) {
+            char.history = []; // 清空数组
+            store.put(char);
+            
+            // 刷新界面
+            chatHistory = [];
+            const chatScrollArea = document.getElementById('chatScrollArea');
+            chatScrollArea.innerHTML = '<div class="chat-time-stamp">刚刚</div>';
+            
+            alert(toastMsg);
+            closeBasicSettings();
+            closeChatSettings();
+        }
+    };
+}
+
+// 7. 删除联系人 (危险)
+function deleteContactAction() {
+    if (!currentChatCharId || !db) return;
+    if (confirm("确定要删除该联系人吗？所有数据将丢失。")) {
+        const transaction = db.transaction(["characters"], "readwrite");
+        const store = transaction.objectStore("characters");
+        store.delete(currentChatCharId);
+        
+        transaction.oncomplete = () => {
+            alert("联系人已删除");
+            closeBasicSettings();
+            closeChatSettings();
+            closeChatScreen(); // 退出聊天界面
+            renderWxChatList(); // 刷新微信列表
+        };
+    }
+}
+
+// 8. 拉黑/举报 (模拟)
+function blockContactAction() {
+    alert("已将该联系人加入黑名单");
+    closeBasicSettings();
+}
+function reportContactAction() {
+    alert("已提交举报请求，感谢您的反馈");
+    closeBasicSettings();
+}
