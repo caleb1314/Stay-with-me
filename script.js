@@ -2240,3 +2240,266 @@ function reportContactAction() {
     alert("已提交举报请求，感谢您的反馈");
     closeBasicSettings();
 }
+// =========================================
+// === 数据管理：真实内存计算与全量备份 ===
+// =========================================
+
+function openDataModal() {
+    const modal = document.getElementById('dataModal');
+    modal.style.display = 'flex';
+    setTimeout(() => modal.classList.add('active'), 10);
+    calculateRealStorage(); // 打开时触发真实计算
+}
+
+function closeDataModal() {
+    const modal = document.getElementById('dataModal');
+    modal.classList.remove('active');
+    setTimeout(() => modal.style.display = 'none', 300);
+}
+
+// 辅助函数：计算字符串的字节数 (近似 UTF-16)
+function getByteLen(normal_val) {
+    normal_val = String(normal_val);
+    let byteLen = 0;
+    for (let i = 0; i < normal_val.length; i++) {
+        let c = normal_val.charCodeAt(i);
+        byteLen += c < (1 << 7) ? 1 : c < (1 << 11) ? 2 : c < (1 << 16) ? 3 : 4;
+    }
+    return byteLen;
+}
+
+// 格式化字节为 MB
+function formatMB(bytes) {
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+}
+
+// 真实计算各部分占用
+async function calculateRealStorage() {
+    let sysBytes = 0;
+    let chatBytes = 0;
+    let imgBytes = 0;
+
+    // 1. 计算 System (LocalStorage)
+    for (let i = 0; i < localStorage.length; i++) {
+        let key = localStorage.key(i);
+        let val = localStorage.getItem(key);
+        sysBytes += getByteLen(key) + getByteLen(val);
+    }
+
+    // 2. 计算 IndexedDB (Chat 和 Media)
+    if (db) {
+        // 计算 Characters (Chat)
+        chatBytes = await new Promise((resolve) => {
+            let size = 0;
+            const tx = db.transaction(["characters"], "readonly");
+            const store = tx.objectStore("characters");
+            const req = store.openCursor();
+            req.onsuccess = (e) => {
+                const cursor = e.target.result;
+                if (cursor) {
+                    size += getByteLen(JSON.stringify(cursor.value));
+                    cursor.continue();
+                } else {
+                    resolve(size);
+                }
+            };
+            req.onerror = () => resolve(0);
+        });
+
+        // 计算 Images (Media)
+        imgBytes = await new Promise((resolve) => {
+            let size = 0;
+            const tx = db.transaction(["images"], "readonly");
+            const store = tx.objectStore("images");
+            const req = store.openCursor();
+            req.onsuccess = (e) => {
+                const cursor = e.target.result;
+                if (cursor) {
+                    size += getByteLen(JSON.stringify(cursor.value));
+                    cursor.continue();
+                } else {
+                    resolve(size);
+                }
+            };
+            req.onerror = () => resolve(0);
+        });
+    }
+
+    const totalBytes = sysBytes + chatBytes + imgBytes;
+    
+    // 更新 UI 文字
+    document.getElementById('dm-storage-text').innerText = `已用 ${formatMB(totalBytes)}`;
+    document.getElementById('dm-val-chat').innerText = formatMB(chatBytes);
+    document.getElementById('dm-val-img').innerText = formatMB(imgBytes);
+    document.getElementById('dm-val-sys').innerText = formatMB(sysBytes);
+
+    // 更新 UI 进度条比例 (如果没有数据，给个极小值防止报错)
+    const totalForCalc = totalBytes > 0 ? totalBytes : 1;
+    document.getElementById('dm-bar-chat').style.width = `${(chatBytes / totalForCalc) * 100}%`;
+    document.getElementById('dm-bar-img').style.width = `${(imgBytes / totalForCalc) * 100}%`;
+    document.getElementById('dm-bar-sys').style.width = `${(sysBytes / totalForCalc) * 100}%`;
+}
+
+// =========================================
+// === 导出全量数据 (ZIP) ===
+// =========================================
+async function exportAllData() {
+    if (typeof JSZip === 'undefined') {
+        alert("JSZip 库未加载，请检查网络连接！");
+        return;
+    }
+    
+    const btnText = document.querySelector('.dm-item-title');
+    const originalText = btnText.innerText;
+    btnText.innerText = "正在打包，请稍候...";
+
+    try {
+        const zip = new JSZip();
+
+        // 1. 收集 LocalStorage
+        const lsData = {};
+        for (let i = 0; i < localStorage.length; i++) {
+            let key = localStorage.key(i);
+            lsData[key] = localStorage.getItem(key);
+        }
+        zip.file("boluo_localstorage.json", JSON.stringify(lsData));
+
+        // 2. 收集 IndexedDB
+        if (db) {
+            // 收集 characters
+            const chars = await new Promise((resolve) => {
+                const tx = db.transaction(["characters"], "readonly");
+                const store = tx.objectStore("characters");
+                const req = store.getAll();
+                req.onsuccess = () => resolve(req.result);
+            });
+            zip.file("boluo_characters.json", JSON.stringify(chars));
+
+            // 收集 images
+            const imgs = await new Promise((resolve) => {
+                const tx = db.transaction(["images"], "readonly");
+                const store = tx.objectStore("images");
+                const req = store.getAll();
+                req.onsuccess = () => resolve(req.result);
+            });
+            zip.file("boluo_images.json", JSON.stringify(imgs));
+        }
+
+        // 3. 生成 ZIP 并下载
+        const content = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
+        const url = URL.createObjectURL(content);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Boluo_Backup_${new Date().toISOString().slice(0,10)}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        btnText.innerText = "导出成功！";
+    } catch (err) {
+        console.error(err);
+        alert("导出失败：" + err.message);
+        btnText.innerText = originalText;
+    }
+
+    setTimeout(() => { btnText.innerText = originalText; }, 2000);
+}
+
+// =========================================
+// === 导入全量数据 (ZIP) ===
+// =========================================
+document.getElementById('importZipInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (typeof JSZip === 'undefined') {
+        alert("JSZip 库未加载，请检查网络连接！");
+        return;
+    }
+
+    if (!confirm("警告：导入数据将完全覆盖当前手机的所有设置、聊天和美化数据！确定继续吗？")) {
+        e.target.value = '';
+        return;
+    }
+
+    try {
+        const zip = await JSZip.loadAsync(file);
+
+        // 1. 恢复 LocalStorage
+        const lsFile = zip.file("boluo_localstorage.json");
+        if (lsFile) {
+            const lsData = JSON.parse(await lsFile.async("string"));
+            localStorage.clear();
+            for (const key in lsData) {
+                localStorage.setItem(key, lsData[key]);
+            }
+        }
+
+        // 2. 恢复 IndexedDB
+        if (db) {
+            // 恢复 characters
+            const charFile = zip.file("boluo_characters.json");
+            if (charFile) {
+                const chars = JSON.parse(await charFile.async("string"));
+                await new Promise((resolve) => {
+                    const tx = db.transaction(["characters"], "readwrite");
+                    const store = tx.objectStore("characters");
+                    store.clear().onsuccess = () => {
+                        chars.forEach(c => store.put(c));
+                        tx.oncomplete = () => resolve();
+                    };
+                });
+            }
+
+            // 恢复 images
+            const imgFile = zip.file("boluo_images.json");
+            if (imgFile) {
+                const imgs = JSON.parse(await imgFile.async("string"));
+                await new Promise((resolve) => {
+                    const tx = db.transaction(["images"], "readwrite");
+                    const store = tx.objectStore("images");
+                    store.clear().onsuccess = () => {
+                        imgs.forEach(img => store.put(img));
+                        tx.oncomplete = () => resolve();
+                    };
+                });
+            }
+        }
+
+        alert("数据恢复成功！系统即将重启。");
+        window.location.reload();
+
+    } catch (err) {
+        console.error(err);
+        alert("导入失败，文件可能已损坏或格式不正确。");
+    }
+    e.target.value = ''; // 重置 input
+});
+
+// =========================================
+// === 恢复出厂设置 ===
+// =========================================
+function factoryReset() {
+    if (confirm("【极度危险】确定要恢复出厂设置吗？\n所有聊天记录、角色、美化图片和设置将被永久删除，不可恢复！")) {
+        if (confirm("请再次确认，是否彻底清空手机？")) {
+            // 清空 LocalStorage
+            localStorage.clear();
+            
+            // 清空 IndexedDB
+            if (db) {
+                const tx = db.transaction(["characters", "images"], "readwrite");
+                tx.objectStore("characters").clear();
+                tx.objectStore("images").clear();
+                
+                tx.oncomplete = () => {
+                    alert("手机已重置，即将重启。");
+                    window.location.reload();
+                };
+            } else {
+                alert("手机已重置，即将重启。");
+                window.location.reload();
+            }
+        }
+    }
+}
