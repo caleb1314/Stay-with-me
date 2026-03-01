@@ -1624,13 +1624,16 @@ function closeApiSettings() {
     setTimeout(() => screen.style.display = 'none', 400);
 }
 
-// 2. 真实模型拉取逻辑
-async function fetchModels() {
+// 2. 真实模型拉取逻辑 (已修改支持自动拉取)
+async function fetchModels(isAuto = false) {
     const urlInput = document.getElementById('apiUrl').value.trim();
     const keyInput = document.getElementById('apiKey').value.trim();
     const selectEl = document.getElementById('modelSelect');
 
-    if (!urlInput) { alert("请先填写 API URL"); return; }
+    if (!urlInput) { 
+        if (!isAuto) alert("请先填写 API URL"); 
+        return; 
+    }
 
     // 处理 URL 格式
     let fetchUrl = urlInput;
@@ -1638,7 +1641,8 @@ async function fetchModels() {
         fetchUrl = fetchUrl.replace(/\/+$/, '') + '/models'; 
     }
 
-    selectEl.innerHTML = '<option value="">拉取中...</option>';
+    // 仅在手动点击时显示"拉取中"
+    if (!isAuto) selectEl.innerHTML = '<option value="">拉取中...</option>';
 
     try {
         const response = await fetch(fetchUrl, {
@@ -1665,16 +1669,39 @@ async function fetchModels() {
                 option.textContent = model;
                 selectEl.appendChild(option);
             });
-            alert("模型拉取成功！");
-            saveCurrentContext(); // 拉取成功后自动保存
+
+            // === 核心修改：拉取完成后，自动选中已保存的模型 ===
+            const savedData = JSON.parse(localStorage.getItem(getContextKey(currentContext)) || '{}');
+            if (savedData.model) {
+                // 检查列表中是否存在该模型，存在则选中
+                const exists = models.includes(savedData.model);
+                if (exists) {
+                    selectEl.value = savedData.model;
+                } else {
+                    // 如果列表里没有保存的模型，手动添加进去并选中（防止模型被删导致选中丢失）
+                    const option = document.createElement('option');
+                    option.value = savedData.model;
+                    option.textContent = savedData.model + " (Saved)";
+                    selectEl.appendChild(option);
+                    selectEl.value = savedData.model;
+                }
+            }
+            // ==============================================
+
+            if (!isAuto) alert("模型拉取成功！");
+            saveCurrentContext(); 
         } else {
-            selectEl.innerHTML = '<option value="">未找到模型</option>';
-            alert("接口返回成功，但未解析到模型列表。");
+            if (!isAuto) {
+                selectEl.innerHTML = '<option value="">未找到模型</option>';
+                alert("接口返回成功，但未解析到模型列表。");
+            }
         }
     } catch (error) {
         console.error("Fetch error:", error);
-        selectEl.innerHTML = '<option value="">拉取失败</option>';
-        alert("拉取失败: " + error.message);
+        if (!isAuto) {
+            selectEl.innerHTML = '<option value="">拉取失败</option>';
+            alert("拉取失败: " + error.message);
+        }
     }
 }
 
@@ -1837,8 +1864,15 @@ function manualSave() {
     setTimeout(() => { btn.innerText = originalText; }, 1000);
 }
 
-// 5. 初始化加载
+// 5. 初始化加载 (已修改支持自动拉取)
 document.addEventListener('DOMContentLoaded', () => {
     loadContext(0); 
     loadPresetsForCurrentContext(); 
+
+    // === 新增：如果有保存的 URL 和 Key，自动静默拉取模型 ===
+    const savedUrl = document.getElementById('apiUrl').value;
+    const savedKey = document.getElementById('apiKey').value;
+    if (savedUrl && savedKey) {
+        fetchModels(true); // true 代表自动模式，不弹窗
+    }
 });
