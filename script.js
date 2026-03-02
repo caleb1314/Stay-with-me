@@ -2503,3 +2503,57 @@ function factoryReset() {
         }
     }
 }
+// =========================================
+// === 聊天功能面板逻辑 ===
+// =========================================
+let isChatFuncPanelOpen = false;
+
+function toggleChatFuncPanel() {
+    if (isChatFuncPanelOpen) {
+        closeChatFuncPanel();
+    } else {
+        openChatFuncPanel();
+    }
+}
+
+function openChatFuncPanel() {
+    const panel = document.getElementById('chatFuncPanel');
+    if (!panel) return;
+    panel.style.display = 'flex';
+    // 强制重绘以触发 CSS 动画
+    requestAnimationFrame(() => {
+        panel.classList.add('active');
+    });
+    isChatFuncPanelOpen = true;
+}
+
+function closeChatFuncPanel() {
+    const panel = document.getElementById('chatFuncPanel');
+    if (!panel) return;
+    panel.classList.remove('active');
+    // 等待过渡动画结束后隐藏
+    setTimeout(() => {
+        panel.style.display = 'none';
+    }, 250); 
+    isChatFuncPanelOpen = false;
+}
+
+// 处理面板内按钮的点击事件
+function handleChatFuncAct(funcName) {
+    console.log("触发功能:", funcName);
+    
+    // 震动反馈
+    if (navigator.vibrate) navigator.vibrate(10);
+
+    // 这里可以根据 funcName 绑定具体的功能
+    if (funcName === '音乐') {
+        closeChatFuncPanel();
+        if (typeof openMusicPlayer === 'function') openMusicPlayer();
+    } else if (funcName === '图片') {
+        closeChatFuncPanel();
+        alert('图片功能预留接口');
+    } else {
+        // 其他功能暂未实现，点击后仅关闭面板
+        closeChatFuncPanel();
+    }
+}
