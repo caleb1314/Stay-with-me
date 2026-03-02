@@ -1359,17 +1359,20 @@ function closeChatScreen() {
     screen.classList.remove('active');
     setTimeout(() => screen.style.display = 'none', 400);
 }
-
 const chatInput = document.getElementById('chatInput');
 const chatScrollArea = document.getElementById('chatScrollArea');
 
 if(chatInput) {
+    // 【完全恢复你原版的处理逻辑】
     chatInput.addEventListener('keydown', function (e) {
+        // 如果正在使用输入法拼音选词，绝对不触发发送 (恢复你原版的 229 判断)
+        if (e.isComposing || e.keyCode === 229) {
+            return;
+        }
         if (e.key === 'Enter') {
-            // 修复Bug：移除 e.keyCode === 229，因为它在安卓键盘上会误杀正常的回车键
-            if (e.isComposing) return; // 仅在拼音选词时阻止发送
             e.preventDefault();
-            sendUserMessageOnly();
+            // 使用统一发送逻辑，确保回车不仅能发字，还能触发 AI 回复
+            handleSendBtnClick(); 
         }
     });
 }
