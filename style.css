@@ -1612,32 +1612,19 @@ input:-webkit-autofill:active {
 .cf-func-btn:active { background: var(--cf-btn-active); transform: scale(0.95); }
 .cf-func-text { font-size: 12px; font-weight: 600; color: var(--cf-text-main); text-align: center; white-space: nowrap; }
 .cf-func-btn[data-len="4"] .cf-func-text { font-size: 10px; transform: scale(0.95); }
-/* ========================================= */
-/* === 聊天图片气泡专属样式 (修复版) === */
-/* ========================================= */
-.msg-bubble img.chat-img {
-    max-width: 160px; /* 限制最大宽度，不再撑满 */
-    max-height: 200px; /* 限制最大高度，防止长图刷屏 */
-    width: auto;
-    height: auto;
-    border-radius: 14px; 
-    display: block;
-    cursor: pointer;
-    object-fit: cover; /* 保持比例填充 */
-}
-
-/* 纯图气泡容器 */
-.msg-bubble.image-only-bubble {
-    padding: 0;
-    background: transparent !important;
+/* --- 聊天图片气泡专属样式 --- */
+.msg-bubble.image-bubble {
+    padding: 4px; /* 图片气泡内边距小一点 */
+    background: transparent !important; /* 去除背景色 */
     border: none !important;
     box-shadow: none !important;
-    overflow: hidden;
-    /* 移除之前的 border 和 box-shadow，移到 img 上更自然 */
 }
-
-.msg-bubble.image-only-bubble img.chat-img {
+.msg-image-content {
+    max-width: 220px; /* 限制最大宽度 */
+    max-height: 300px; /* 限制最大高度 */
     border-radius: 14px;
-    border: 0.5px solid rgba(0, 0, 0, 0.1); /* 给图片加个淡淡的边框 */
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    display: block;
+    object-fit: contain; /* 保证图片不被裁剪拉伸 */
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border: 0.5px solid rgba(255,255,255,0.3);
 }
