@@ -1363,23 +1363,26 @@ const chatInput = document.getElementById('chatInput');
 const chatScrollArea = document.getElementById('chatScrollArea');
 
 if(chatInput) {
-    // 1. 定义一个标记，用来判断是否正在输入中文拼音
     let isIME = false;
 
-    // 监听输入法开始（开始打拼音）
+    // 1. 开始打拼音
     chatInput.addEventListener('compositionstart', () => {
         isIME = true;
     });
 
-    // 监听输入法结束（选词完成）
+    // 2. 拼音选词结束
     chatInput.addEventListener('compositionend', () => {
         isIME = false;
     });
 
+    // ★★★ 新增修复：失去焦点时（比如退出了界面），强制重置状态 ★★★
+    chatInput.addEventListener('blur', () => {
+        isIME = false;
+    });
+
+    // 3. 键盘监听
     chatInput.addEventListener('keydown', function (e) {
-        // 【核心修复】：
-        // 1. 删掉了 e.keyCode === 229 (因为安卓回车键也是229，留着它就发不出消息)
-        // 2. 改用 isIME 标记来防止拼音选词时误发
+        // 如果正在打拼音，不发送
         if (isIME) return;
 
         if (e.key === 'Enter') {
