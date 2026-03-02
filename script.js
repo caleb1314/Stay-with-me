@@ -1363,31 +1363,18 @@ const chatInput = document.getElementById('chatInput');
 const chatScrollArea = document.getElementById('chatScrollArea');
 
 if(chatInput) {
-    let isIME = false;
-
-    // 1. 开始打拼音
-    chatInput.addEventListener('compositionstart', () => {
-        isIME = true;
-    });
-
-    // 2. 拼音选词结束
-    chatInput.addEventListener('compositionend', () => {
-        isIME = false;
-    });
-
-    // ★★★ 新增修复：失去焦点时（比如退出了界面），强制重置状态 ★★★
-    chatInput.addEventListener('blur', () => {
-        isIME = false;
-    });
-
-    // 3. 键盘监听
     chatInput.addEventListener('keydown', function (e) {
-        // 如果正在打拼音，不发送
-        if (isIME) return;
+        // 【终极修复】：直接使用原生 e.isComposing 判断是否正在打拼音。
+        // 1. 彻底抛弃手动维护 isIME 变量，完美解决退出重进后状态卡死的问题！
+        // 2. 坚决不用 e.keyCode === 229，保证安卓手机的回车键能正常发送。
+        if (e.isComposing) {
+            return;
+        }
 
         if (e.key === 'Enter') {
             e.preventDefault();
-            sendUserMessageOnly(); 
+            // 保持你的原逻辑：回车只发送消息，绝不触发AI回复
+            sendUserMessageOnly();
         }
     });
 }
