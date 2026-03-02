@@ -1363,16 +1363,15 @@ const chatInput = document.getElementById('chatInput');
 const chatScrollArea = document.getElementById('chatScrollArea');
 
 if(chatInput) {
-    // 【完全恢复你原版的处理逻辑】
     chatInput.addEventListener('keydown', function (e) {
-        // 如果正在使用输入法拼音选词，绝对不触发发送 (恢复你原版的 229 判断)
+        // 完美保留你原版对安卓/iOS输入法的兼容
         if (e.isComposing || e.keyCode === 229) {
             return;
         }
         if (e.key === 'Enter') {
             e.preventDefault();
-            // 使用统一发送逻辑，确保回车不仅能发字，还能触发 AI 回复
-            handleSendBtnClick(); 
+            // 【修改】：回车只发送消息，绝不触发AI回复
+            sendUserMessageOnly(); 
         }
     });
 }
@@ -2617,7 +2616,7 @@ function sendImageMessage(base64Data) {
     // 1. UI 上屏显示图片
     appendImageMessageUI(base64Data, true);
 
-    // 2. 存入历史记录
+    // 2. 存入历史记录 (注意：这里只存不发请求)
     chatHistory.push({
         role: "user",
         content: [
@@ -2629,32 +2628,33 @@ function sendImageMessage(base64Data) {
     // 3. 保存到数据库
     saveChatHistoryToDB();
 
-    // 【核心修复】：解决发图后回车键失效的问题
-    // 先强制失焦，再延时聚焦，确保安卓键盘重新激活输入状态
+    // 【核心修复】：发完图后强力拉回焦点，防止回车键失效
     const input = document.getElementById('chatInput');
     if (input) {
+        // 先失焦，打断文件选择器的残留状态
         input.blur(); 
+        
+        // 稍微延时一点点，等系统缓过神来再聚焦
         setTimeout(() => {
             input.focus();
-            // 某些安卓机型需要手动触发一次点击才能完全唤起键盘
+            // 某些安卓机型需要这一步来激活键盘事件监听
             input.click(); 
-        }, 300); // 延时增加到300ms，给文件选择器关闭留出时间
+        }, 350); 
     }
 }
-// 【新增】统一发送按钮逻辑
+// 【重写】发送按钮逻辑：有字发送，没字回复
 function handleSendBtnClick() {
     const input = document.getElementById('chatInput');
     const text = input.value.trim();
 
-    // 1. 如果输入框里有字，先发送文字 (上屏 + 存历史)
     if (text) {
+        // 1. 输入框有内容：只发送消息，不触发 AI
         sendUserMessageOnly(); 
+    } else {
+        // 2. 输入框为空：请求 AI 回复 (根据上下文/图片)
+        fetchAIResponse();
     }
-
-    // 2. 触发 AI 回复 (针对之前的图片或刚才的文字)
-    fetchAIResponse();
 }
-
 // 专门用于渲染图片气泡的 UI 函数 (保持不变)
 function appendImageMessageUI(base64Data, isRight) {
     const lastMsg = chatScrollArea.lastElementChild;
