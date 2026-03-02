@@ -1363,14 +1363,27 @@ const chatInput = document.getElementById('chatInput');
 const chatScrollArea = document.getElementById('chatScrollArea');
 
 if(chatInput) {
+    // 1. 定义一个标记，用来判断是否正在输入中文拼音
+    let isIME = false;
+
+    // 监听输入法开始（开始打拼音）
+    chatInput.addEventListener('compositionstart', () => {
+        isIME = true;
+    });
+
+    // 监听输入法结束（选词完成）
+    chatInput.addEventListener('compositionend', () => {
+        isIME = false;
+    });
+
     chatInput.addEventListener('keydown', function (e) {
-        // 完美保留你原版对安卓/iOS输入法的兼容
-        if (e.isComposing || e.keyCode === 229) {
-            return;
-        }
+        // 【核心修复】：
+        // 1. 删掉了 e.keyCode === 229 (因为安卓回车键也是229，留着它就发不出消息)
+        // 2. 改用 isIME 标记来防止拼音选词时误发
+        if (isIME) return;
+
         if (e.key === 'Enter') {
             e.preventDefault();
-            // 【修改】：回车只发送消息，绝不触发AI回复
             sendUserMessageOnly(); 
         }
     });
