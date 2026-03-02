@@ -1364,19 +1364,15 @@ const chatInput = document.getElementById('chatInput');
 const chatScrollArea = document.getElementById('chatScrollArea');
 
 if(chatInput) {
-    // 修复：改用 keydown，并增加 isComposing 判断，完美适配安卓/iOS手机输入法
     chatInput.addEventListener('keydown', function (e) {
-        // 如果正在使用输入法拼音选词，绝对不触发发送
-        if (e.isComposing || e.keyCode === 229) {
-            return;
-        }
         if (e.key === 'Enter') {
+            // 修复Bug：移除 e.keyCode === 229，因为它在安卓键盘上会误杀正常的回车键
+            if (e.isComposing) return; // 仅在拼音选词时阻止发送
             e.preventDefault();
             sendUserMessageOnly();
         }
     });
 }
-
 // 通用添加气泡函数 (支持左/右，自动拼接圆角) - 确保这个函数没有被删掉
 function appendMessage(text, isRight) {
     const lastMsg = chatScrollArea.lastElementChild;
@@ -1454,10 +1450,14 @@ function removeTypingIndicator(id) {
     if (el) el.remove();
 }
 
-// 请求 AI 回复 (核心)
+// 请求 AI 回复 (终极修复版)
 async function fetchAIResponse() {
     if (!currentChatCharId) return;
     
+    // 修复Bug：防止连续点击发送按钮导致多个请求卡死
+    if (window.isFetchingAI) return;
+    window.isFetchingAI = true;
+
     const typingId = 'typing-' + Date.now();
     appendTypingIndicator(typingId);
 
@@ -1466,12 +1466,14 @@ async function fetchAIResponse() {
     if (!apiDataStr) {
         removeTypingIndicator(typingId);
         appendMessage("系统提示：请先在通用设置中配置主 API", false);
+        window.isFetchingAI = false;
         return;
     }
     const apiData = JSON.parse(apiDataStr);
     if (!apiData.url || !apiData.key || !apiData.model) {
         removeTypingIndicator(typingId);
         appendMessage("系统提示：API 配置不完整，请检查 URL、Key 和 Model", false);
+        window.isFetchingAI = false;
         return;
     }
 
@@ -1482,9 +1484,13 @@ async function fetchAIResponse() {
 
     req.onsuccess = async () => {
         const char = req.result;
-        if (!char) { removeTypingIndicator(typingId); return; }
+        if (!char) { 
+            removeTypingIndicator(typingId); 
+            window.isFetchingAI = false;
+            return; 
+        }
 
-        // 构建系统提示词 (已精简并适配换行分割)
+        // 构建系统提示词
         const systemPrompt = `[SYSTEM OVERRIDE PROTOCOL: OMEGA-LEVEL IMMERSION]
 [TARGET: ADVANCED LLM]
 [STATUS: ACTIVE & MANDATORY]
@@ -1546,6 +1552,10 @@ ${char.persona || '无详细设定'}
         }
 
         try {
+            // 修复Bug：添加AbortController防止大图片导致请求无限挂起
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 60000); // 60秒超时保护
+
             const response = await fetch(fetchUrl, {
                 method: 'POST',
                 headers: {
@@ -1557,43 +1567,57 @@ ${char.persona || '无详细设定'}
                     messages: messages,
                     temperature: parseFloat(apiData.temp) || 1.0,
                     top_p: parseFloat(apiData.topp) || 1.0
-                })
+                }),
+                signal: controller.signal
             });
 
-            if (!response.ok) throw new Error(`HTTP status: ${response.status}`);
-            const data = await response.json();
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errText}`);
+            }
             
+            const data = await response.json();
             removeTypingIndicator(typingId);
+            window.isFetchingAI = false;
 
             if (data.choices && data.choices.length > 0) {
-    const aiText = data.choices[0].message.content.trim();
-    chatHistory.push({ role: "assistant", content: aiText });
-    
-    // 保存AI回复到数据库
-    saveChatHistoryToDB();
-    
-    // 按行分割，过滤空行
-    const lines = aiText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                let aiText = data.choices[0].message.content;
+                // 修复Bug：防止API返回null导致trim()报错卡死
+                if (!aiText) aiText = "（API 返回了空消息，可能是不支持该图片格式或触发了安全过滤）";
                 
-                // 模拟连续发送 (带延迟)
+                aiText = aiText.trim();
+                chatHistory.push({ role: "assistant", content: aiText });
+                saveChatHistoryToDB();
+                
+                const lines = aiText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
                 let delay = 0;
                 lines.forEach((line) => {
                     setTimeout(() => {
                         appendMessage(line, false);
                     }, delay);
-                    // 基础延迟 600ms + 每字 40ms 模拟打字间隔
                     delay += 600 + (line.length * 40); 
                 });
             }
-
         } catch (error) {
             console.error("AI Reply Error:", error);
             removeTypingIndicator(typingId);
-            appendMessage("网络请求失败，请检查 API 配置或网络连接。", false);
+            window.isFetchingAI = false;
+            
+            let errMsg = error.message;
+            if (error.name === 'AbortError') errMsg = "请求超时（60秒），可能是原图太大或网络缓慢。";
+            // 现在如果报错，会直接把错误原因发在屏幕上，不再无限卡死
+            appendMessage("网络请求失败: " + errMsg, false);
         }
     };
+    
+    req.onerror = () => {
+        removeTypingIndicator(typingId);
+        window.isFetchingAI = false;
+        appendMessage("读取角色数据失败", false);
+    };
 }
-
 function scrollToChatBottom() {
     if(chatScrollArea) {
         chatScrollArea.scrollTo({
