@@ -1612,3 +1612,27 @@ input:-webkit-autofill:active {
 .cf-func-btn:active { background: var(--cf-btn-active); transform: scale(0.95); }
 .cf-func-text { font-size: 12px; font-weight: 600; color: var(--cf-text-main); text-align: center; white-space: nowrap; }
 .cf-func-btn[data-len="4"] .cf-func-text { font-size: 10px; transform: scale(0.95); }
+/* ========================================= */
+/* === 聊天图片气泡专属样式 === */
+/* ========================================= */
+.msg-bubble img.chat-img {
+    max-width: 100%;
+    height: auto; /* 保证不压缩、不裁剪、原比例 */
+    border-radius: 14px; 
+    display: block;
+    cursor: pointer;
+}
+
+/* 当气泡内只有图片时，去除原本的内边距和背景，实现 iOS 无边框图片效果 */
+.msg-bubble.image-only-bubble {
+    padding: 0;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    overflow: hidden;
+}
+.msg-bubble.image-only-bubble img.chat-img {
+    border-radius: 18px;
+    border: 0.5px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
