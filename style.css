@@ -1522,3 +1522,93 @@ input:-webkit-autofill:active {
 .dm-danger-icon svg { stroke: var(--dm-danger); }
 .dm-danger-text { color: var(--dm-danger); }
 .dm-footer { padding: 10px 0 20px; text-align: center; font-size: 11px; color: rgba(0,0,0,0.3); font-weight: 500; letter-spacing: 0.5px; }
+/* ========================================= */
+/* === 聊天功能面板 (独立样式，防冲突) === */
+/* ========================================= */
+.chat-func-overlay {
+    --cf-glass-outer: rgba(255, 255, 255, 0.65); 
+    --cf-glass-inner: rgba(255, 255, 255, 0.4);
+    --cf-btn-bg: rgba(0, 0, 0, 0.08);            
+    --cf-btn-active: rgba(0, 0, 0, 0.15);
+    --cf-text-main: #333;
+    --cf-border: rgba(255, 255, 255, 0.8);
+    --cf-radius-big: 16px;
+    --cf-radius-small: 8px;
+    --cf-radius-btn: 6px;
+
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+    z-index: 5600; /* 必须高于 chatScreen 的 5500 */
+    display: none; flex-direction: column; justify-content: flex-end; 
+    padding-bottom: 90px; /* 避开聊天输入框 */
+    background: rgba(0, 0, 0, 0.1); opacity: 0; transition: opacity 0.25s ease;
+}
+.chat-func-overlay.active { display: flex; opacity: 1; }
+
+.cf-close-area { flex: 1; width: 100%; }
+
+/* 1. 大卡片 */
+.cf-big-card {
+    margin: 0 12px;
+    background: var(--cf-glass-outer);
+    backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+    border-radius: var(--cf-radius-big); 
+    border: 1px solid var(--cf-border);
+    box-shadow: 0 15px 40px rgba(0,0,0,0.1);
+    position: relative; overflow: hidden;
+    display: flex; padding: 15px 12px 35px 12px; 
+    
+    transform: translateY(20px) scale(0.98); opacity: 0;
+    transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+}
+.chat-func-overlay.active .cf-big-card { transform: translateY(0) scale(1); opacity: 1; }
+
+/* 巨型星星底纹 */
+.cf-big-card::before {
+    content: '★'; position: absolute; top: -80px; right: -60px;
+    font-size: 350px; line-height: 1; color: rgba(0, 0, 0, 0.035);
+    transform: rotate(20deg); pointer-events: none; z-index: 0;
+}
+
+/* 大标题 */
+.cf-deco-title {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%); 
+    font-size: 12px; font-weight: 800; color: rgba(0,0,0,0.6); 
+    letter-spacing: 1px; text-transform: uppercase; z-index: 1;
+    display: flex; flex-direction: column; align-items: center; 
+}
+.cf-deco-title::after {
+    content: ''; display: block; width: 100%; height: 2px;
+    background: rgba(0,0,0,0.6); margin-top: 2px; border-radius: 1px;
+}
+
+/* 颜文字 */
+.cf-deco-kaomoji {
+    position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); 
+    font-size: 13px; font-weight: 700; color: rgba(0,0,0,0.25); 
+    font-family: "Comic Sans MS", cursive, sans-serif; z-index: 2; letter-spacing: 1px;
+}
+
+/* 左侧时间轴 */
+.cf-left-timeline {
+    width: 30px; flex-shrink: 0; position: relative; z-index: 2;
+    display: flex; justify-content: center; padding-top: 20px;
+}
+.cf-left-timeline svg { width: 100%; height: 180px; overflow: visible; }
+
+/* 2. 小卡片 */
+.cf-inner-card {
+    flex: 1; background: var(--cf-glass-inner); border-radius: var(--cf-radius-small); 
+    padding: 10px; border: 0.5px solid rgba(255,255,255,0.4);
+    position: relative; z-index: 2; margin-top: 28px; 
+}
+
+/* 网格与按钮 */
+.cf-func-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.cf-func-btn {
+    background: var(--cf-btn-bg); border-radius: var(--cf-radius-btn); 
+    aspect-ratio: 1.4 / 1; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.1s;
+}
+.cf-func-btn:active { background: var(--cf-btn-active); transform: scale(0.95); }
+.cf-func-text { font-size: 12px; font-weight: 600; color: var(--cf-text-main); text-align: center; white-space: nowrap; }
+.cf-func-btn[data-len="4"] .cf-func-text { font-size: 10px; transform: scale(0.95); }
