@@ -2607,14 +2607,14 @@ document.getElementById('chatImageInput').addEventListener('change', function(e)
     e.target.value = ''; 
 });
 
-// 【修改】处理图片发送
+// 【修复版】处理图片发送
 function sendImageMessage(base64Data) {
     if (!currentChatCharId) return;
 
     // 1. UI 上屏显示图片
     appendImageMessageUI(base64Data, true);
 
-    // 2. 存入历史记录 (带 Vision 格式)
+    // 2. 存入历史记录
     chatHistory.push({
         role: "user",
         content: [
@@ -2626,17 +2626,19 @@ function sendImageMessage(base64Data) {
     // 3. 保存到数据库
     saveChatHistoryToDB();
 
-    // 【重要修改】：这里删掉了 fetchAIResponse(); 
-    // 发完图片不自动回复，等待用户手动点击发送键。
-
-    // 【修复Bug】：发完图片后，强制把焦点还给输入框，这样你可以直接按回车继续打字
-    setTimeout(() => {
-        const input = document.getElementById('chatInput');
-        input.focus();
-    }, 100);
+    // 【核心修复】：解决发图后回车键失效的问题
+    // 先强制失焦，再延时聚焦，确保安卓键盘重新激活输入状态
+    const input = document.getElementById('chatInput');
+    if (input) {
+        input.blur(); 
+        setTimeout(() => {
+            input.focus();
+            // 某些安卓机型需要手动触发一次点击才能完全唤起键盘
+            input.click(); 
+        }, 300); // 延时增加到300ms，给文件选择器关闭留出时间
+    }
 }
-
-// 【新增】处理发送按钮点击 (小飞机图标)
+// 【新增】统一发送按钮逻辑
 function handleSendBtnClick() {
     const input = document.getElementById('chatInput');
     const text = input.value.trim();
@@ -2646,8 +2648,7 @@ function handleSendBtnClick() {
         sendUserMessageOnly(); 
     }
 
-    // 2. 无论有没有字，点击这个按钮代表“由于用户主动发起”，触发 AI 回复
-    // 这样你可以：发图 -> 发图 -> 打字 -> 点击发送 -> AI 统统看到并回复
+    // 2. 触发 AI 回复 (针对之前的图片或刚才的文字)
     fetchAIResponse();
 }
 
