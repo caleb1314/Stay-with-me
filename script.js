@@ -1318,20 +1318,31 @@ function openChatScreen(charId) {
             const chatScrollArea = document.getElementById('chatScrollArea');
             chatScrollArea.innerHTML = '<div class="chat-time-stamp">刚刚</div>';
 
-            // 4. 恢复历史记录
-            if (char.history && char.history.length > 0) {
-                chatHistory = char.history;
-                chatHistory.forEach(msg => {
-                    if (msg.role === 'user') {
-                        appendMessage(msg.content, true);
-                    } else if (msg.role === 'assistant') {
-                        const lines = msg.content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-                        lines.forEach(line => appendMessage(line, false));
-                    }
-                });
-            } else {
-                chatHistory = [];
+            // 4. 恢复历史记录 (兼容纯文本与 Vision 数组格式)
+if (char.history && char.history.length > 0) {
+    chatHistory = char.history;
+    chatHistory.forEach(msg => {
+        if (msg.role === 'user') {
+            if (typeof msg.content === 'string') {
+                // 普通文本
+                appendMessage(msg.content, true);
+            } else if (Array.isArray(msg.content)) {
+                // 包含图片的数组格式
+                const imgObj = msg.content.find(item => item.type === 'image_url');
+                if (imgObj && imgObj.image_url) {
+                    appendImageMessageUI(imgObj.image_url.url, true);
+                } else {
+                    appendMessage("【图片消息】", true);
+                }
             }
+        } else if (msg.role === 'assistant') {
+            const lines = msg.content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            lines.forEach(line => appendMessage(line, false));
+        }
+    });
+} else {
+    chatHistory = [];
+}
 
             // 5. 打开界面
             const screen = document.getElementById('chatScreen');
@@ -2541,19 +2552,86 @@ function closeChatFuncPanel() {
 // 处理面板内按钮的点击事件
 function handleChatFuncAct(funcName) {
     console.log("触发功能:", funcName);
-    
-    // 震动反馈
     if (navigator.vibrate) navigator.vibrate(10);
 
-    // 这里可以根据 funcName 绑定具体的功能
     if (funcName === '音乐') {
         closeChatFuncPanel();
         if (typeof openMusicPlayer === 'function') openMusicPlayer();
     } else if (funcName === '图片') {
+        // 【修改这里】：点击图片功能，关闭面板并触发文件选择
         closeChatFuncPanel();
-        alert('图片功能预留接口');
+        document.getElementById('chatImageInput').click();
     } else {
-        // 其他功能暂未实现，点击后仅关闭面板
         closeChatFuncPanel();
     }
 }
+// =========================================
+// === 聊天发送图片核心逻辑 (支持 Vision API) ===
+// =========================================
+
+// 监听文件选择
+document.getElementById('chatImageInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        const base64Data = event.target.result;
+        sendImageMessage(base64Data);
+    };
+    // 以 Base64 格式读取，保证不压缩图片质量
+    reader.readAsDataURL(file);
+    e.target.value = ''; // 重置 input，允许重复发送同一张图
+});
+
+// 处理图片发送
+function sendImageMessage(base64Data) {
+    if (!currentChatCharId) return;
+
+    // 1. UI 上屏显示图片
+    appendImageMessageUI(base64Data, true);
+
+    // 2. 存入历史记录 (使用 OpenAI Vision API 标准数组格式)
+    // 附带一段隐藏的系统提示，引导 AI 以角色口吻回复，而不是单纯的“描述图片”
+    chatHistory.push({
+        role: "user",
+        content: [
+            { type: "text", "text": "（我发送了一张图片，请根据图片内容、你的人设以及我们当前的聊天上下文，以角色的口吻自然地回复我，产生互动，不要像机器一样单纯描述图片。）" },
+            { type: "image_url", "image_url": { url: base64Data } }
+        ]
+    });
+
+    // 3. 保存到数据库
+    saveChatHistoryToDB();
+
+    // 4. 触发 AI 回复
+    fetchAIResponse();
+}
+
+// 专门用于渲染图片气泡的 UI 函数
+function appendImageMessageUI(base64Data, isRight) {
+    const lastMsg = chatScrollArea.lastElementChild;
+    let newMsgClass = 'single'; 
+    const sideClass = isRight ? 'right' : 'left';
+
+    // 气泡圆角拼接逻辑
+    if (lastMsg && lastMsg.classList.contains(sideClass)) {
+        if (lastMsg.classList.contains('single')) {
+            lastMsg.classList.remove('single');
+            lastMsg.classList.add('group-start');
+        } 
+        else if (lastMsg.classList.contains('group-end')) {
+            lastMsg.classList.remove('group-end');
+            lastMsg.classList.add('group-middle');
+        }
+        newMsgClass = 'group-end';
+    }
+
+    const msgRow = document.createElement('div');
+    msgRow.className = `msg-row ${sideClass} ${newMsgClass}`; 
+    // 使用 image-only-bubble 类名，去掉多余背景
+    msgRow.innerHTML = `<div class="msg-bubble image-only-bubble"><img src="${base64Data}" class="chat-img"></div>`;
+
+    chatScrollArea.appendChild(msgRow);
+    scrollToChatBottom();
+} 
