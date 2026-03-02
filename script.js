@@ -2566,10 +2566,10 @@ function handleChatFuncAct(funcName) {
     }
 }
 // =========================================
-// === 聊天发送图片核心逻辑 (支持 Vision API) ===
+// === 聊天发送图片核心逻辑 (修复版) ===
 // =========================================
 
-// 监听文件选择
+// 监听文件选择 (保持不变，但为了完整性贴在这里)
 document.getElementById('chatImageInput').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -2579,24 +2579,22 @@ document.getElementById('chatImageInput').addEventListener('change', function(e)
         const base64Data = event.target.result;
         sendImageMessage(base64Data);
     };
-    // 以 Base64 格式读取，保证不压缩图片质量
     reader.readAsDataURL(file);
-    e.target.value = ''; // 重置 input，允许重复发送同一张图
+    e.target.value = ''; 
 });
 
-// 处理图片发送
+// 【修改】处理图片发送
 function sendImageMessage(base64Data) {
     if (!currentChatCharId) return;
 
     // 1. UI 上屏显示图片
     appendImageMessageUI(base64Data, true);
 
-    // 2. 存入历史记录 (使用 OpenAI Vision API 标准数组格式)
-    // 附带一段隐藏的系统提示，引导 AI 以角色口吻回复，而不是单纯的“描述图片”
+    // 2. 存入历史记录 (带 Vision 格式)
     chatHistory.push({
         role: "user",
         content: [
-            { type: "text", "text": "（我发送了一张图片，请根据图片内容、你的人设以及我们当前的聊天上下文，以角色的口吻自然地回复我，产生互动，不要像机器一样单纯描述图片。）" },
+            { type: "text", "text": "（我发送了一张图片，请结合图片内容和上下文回复）" },
             { type: "image_url", "image_url": { url: base64Data } }
         ]
     });
@@ -2604,17 +2602,37 @@ function sendImageMessage(base64Data) {
     // 3. 保存到数据库
     saveChatHistoryToDB();
 
-    // 4. 触发 AI 回复
+    // 【重要修改】：这里删掉了 fetchAIResponse(); 
+    // 发完图片不自动回复，等待用户手动点击发送键。
+
+    // 【修复Bug】：发完图片后，强制把焦点还给输入框，这样你可以直接按回车继续打字
+    setTimeout(() => {
+        const input = document.getElementById('chatInput');
+        input.focus();
+    }, 100);
+}
+
+// 【新增】处理发送按钮点击 (小飞机图标)
+function handleSendBtnClick() {
+    const input = document.getElementById('chatInput');
+    const text = input.value.trim();
+
+    // 1. 如果输入框里有字，先发送文字 (上屏 + 存历史)
+    if (text) {
+        sendUserMessageOnly(); 
+    }
+
+    // 2. 无论有没有字，点击这个按钮代表“由于用户主动发起”，触发 AI 回复
+    // 这样你可以：发图 -> 发图 -> 打字 -> 点击发送 -> AI 统统看到并回复
     fetchAIResponse();
 }
 
-// 专门用于渲染图片气泡的 UI 函数
+// 专门用于渲染图片气泡的 UI 函数 (保持不变)
 function appendImageMessageUI(base64Data, isRight) {
     const lastMsg = chatScrollArea.lastElementChild;
     let newMsgClass = 'single'; 
     const sideClass = isRight ? 'right' : 'left';
 
-    // 气泡圆角拼接逻辑
     if (lastMsg && lastMsg.classList.contains(sideClass)) {
         if (lastMsg.classList.contains('single')) {
             lastMsg.classList.remove('single');
@@ -2629,9 +2647,8 @@ function appendImageMessageUI(base64Data, isRight) {
 
     const msgRow = document.createElement('div');
     msgRow.className = `msg-row ${sideClass} ${newMsgClass}`; 
-    // 使用 image-only-bubble 类名，去掉多余背景
     msgRow.innerHTML = `<div class="msg-bubble image-only-bubble"><img src="${base64Data}" class="chat-img"></div>`;
 
     chatScrollArea.appendChild(msgRow);
     scrollToChatBottom();
-} 
+}
