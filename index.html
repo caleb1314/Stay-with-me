@@ -1538,10 +1538,11 @@
         <div class="glass-amount-box">
             <div class="amount-label">转账金额</div>
             <div class="amount-row">
-                <span class="currency-symbol">¥</span>
-                <input type="number" class="amount-input" id="transferInput" placeholder="0.00" oninput="checkTransferAmount()">
-            </div>
-            <input type="text" class="note-input" id="transferNote" placeholder="添加备注 (最多10字)">
+    <span class="currency-symbol">¥</span>
+    <!-- 改为 text 类型并限制输入模式，彻底杀掉历史记录下拉框 -->
+    <input type="text" inputmode="decimal" class="amount-input" id="transferInput" placeholder="0.00" oninput="checkTransferAmount()" autocomplete="off" name="transfer_amount_random">
+</div>
+<input type="text" class="note-input" id="transferNote" placeholder="添加备注 (最多10字)" autocomplete="off" name="transfer_note_random">
         </div>
         <button class="glass-transfer-btn" id="transferBtn" onclick="proceedToTransferPassword()">确认转账</button>
     </div>
