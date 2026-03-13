@@ -1705,10 +1705,17 @@ input:-webkit-autofill:active {
 .transfer-bubble.received .transfer-bottom { background: #8e8e93; }
 .transfer-bubble.received { opacity: 0.9; box-shadow: none; }
 
-/* 已退回状态 (浅红灰) */
-.transfer-bubble.refunded .transfer-top { background: linear-gradient(135deg, #bfa3a3, #9e8282); }
-.transfer-bubble.refunded .transfer-bottom { background: #a38989; }
-.transfer-bubble.refunded { opacity: 0.9; box-shadow: none; }
+/* 已退回状态 (改为纯浅灰色，去红) */
+.transfer-bubble.refunded .transfer-top { 
+    background: linear-gradient(135deg, #b0b0b5, #95959a); /* 纯灰渐变 */
+}
+.transfer-bubble.refunded .transfer-bottom { 
+    background: #9a9a9f; /* 底部深灰 */
+}
+.transfer-bubble.refunded { 
+    opacity: 0.9; 
+    box-shadow: none; 
+}
 
 .transfer-icon-circle { width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid rgba(255, 255, 255, 0.35); display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.06); flex-shrink: 0; }
 .transfer-icon-circle svg { width: 20px; height: 20px; stroke: #fff; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
@@ -1765,3 +1772,19 @@ input:-webkit-autofill:active {
 .glass-key { height: 56px; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 400; color: #1c1c1e; background: transparent; border-radius: 12px; cursor: pointer; transition: background 0.1s; }
 .glass-key:active { background: rgba(0, 0, 0, 0.06); }
 .key-icon { width: 26px; height: 26px; stroke: #1c1c1e; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+/* === 在 style.css 中搜索 ".glass-card" (大约第 665 行附近) === */
+/* === 把原本用于 API 的 .glass-card 改名为 .api-glass-card，或者直接添加下面这段新代码 === */
+
+/* API 配置界面专用卡片 (宽度撑满，两侧留空) */
+.api-glass-card {
+    margin: 0 16px; /* 关键：左右留边，自动撑满中间 */
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+    border-radius: 14px; border: 0.5px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.02); overflow: hidden;
+    display: flex; flex-direction: column; padding: 6px 0;
+    position: relative; z-index: 1;
+}
+
+/* 注意：原本的 .glass-card (用于转账弹窗) 保持不变，不要动它，
+   它在文件后半部分 (大约 1409 行)，负责弹窗的小巧样式 */
