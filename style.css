@@ -1058,14 +1058,6 @@ select.char-grid-input { appearance: none; -webkit-appearance: none; text-align-
 .section-title-line { width: 3px; height: 14px; background-color: #000; border-radius: 2px; }
 .section-title-text { font-size: 13px; font-weight: 600; color: #555; letter-spacing: 1px; text-transform: uppercase; }
 
-.glass-card {
-    margin: 0 16px; background: rgba(255, 255, 255, 0.75);
-    backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
-    border-radius: 14px; border: 0.5px solid rgba(255, 255, 255, 0.8);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.02); overflow: hidden;
-    display: flex; flex-direction: column; padding: 6px 0;
-    position: relative; z-index: 1;
-}
 
 .input-stack { display: flex; flex-direction: column; padding: 12px 20px; gap: 8px; }
 .label-row { display: flex; align-items: center; gap: 8px; }
@@ -1785,6 +1777,18 @@ input:-webkit-autofill:active {
     display: flex; flex-direction: column; padding: 6px 0;
     position: relative; z-index: 1;
 }
+/* ========================================= */
+/* === iOS 气泡长按菜单 (纯净版，绝不改气泡颜色) === */
+/* ========================================= */
 
-/* 注意：原本的 .glass-card (用于转账弹窗) 保持不变，不要动它，
-   它在文件后半部分 (大约 1409 行)，负责弹窗的小巧样式 */
+/* 菜单外层容器 */
+.ios-tooltip-wrapper {
+    position: fixed; /* 👈 把 absolute 改成 fixed ！！！ */
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.15));
+    opacity: 0;
+    transform: scale(0.8) translateY(8px);
+    pointer-events: none;
+    transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 99999; /* 顺便多加几个9，确保它在最最最上层 */
+    margin-bottom: 6px;
+}
