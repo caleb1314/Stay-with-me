@@ -1018,8 +1018,8 @@
                     </div>
                 </div>
 
-<!-- 右侧：发送 (修改了 onclick 事件) -->
-<div class="glass-box btn-circle" onclick="handleSendClick()">
+                            <!-- 右侧：发送 -->
+<div class="glass-box btn-circle" onclick="handleSendBtnClick()">
     <svg class="send-icon" viewBox="0 0 24 24">
         <path d="M22 2L11 13" stroke-linecap="round" stroke-linejoin="round"/>
         <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1029,7 +1029,17 @@
 
         </div>
     </div>
-
+<!-- 拍照功能专属输入弹窗 -->
+<div class="modal-overlay" id="fakePhotoModal" style="z-index: 7000;">
+    <div class="modal-content">
+        <div class="modal-title">Photo Description</div>
+        <div class="upload-options">
+            <input type="text" class="url-input" id="fakePhotoInput" placeholder="输入照片描述..." autocomplete="off">
+            <button class="opt-btn confirm-btn" onclick="sendFakePhoto()">Send</button>
+        </div>
+        <div class="close-modal-trigger" onclick="closeFakePhotoModal()">Dismiss</div>
+    </div>
+</div>
     <!-- 角色界面专属图片上传弹窗 -->
     <div class="modal-overlay" id="charUploadModal" style="z-index: 7000;">
         <div class="modal-content">
@@ -1247,6 +1257,8 @@
 </div>
 <!-- 专属的隐藏文件选择器 -->
 <input type="file" id="csAlbumFileInput" hidden accept="image/*">
+<!-- 新增：用于聊天界面发送图片的隐藏 input -->
+<input type="file" id="chatImageInput" hidden accept="image/*">
         </div>
     </div>
     
@@ -1510,8 +1522,6 @@
 </div>
 <!-- 隐藏的 ZIP 导入框 -->
 <input type="file" id="importZipInput" hidden accept=".zip">
-<!-- 聊天发送图片专属输入框 -->
-<input type="file" id="chatImageInput" hidden accept="image/png, image/jpeg, image/webp, image/gif">
     <script>
         // --- Wechat 界面控制逻辑 ---
         function openWechat() {
