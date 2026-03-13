@@ -14,6 +14,17 @@
     box-sizing: border-box;
     -webkit-tap-highlight-color: transparent;
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    /* 彻底禁止长按弹出系统菜单和文字选中 */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* 恢复输入框和可编辑区域的正常选中与长按功能 */
+input, textarea, [contenteditable="true"] {
+    -webkit-touch-callout: default !important;
+    -webkit-user-select: auto !important;
+    user-select: auto !important;
 }
 
 /* 修复 Input 自动填充背景色问题 */
