@@ -1677,3 +1677,80 @@ input:-webkit-autofill:active {
 .fake-photo-wrap.show-text .fake-photo-text {
     opacity: 1;
 }
+/* ========================================= */
+/* === 转账功能专属样式 (气泡 + 浮窗 + 键盘) === */
+/* ========================================= */
+
+/* 1. 转账气泡核心样式 */
+.transfer-bubble {
+    width: 195px; height: 76px; border-radius: 18px; overflow: hidden; display: flex; flex-direction: column;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12); cursor: pointer; transition: all 0.3s ease;
+}
+.transfer-top { flex: 1; background: linear-gradient(135deg, #5c5c5e, #3a3a3c); display: flex; align-items: center; padding: 0 14px; gap: 12px; transition: background 0.3s; }
+.transfer-bottom { height: 22px; background: #2c2c2e; display: flex; align-items: center; padding: 0 14px; border-top: 0.5px solid rgba(255, 255, 255, 0.08); transition: background 0.3s; }
+
+/* 已收取状态 (浅灰) */
+.transfer-bubble.received .transfer-top { background: linear-gradient(135deg, #9ca3af, #85858a); }
+.transfer-bubble.received .transfer-bottom { background: #8e8e93; }
+.transfer-bubble.received { opacity: 0.9; box-shadow: none; }
+
+/* 已退回状态 (浅红灰) */
+.transfer-bubble.refunded .transfer-top { background: linear-gradient(135deg, #bfa3a3, #9e8282); }
+.transfer-bubble.refunded .transfer-bottom { background: #a38989; }
+.transfer-bubble.refunded { opacity: 0.9; box-shadow: none; }
+
+.transfer-icon-circle { width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid rgba(255, 255, 255, 0.35); display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.06); flex-shrink: 0; }
+.transfer-icon-circle svg { width: 20px; height: 20px; stroke: #fff; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.transfer-info { display: flex; flex-direction: column; justify-content: center; gap: 2px; overflow: hidden; flex: 1; }
+.transfer-amount { font-size: 16px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.transfer-desc { font-size: 11px; color: rgba(255, 255, 255, 0.85); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.transfer-mark { font-size: 10px; color: rgba(255, 255, 255, 0.6); font-weight: 600; letter-spacing: 0.5px; }
+
+/* 2. 玻璃浮窗通用 */
+.glass-modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.25); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    z-index: 9000; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+    display: flex; align-items: center; justify-content: center;
+}
+.glass-modal-overlay.active { opacity: 1; pointer-events: auto; }
+.glass-card {
+    width: 85%; max-width: 320px; background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+    border-radius: 24px; border: 0.5px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.15); display: flex; flex-direction: column;
+    transform: scale(0.95) translateY(10px); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    position: relative; overflow: hidden;
+}
+.glass-modal-overlay.active .glass-card { transform: scale(1) translateY(0); }
+.glass-close { position: absolute; top: 16px; left: 16px; width: 28px; height: 28px; background: rgba(0,0,0,0.05); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.glass-close svg { width: 14px; height: 14px; stroke: #555; stroke-width: 2.5; fill: none; stroke-linecap: round; }
+
+/* 3. 金额+备注输入浮窗 */
+.transfer-target-info { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 30px; }
+.target-avatar { width: 56px; height: 56px; border-radius: 14px; background-image: url('https://file.uhsea.com/2602/70da4faf682de2817a4b430809e0bce3NN.jpg'); background-size: cover; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+.target-name { font-size: 16px; font-weight: 600; color: #333; }
+.glass-amount-box { background: rgba(255, 255, 255, 0.5); border-radius: 16px; margin: 20px 20px 10px 20px; padding: 15px 20px; border: 1px solid rgba(255,255,255,0.6); display: flex; flex-direction: column; gap: 10px; }
+.amount-label { font-size: 13px; color: #555; font-weight: 600; margin-bottom: 2px; }
+.amount-row { display: flex; align-items: center; border-bottom: 1.5px solid rgba(0,0,0,0.06); padding-bottom: 5px; }
+.currency-symbol { font-size: 28px; font-weight: 600; color: #000; margin-right: 8px; }
+.amount-input { flex: 1; border: none; outline: none; background: transparent; font-size: 36px; font-weight: 700; color: #000; padding: 0; width: 100%; }
+.note-input { width: 100%; border: none; outline: none; background: transparent; font-size: 14px; color: #333; padding: 5px 0; }
+.note-input::placeholder { color: #888; }
+.glass-transfer-btn { margin: 15px 20px 24px; background: #333; color: #fff; border: none; padding: 14px; border-radius: 14px; font-size: 16px; font-weight: 600; opacity: 0.3; pointer-events: none; transition: all 0.2s; }
+.glass-transfer-btn.active { opacity: 1; pointer-events: auto; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+.glass-transfer-btn:active { transform: scale(0.97); }
+
+/* 4. 无界密码键盘 */
+.pwd-header { text-align: center; padding: 20px 0 10px; font-size: 16px; font-weight: 600; color: #000; }
+.pwd-amount-display { text-align: center; font-size: 32px; font-weight: 700; color: #000; margin-bottom: 20px; }
+.pwd-grid-container { padding: 0 24px 20px; display: flex; justify-content: center; }
+.pwd-grid { display: flex; width: 100%; height: 46px; background: rgba(255, 255, 255, 0.6); border-radius: 10px; border: 1px solid rgba(0,0,0,0.1); overflow: hidden; }
+.pwd-box { flex: 1; border-right: 1px solid rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: center; }
+.pwd-box:last-child { border-right: none; }
+.pwd-dot { width: 12px; height: 12px; background: #000; border-radius: 50%; opacity: 0; transform: scale(0.5); transition: all 0.1s; }
+.pwd-dot.show { opacity: 1; transform: scale(1); }
+.glass-keyboard { display: grid; grid-template-columns: repeat(3, 1fr); padding: 10px 10px 20px 10px; border-top: 1px solid rgba(0,0,0,0.05); }
+.glass-key { height: 56px; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 400; color: #1c1c1e; background: transparent; border-radius: 12px; cursor: pointer; transition: background 0.1s; }
+.glass-key:active { background: rgba(0, 0, 0, 0.06); }
+.key-icon { width: 26px; height: 26px; stroke: #1c1c1e; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
