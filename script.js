@@ -1322,27 +1322,29 @@ function openChatScreen(charId) {
 if (char.history && char.history.length > 0) {
     chatHistory = char.history;
     chatHistory.forEach(msg => {
-        if (msg.role === 'user') {
-            if (typeof msg.content === 'string') {
-                appendMessage(msg.content, true);
-            } else if (Array.isArray(msg.content)) {
-                const imgObj = msg.content.find(item => item.type === 'image_url');
-                if (imgObj && imgObj.image_url) {
-                    // 判断是否是带描述的假照片
-                    if (imgObj.image_url.detail) {
-                        appendFakePhotoUI(imgObj.image_url.url, imgObj.image_url.detail, true);
-                    } else {
-                        appendImageMessageUI(imgObj.image_url.url, true);
-                    }
+    if (msg.type === 'transfer') {
+        // 恢复转账气泡
+        appendTransferUI(msg.amount, msg.note, msg.status, msg.id, msg.role === 'user');
+    } else if (msg.role === 'user') {
+        if (typeof msg.content === 'string') {
+            appendMessage(msg.content, true);
+        } else if (Array.isArray(msg.content)) {
+            const imgObj = msg.content.find(item => item.type === 'image_url');
+            if (imgObj && imgObj.image_url) {
+                if (imgObj.image_url.detail) {
+                    appendFakePhotoUI(imgObj.image_url.url, imgObj.image_url.detail, true);
                 } else {
-                    appendMessage("【图片消息】", true);
+                    appendImageMessageUI(imgObj.image_url.url, true);
                 }
+            } else {
+                appendMessage("【图片消息】", true);
             }
-        } else if (msg.role === 'assistant') {
-            const lines = msg.content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-            lines.forEach(line => appendMessage(line, false));
         }
-    });
+    } else if (msg.role === 'assistant') {
+        const lines = msg.content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        lines.forEach(line => appendMessage(line, false));
+    }
+});
 } else {
     chatHistory = [];
 }
@@ -1548,10 +1550,21 @@ MBTI：${char.mbti || ''}
 ${char.persona || '无详细设定'}
 `;
 
-        const messages = [
-            { role: "system", content: systemPrompt },
-            ...chatHistory
-        ];
+        // 翻译历史记录给 AI
+const apiMessages = chatHistory.map(msg => {
+    if (msg.type === 'transfer') {
+        return {
+            role: msg.role,
+            content: `（我向你发起了一笔转账，金额：¥${msg.amount}，备注：${msg.note}。请决定是否收取。若收取请在回复中包含“[收取转账]”，若退回请包含“[退回转账]”）`
+        };
+    }
+    return { role: msg.role, content: msg.content };
+});
+
+const messages = [
+    { role: "system", content: systemPrompt },
+    ...apiMessages
+];
 
         let fetchUrl = apiData.url;
         if (!fetchUrl.endsWith('/chat/completions')) {
@@ -1590,23 +1603,35 @@ ${char.persona || '无详细设定'}
             window.isFetchingAI = false;
 
             if (data.choices && data.choices.length > 0) {
-                let aiText = data.choices[0].message.content;
-                // 修复Bug：防止API返回null导致trim()报错卡死
-                if (!aiText) aiText = "（API 返回了空消息，可能是不支持该图片格式或触发了安全过滤）";
-                
-                aiText = aiText.trim();
-                chatHistory.push({ role: "assistant", content: aiText });
-                saveChatHistoryToDB();
-                
-                const lines = aiText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-                let delay = 0;
-                lines.forEach((line) => {
-                    setTimeout(() => {
-                        appendMessage(line, false);
-                    }, delay);
-                    delay += 600 + (line.length * 40); 
-                });
-            }
+    let aiText = data.choices[0].message.content;
+    if (!aiText) aiText = "（API 返回了空消息，可能是不支持该图片格式或触发了安全过滤）";
+    
+    // --- 拦截转账状态指令 ---
+    if (aiText.includes('[收取转账]')) {
+        aiText = aiText.replace(/\[收取转账\]/g, '');
+        updateLastTransferStatus('received');
+    } else if (aiText.includes('[退回转账]')) {
+        aiText = aiText.replace(/\[退回转账\]/g, '');
+        updateLastTransferStatus('refunded');
+    }
+
+    aiText = aiText.trim();
+    
+    // 如果 AI 只发了指令没说话，给个默认回复防止空气泡
+    if (!aiText) aiText = "（已处理转账）";
+
+    chatHistory.push({ role: "assistant", content: aiText });
+    saveChatHistoryToDB();
+    
+    const lines = aiText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    let delay = 0;
+    lines.forEach((line) => {
+        setTimeout(() => {
+            appendMessage(line, false);
+        }, delay);
+        delay += 600 + (line.length * 40); 
+    });
+}
         } catch (error) {
             console.error("AI Reply Error:", error);
             removeTypingIndicator(typingId);
@@ -2597,6 +2622,9 @@ function handleChatFuncAct(funcName) {
         const modal = document.getElementById('fakePhotoModal');
         modal.style.display = 'flex';
         setTimeout(() => modal.classList.add('active'), 10);
+         } else if (funcName === '转账') {
+        closeChatFuncPanel();
+        openTransferAmountModal(); // 触发转账弹窗
     } else {
         closeChatFuncPanel();
     }
@@ -2755,4 +2783,190 @@ function appendFakePhotoUI(imgUrl, text, isRight) {
 
     chatScrollArea.appendChild(msgRow);
     scrollToChatBottom();
+}
+// =========================================
+// === 转账功能核心逻辑 (浮窗 + 键盘 + 气泡) ===
+// =========================================
+let currentTransferAmount = "0.00";
+let currentTransferNote = "";
+let transferPwdLength = 0;
+
+function openTransferAmountModal() {
+    if (!currentChatCharId) return;
+    // 读取当前角色头像和名字
+    const remark = document.getElementById('chatHeaderRemark').innerText;
+    document.getElementById('transferTargetName').innerText = `转账给 ${remark}`;
+    
+    // 尝试获取头像
+    const transaction = db.transaction(["characters"], "readonly");
+    const store = transaction.objectStore("characters");
+    const req = store.get(currentChatCharId);
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char && char.avatarImage) {
+            document.getElementById('transferTargetAvatar').style.backgroundImage = `url(${char.avatarImage})`;
+        }
+    };
+
+    document.getElementById('transferAmountModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('transferAmountModal').classList.add('active'), 10);
+    document.getElementById('transferInput').value = '';
+    document.getElementById('transferNote').value = '';
+    checkTransferAmount();
+}
+
+function closeTransferAmountModal() {
+    document.getElementById('transferAmountModal').classList.remove('active');
+    setTimeout(() => document.getElementById('transferAmountModal').style.display = 'none', 300);
+}
+
+function checkTransferAmount() {
+    const val = document.getElementById('transferInput').value;
+    const btn = document.getElementById('transferBtn');
+    if (val && parseFloat(val) > 0) {
+        btn.classList.add('active');
+        currentTransferAmount = parseFloat(val).toFixed(2);
+    } else {
+        btn.classList.remove('active');
+    }
+}
+
+function proceedToTransferPassword() {
+    currentTransferNote = document.getElementById('transferNote').value.trim() || "转账给宝宝";
+    closeTransferAmountModal();
+    document.getElementById('transferPwdAmountDisplay').innerText = `¥ ${currentTransferAmount}`;
+    transferPwdLength = 0;
+    for(let i=1; i<=6; i++) document.getElementById(`pwd-dot-${i}`).classList.remove('show');
+
+    setTimeout(() => {
+        document.getElementById('transferPwdModal').style.display = 'flex';
+        setTimeout(() => document.getElementById('transferPwdModal').classList.add('active'), 10);
+    }, 300);
+}
+
+function closeTransferPwdModal() {
+    document.getElementById('transferPwdModal').classList.remove('active');
+    setTimeout(() => document.getElementById('transferPwdModal').style.display = 'none', 300);
+}
+
+function pressTransferKey(num) {
+    if (transferPwdLength < 6) {
+        transferPwdLength++;
+        document.getElementById(`pwd-dot-${transferPwdLength}`).classList.add('show');
+        if (transferPwdLength === 6) {
+            setTimeout(() => { executeTransfer(); }, 200);
+        }
+    }
+}
+
+function deleteTransferKey() {
+    if (transferPwdLength > 0) {
+        document.getElementById(`pwd-dot-${transferPwdLength}`).classList.remove('show');
+        transferPwdLength--;
+    }
+}
+
+// 密码输入完成，生成转账气泡并存入历史
+function executeTransfer() {
+    closeTransferPwdModal();
+    if (!currentChatCharId) return;
+
+    const transferId = 'transfer_' + Date.now();
+    
+    // 1. UI 上屏
+    appendTransferUI(currentTransferAmount, currentTransferNote, 'pending', transferId, true);
+
+    // 2. 存入历史记录 (特殊 type)
+    chatHistory.push({
+        role: "user",
+        type: "transfer",
+        amount: currentTransferAmount,
+        note: currentTransferNote,
+        status: "pending",
+        id: transferId
+    });
+
+    // 3. 存入数据库
+    saveChatHistoryToDB();
+
+    if (navigator.vibrate) navigator.vibrate(50);
+    
+    // 注意：这里不调用 fetchAIResponse()，等待用户手动点击发送按钮
+}
+
+// 渲染转账气泡 UI
+function appendTransferUI(amount, note, status, id, isRight) {
+    const chatScrollArea = document.getElementById('chatScrollArea');
+    const lastMsg = chatScrollArea.lastElementChild;
+    let newMsgClass = 'single'; 
+    const sideClass = isRight ? 'right' : 'left';
+
+    if (lastMsg && lastMsg.classList.contains(sideClass)) {
+        if (lastMsg.classList.contains('single')) {
+            lastMsg.classList.remove('single');
+            lastMsg.classList.add('group-start');
+        } else if (lastMsg.classList.contains('group-end')) {
+            lastMsg.classList.remove('group-end');
+            lastMsg.classList.add('group-middle');
+        }
+        newMsgClass = 'group-end';
+    }
+
+    let statusClass = '';
+    let iconSvg = '<path d="M6 9h12"/><path d="M15 6l3 3-3 3"/><path d="M18 15H6"/><path d="M9 18l-3-3 3-3"/>';
+    let descText = note;
+
+    if (status === 'received') {
+        statusClass = 'received';
+        iconSvg = '<polyline points="20 6 9 17 4 12"></polyline>';
+        descText = '已被领取';
+    } else if (status === 'refunded') {
+        statusClass = 'refunded';
+        iconSvg = '<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>';
+        descText = '已退回';
+    }
+
+    const msgRow = document.createElement('div');
+    msgRow.className = `msg-row ${sideClass} ${newMsgClass}`; 
+    // 使用 image-only-bubble 去掉默认气泡的白底，让转账卡片直接暴露
+    msgRow.innerHTML = `
+        <div class="msg-bubble image-only-bubble" style="background:transparent; border:none; box-shadow:none; padding:0;">
+            <div class="transfer-bubble ${statusClass}" id="${id}">
+                <div class="transfer-top">
+                    <div class="transfer-icon-circle"><svg viewBox="0 0 24 24">${iconSvg}</svg></div>
+                    <div class="transfer-info">
+                        <div class="transfer-amount">¥ ${amount}</div>
+                        <div class="transfer-desc">${descText}</div>
+                    </div>
+                </div>
+                <div class="transfer-bottom"><span class="transfer-mark">微信转账</span></div>
+            </div>
+        </div>`;
+
+    chatScrollArea.appendChild(msgRow);
+    scrollToChatBottom();
+}
+// 更新最后一条未处理转账的状态
+function updateLastTransferStatus(newStatus) {
+    for (let i = chatHistory.length - 1; i >= 0; i--) {
+        if (chatHistory[i].type === 'transfer' && chatHistory[i].status === 'pending') {
+            chatHistory[i].status = newStatus;
+            
+            // 更新 UI
+            const bubble = document.getElementById(chatHistory[i].id);
+            if (bubble) {
+                bubble.className = `transfer-bubble ${newStatus}`;
+                const icon = bubble.querySelector('.transfer-icon-circle');
+                const desc = bubble.querySelector('.transfer-desc');
+                if (newStatus === 'received') {
+                    icon.innerHTML = '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+                    desc.innerText = '已被领取';
+                } else if (newStatus === 'refunded') {
+                    icon.innerHTML = '<svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+                    desc.innerText = '已退回';
+                }
+            }
+            break; // 只更新最后一条
+        }
+    }
 }
