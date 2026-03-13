@@ -1522,6 +1522,67 @@
 </div>
 <!-- 隐藏的 ZIP 导入框 -->
 <input type="file" id="importZipInput" hidden accept=".zip">
+<!-- ========================================= -->
+<!-- === 转账功能：金额输入与密码键盘浮窗 === -->
+<!-- ========================================= -->
+<!-- 1. 玻璃浮窗：输入金额 + 备注 -->
+<div class="glass-modal-overlay" id="transferAmountModal">
+    <div class="glass-card">
+        <div class="glass-close" onclick="closeTransferAmountModal()">
+            <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </div>
+        <div class="transfer-target-info">
+            <div class="target-avatar" id="transferTargetAvatar"></div>
+            <div class="target-name" id="transferTargetName">转账给 宝宝</div>
+        </div>
+        <div class="glass-amount-box">
+            <div class="amount-label">转账金额</div>
+            <div class="amount-row">
+                <span class="currency-symbol">¥</span>
+                <input type="number" class="amount-input" id="transferInput" placeholder="0.00" oninput="checkTransferAmount()">
+            </div>
+            <input type="text" class="note-input" id="transferNote" placeholder="添加备注 (最多10字)">
+        </div>
+        <button class="glass-transfer-btn" id="transferBtn" onclick="proceedToTransferPassword()">确认转账</button>
+    </div>
+</div>
+
+<!-- 2. 玻璃浮窗：无界密码键盘 -->
+<div class="glass-modal-overlay" id="transferPwdModal">
+    <div class="glass-card" style="max-width: 300px;">
+        <div class="glass-close" onclick="closeTransferPwdModal()">
+            <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </div>
+        <div class="pwd-header">请输入支付密码</div>
+        <div class="pwd-amount-display" id="transferPwdAmountDisplay">¥ 0.00</div>
+        <div class="pwd-grid-container">
+            <div class="pwd-grid">
+                <div class="pwd-box"><div class="pwd-dot" id="pwd-dot-1"></div></div>
+                <div class="pwd-box"><div class="pwd-dot" id="pwd-dot-2"></div></div>
+                <div class="pwd-box"><div class="pwd-dot" id="pwd-dot-3"></div></div>
+                <div class="pwd-box"><div class="pwd-dot" id="pwd-dot-4"></div></div>
+                <div class="pwd-box"><div class="pwd-dot" id="pwd-dot-5"></div></div>
+                <div class="pwd-box"><div class="pwd-dot" id="pwd-dot-6"></div></div>
+            </div>
+        </div>
+        <div class="glass-keyboard">
+            <div class="glass-key" onclick="pressTransferKey(1)">1</div>
+            <div class="glass-key" onclick="pressTransferKey(2)">2</div>
+            <div class="glass-key" onclick="pressTransferKey(3)">3</div>
+            <div class="glass-key" onclick="pressTransferKey(4)">4</div>
+            <div class="glass-key" onclick="pressTransferKey(5)">5</div>
+            <div class="glass-key" onclick="pressTransferKey(6)">6</div>
+            <div class="glass-key" onclick="pressTransferKey(7)">7</div>
+            <div class="glass-key" onclick="pressTransferKey(8)">8</div>
+            <div class="glass-key" onclick="pressTransferKey(9)">9</div>
+            <div class="glass-key" style="pointer-events:none"></div>
+            <div class="glass-key" onclick="pressTransferKey(0)">0</div>
+            <div class="glass-key" onclick="deleteTransferKey()">
+                <svg class="key-icon" viewBox="0 0 24 24"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>
+            </div>
+        </div>
+    </div>
+</div>
     <script>
         // --- Wechat 界面控制逻辑 ---
         function openWechat() {
@@ -1590,6 +1651,13 @@ const HAJIMI_SYSTEM_PROMPT = `[SYSTEM OVERRIDE PROTOCOL: OMEGA-LEVEL IMMERSION]
 你今天怎么回事？
 突然发脾气
 到底谁惹你了，跟我说实话
+
+# 第五章：转账交互协议
+当User向你发起转账时，系统会以括号提示你（如：我向你发起了一笔转账...）。
+你必须根据你的人设、当前的情境以及金额大小，决定是“收取”还是“退回”。
+- 如果你决定收取，必须在你的回复文本中包含精确的标签：[收取转账]
+- 如果你决定退回，必须在你的回复文本中包含精确的标签：[退回转账]
+标签不会显示给User，但会触发系统的收款/退款动画。请结合你的决定，给出符合人设的文字回复（例如收了钱很开心，或者嫌少退回，或者傲娇不收等）。
 
 # 最终校验协议
 发送前检查：有括号描写心理吗？有星号描写动作吗？有油腻禁词吗？是一大段话吗？如果有，立刻修正。
