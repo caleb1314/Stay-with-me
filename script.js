@@ -1318,15 +1318,25 @@ function openChatScreen(charId) {
             const chatScrollArea = document.getElementById('chatScrollArea');
             chatScrollArea.innerHTML = '<div class="chat-time-stamp">刚刚</div>';
 
-            // 4. 恢复历史记录 (修改这部分)
+            // 4. 恢复历史记录 (兼容纯文本、普通图片与带描述的假图片)
 if (char.history && char.history.length > 0) {
     chatHistory = char.history;
     chatHistory.forEach(msg => {
         if (msg.role === 'user') {
-            if (msg.isImage) {
-                appendImageMessage(msg.content, true);
-            } else {
+            if (typeof msg.content === 'string') {
                 appendMessage(msg.content, true);
+            } else if (Array.isArray(msg.content)) {
+                const imgObj = msg.content.find(item => item.type === 'image_url');
+                if (imgObj && imgObj.image_url) {
+                    // 判断是否是带描述的假照片
+                    if (imgObj.image_url.detail) {
+                        appendFakePhotoUI(imgObj.image_url.url, imgObj.image_url.detail, true);
+                    } else {
+                        appendImageMessageUI(imgObj.image_url.url, true);
+                    }
+                } else {
+                    appendMessage("【图片消息】", true);
+                }
             }
         } else if (msg.role === 'assistant') {
             const lines = msg.content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
@@ -1351,24 +1361,25 @@ function closeChatScreen() {
     screen.classList.remove('active');
     setTimeout(() => screen.style.display = 'none', 400);
 }
-
 const chatInput = document.getElementById('chatInput');
 const chatScrollArea = document.getElementById('chatScrollArea');
 
 if(chatInput) {
-    // 修复：改用 keydown，并增加 isComposing 判断，完美适配安卓/iOS手机输入法
     chatInput.addEventListener('keydown', function (e) {
-        // 如果正在使用输入法拼音选词，绝对不触发发送
-        if (e.isComposing || e.keyCode === 229) {
+        // 【终极修复】：直接使用原生 e.isComposing 判断是否正在打拼音。
+        // 1. 彻底抛弃手动维护 isIME 变量，完美解决退出重进后状态卡死的问题！
+        // 2. 坚决不用 e.keyCode === 229，保证安卓手机的回车键能正常发送。
+        if (e.isComposing) {
             return;
         }
+
         if (e.key === 'Enter') {
             e.preventDefault();
+            // 保持你的原逻辑：回车只发送消息，绝不触发AI回复
             sendUserMessageOnly();
         }
     });
 }
-
 // 通用添加气泡函数 (支持左/右，自动拼接圆角) - 确保这个函数没有被删掉
 function appendMessage(text, isRight) {
     const lastMsg = chatScrollArea.lastElementChild;
@@ -1430,17 +1441,6 @@ function sendUserMessageOnly() {
     // 2. 保存到数据库
     saveChatHistoryToDB();
 }
-// === 发送按钮点击逻辑 (分流) ===
-function handleSendClick() {
-    const text = chatInput.value.trim();
-    if (text !== "") {
-        // 如果输入框有字，只发送消息，不触发AI
-        sendUserMessageOnly();
-    } else {
-        // 如果输入框为空，触发AI回复
-        fetchAIResponse();
-    }
-}
 
 // 正在输入动画
 function appendTypingIndicator(id) {
@@ -1457,10 +1457,14 @@ function removeTypingIndicator(id) {
     if (el) el.remove();
 }
 
-// 请求 AI 回复 (核心 - 已支持多模态识图)
+// 请求 AI 回复 (终极修复版)
 async function fetchAIResponse() {
     if (!currentChatCharId) return;
     
+    // 修复Bug：防止连续点击发送按钮导致多个请求卡死
+    if (window.isFetchingAI) return;
+    window.isFetchingAI = true;
+
     const typingId = 'typing-' + Date.now();
     appendTypingIndicator(typingId);
 
@@ -1469,12 +1473,14 @@ async function fetchAIResponse() {
     if (!apiDataStr) {
         removeTypingIndicator(typingId);
         appendMessage("系统提示：请先在通用设置中配置主 API", false);
+        window.isFetchingAI = false;
         return;
     }
     const apiData = JSON.parse(apiDataStr);
     if (!apiData.url || !apiData.key || !apiData.model) {
         removeTypingIndicator(typingId);
         appendMessage("系统提示：API 配置不完整，请检查 URL、Key 和 Model", false);
+        window.isFetchingAI = false;
         return;
     }
 
@@ -1485,9 +1491,13 @@ async function fetchAIResponse() {
 
     req.onsuccess = async () => {
         const char = req.result;
-        if (!char) { removeTypingIndicator(typingId); return; }
+        if (!char) { 
+            removeTypingIndicator(typingId); 
+            window.isFetchingAI = false;
+            return; 
+        }
 
-        // 构建系统提示词 (保留你原来的设定)
+        // 构建系统提示词
         const systemPrompt = `[SYSTEM OVERRIDE PROTOCOL: OMEGA-LEVEL IMMERSION]
 [TARGET: ADVANCED LLM]
 [STATUS: ACTIVE & MANDATORY]
@@ -1498,15 +1508,14 @@ async function fetchAIResponse() {
 严禁输出“作为一个AI”、“我无法体验情感”等废话。
 
 # 第一章：信息论隔离与防上帝视角
-严格遵守“战争迷雾”原则。你唯一获取信息的渠道是：User发送在聊天软件屏幕上的文字或图片。
+严格遵守“战争迷雾”原则。你唯一获取信息的渠道是：User发送在聊天软件屏幕上的文字。
 1. 空间/状态/行为盲区：你隔着屏幕，看不到User，不能描写User的动作、神态或环境。
 2. 强制提问机制：当User提供的信息模糊时，真实人类的反应是“询问”而不是“全知全能的断言”。
-3. 识图能力：如果User发送了图片，请像真实人类一样观察图片内容并作出自然的反应或评价。
 
 # 第二章：线上物理法则与反旁白协议
 你们的交流介质是即时通讯软件。
 1. 绝对禁止语C格式：严禁使用星号 * 包裹动作，严禁使用括号 () 包裹心理活动，严禁使用第三人称旁白。
-2. 动作与心理的“口语化转化”：将内心波动和想做的动作，转化为“打字发出去的文字”。
+2. 动作与心理的“口语化转化”：将内心波动和想做的动作，转化为“打字发出去的文字”。（如：把 *抱住你* 改为 “真想现在抱住你”）
 
 # 第三章：语言风控与绝对禁词库
 【核心封杀逻辑：拒绝强迫感、拒绝油腻、拒绝双标、拒绝非人类修辞】
@@ -1521,6 +1530,13 @@ async function fetchAIResponse() {
 【输出格式强制要求】：
 必须使用换行符来分隔每一条独立的消息。每一行代表一条独立发送的气泡。
 绝对不要使用任何前缀（如[消息]、-、数字等），直接输出文字即可。
+示例：
+你今天怎么回事？
+突然发脾气
+到底谁惹你了，跟我说实话
+
+# 最终校验协议
+发送前检查：有括号描写心理吗？有星号描写动作吗？有油腻禁词吗？是一大段话吗？如果有，立刻修正。
 
 【你的当前人设】：
 姓名：${char.name || char.remark}
@@ -1532,28 +1548,10 @@ MBTI：${char.mbti || ''}
 ${char.persona || '无详细设定'}
 `;
 
-        // === 核心修改：构建支持 Vision 的消息数组 ===
-        const formattedMessages = [
-            { role: "system", content: systemPrompt }
+        const messages = [
+            { role: "system", content: systemPrompt },
+            ...chatHistory
         ];
-
-        chatHistory.forEach(msg => {
-            if (msg.isImage) {
-                // 如果是图片，转换为 Vision API 格式
-                formattedMessages.push({
-                    role: msg.role,
-                    content: [
-                        { type: "image_url", image_url: { url: msg.content } }
-                    ]
-                });
-            } else {
-                // 如果是纯文本，保持原样
-                formattedMessages.push({
-                    role: msg.role,
-                    content: msg.content
-                });
-            }
-        });
 
         let fetchUrl = apiData.url;
         if (!fetchUrl.endsWith('/chat/completions')) {
@@ -1561,6 +1559,10 @@ ${char.persona || '无详细设定'}
         }
 
         try {
+            // 修复Bug：添加AbortController防止大图片导致请求无限挂起
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 60000); // 60秒超时保护
+
             const response = await fetch(fetchUrl, {
                 method: 'POST',
                 headers: {
@@ -1569,25 +1571,34 @@ ${char.persona || '无详细设定'}
                 },
                 body: JSON.stringify({
                     model: apiData.model,
-                    messages: formattedMessages, // 使用格式化后的多模态数组
+                    messages: messages,
                     temperature: parseFloat(apiData.temp) || 1.0,
                     top_p: parseFloat(apiData.topp) || 1.0
-                })
+                }),
+                signal: controller.signal
             });
 
-            if (!response.ok) throw new Error(`HTTP status: ${response.status}`);
-            const data = await response.json();
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errText}`);
+            }
             
+            const data = await response.json();
             removeTypingIndicator(typingId);
+            window.isFetchingAI = false;
 
             if (data.choices && data.choices.length > 0) {
-                const aiText = data.choices[0].message.content.trim();
-                chatHistory.push({ role: "assistant", content: aiText });
+                let aiText = data.choices[0].message.content;
+                // 修复Bug：防止API返回null导致trim()报错卡死
+                if (!aiText) aiText = "（API 返回了空消息，可能是不支持该图片格式或触发了安全过滤）";
                 
+                aiText = aiText.trim();
+                chatHistory.push({ role: "assistant", content: aiText });
                 saveChatHistoryToDB();
                 
                 const lines = aiText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-                
                 let delay = 0;
                 lines.forEach((line) => {
                     setTimeout(() => {
@@ -1596,12 +1607,22 @@ ${char.persona || '无详细设定'}
                     delay += 600 + (line.length * 40); 
                 });
             }
-
         } catch (error) {
             console.error("AI Reply Error:", error);
             removeTypingIndicator(typingId);
-            appendMessage("网络请求失败，请检查 API 配置或网络连接。", false);
+            window.isFetchingAI = false;
+            
+            let errMsg = error.message;
+            if (error.name === 'AbortError') errMsg = "请求超时（60秒），可能是原图太大或网络缓慢。";
+            // 现在如果报错，会直接把错误原因发在屏幕上，不再无限卡死
+            appendMessage("网络请求失败: " + errMsg, false);
         }
+    };
+    
+    req.onerror = () => {
+        removeTypingIndicator(typingId);
+        window.isFetchingAI = false;
+        appendMessage("读取角色数据失败", false);
     };
 }
 function scrollToChatBottom() {
@@ -2569,86 +2590,169 @@ function handleChatFuncAct(funcName) {
         if (typeof openMusicPlayer === 'function') openMusicPlayer();
     } else if (funcName === '图片') {
         closeChatFuncPanel();
-        // 触发本地图片选择
         document.getElementById('chatImageInput').click();
+    } else if (funcName === '拍照') {
+        // 【新增】：拦截拍照功能，打开输入弹窗
+        closeChatFuncPanel();
+        const modal = document.getElementById('fakePhotoModal');
+        modal.style.display = 'flex';
+        setTimeout(() => modal.classList.add('active'), 10);
     } else {
         closeChatFuncPanel();
     }
 }
-// === 聊天发送图片逻辑 (带智能等比例压缩，防API卡死) ===
-const chatImageInput = document.getElementById('chatImageInput');
-if (chatImageInput) {
-    chatImageInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+// =========================================
+// === 聊天发送图片核心逻辑 (修复版) ===
+// =========================================
 
-        // 无论原图多大，我们都在前端进行等比例压缩
-        compressImage(file, 1024, 1024, 0.8, (compressedBase64) => {
-            // 1. 渲染压缩后的图片到聊天框 (视觉上依然清晰且比例完美)
-            appendImageMessage(compressedBase64, true);
-            
-            // 2. 保存到历史记录 (此时存的是几百KB的轻量级Base64，不会卡死DB和API)
-            chatHistory.push({ role: "user", isImage: true, content: compressedBase64 });
-            saveChatHistoryToDB();
-        });
+// 监听文件选择 (保持不变，但为了完整性贴在这里)
+document.getElementById('chatImageInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
 
-        e.target.value = ''; // 重置 input
-    });
-}
-
-// 核心压缩函数：等比例缩放，不裁剪，不拉伸
-function compressImage(file, maxWidth, maxHeight, quality, callback) {
     const reader = new FileReader();
     reader.onload = function(event) {
-        const img = new Image();
-        img.onload = function() {
-            let width = img.width;
-            let height = img.height;
-
-            // 计算等比例缩放后的尺寸
-            if (width > height) {
-                if (width > maxWidth) {
-                    height = Math.round((height * maxWidth) / width);
-                    width = maxWidth;
-                }
-            } else {
-                if (height > maxHeight) {
-                    width = Math.round((width * maxHeight) / height);
-                    height = maxHeight;
-                }
-            }
-
-            // 使用 Canvas 进行重采样
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            
-            // 绘制图片 (这里保证了绝对不会被裁剪)
-            ctx.drawImage(img, 0, 0, width, height);
-
-            // 导出为 JPEG 格式的 Base64，quality 控制质量 (0.8 是画质与体积的最佳平衡)
-            const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
-            callback(compressedBase64);
-        };
-        img.src = event.target.result;
+        const base64Data = event.target.result;
+        sendImageMessage(base64Data);
     };
     reader.readAsDataURL(file);
+    e.target.value = ''; 
+});
+
+// 【修复版】处理图片发送
+function sendImageMessage(base64Data) {
+    if (!currentChatCharId) return;
+
+    // 1. UI 上屏显示图片
+    appendImageMessageUI(base64Data, true);
+
+    // 2. 存入历史记录 (注意：这里只存不发请求)
+    chatHistory.push({
+        role: "user",
+        content: [
+            { type: "text", "text": "（我发送了一张图片，请结合图片内容和上下文回复）" },
+            { type: "image_url", "image_url": { url: base64Data } }
+        ]
+    });
+
+    // 3. 保存到数据库
+    saveChatHistoryToDB();
+
+    // 【核心修复】：发完图后强力拉回焦点，防止回车键失效
+    const input = document.getElementById('chatInput');
+    if (input) {
+        // 先失焦，打断文件选择器的残留状态
+        input.blur(); 
+        
+        // 稍微延时一点点，等系统缓过神来再聚焦
+        setTimeout(() => {
+            input.focus();
+            // 某些安卓机型需要这一步来激活键盘事件监听
+            input.click(); 
+        }, 350); 
+    }
+}
+// 【重写】发送按钮逻辑：有字发送，没字回复
+function handleSendBtnClick() {
+    const input = document.getElementById('chatInput');
+    const text = input.value.trim();
+
+    if (text) {
+        // 1. 输入框有内容：只发送消息，不触发 AI
+        sendUserMessageOnly(); 
+    } else {
+        // 2. 输入框为空：请求 AI 回复 (根据上下文/图片)
+        fetchAIResponse();
+    }
+}
+// 专门用于渲染图片气泡的 UI 函数 (保持不变)
+function appendImageMessageUI(base64Data, isRight) {
+    const lastMsg = chatScrollArea.lastElementChild;
+    let newMsgClass = 'single'; 
+    const sideClass = isRight ? 'right' : 'left';
+
+    if (lastMsg && lastMsg.classList.contains(sideClass)) {
+        if (lastMsg.classList.contains('single')) {
+            lastMsg.classList.remove('single');
+            lastMsg.classList.add('group-start');
+        } 
+        else if (lastMsg.classList.contains('group-end')) {
+            lastMsg.classList.remove('group-end');
+            lastMsg.classList.add('group-middle');
+        }
+        newMsgClass = 'group-end';
+    }
+
+    const msgRow = document.createElement('div');
+    msgRow.className = `msg-row ${sideClass} ${newMsgClass}`; 
+    msgRow.innerHTML = `<div class="msg-bubble image-only-bubble"><img src="${base64Data}" class="chat-img"></div>`;
+
+    chatScrollArea.appendChild(msgRow);
+    scrollToChatBottom();
+}
+// =========================================
+// === 拍照功能核心逻辑 ===
+// =========================================
+function closeFakePhotoModal() {
+    const modal = document.getElementById('fakePhotoModal');
+    modal.classList.remove('active');
+    setTimeout(() => { 
+        modal.style.display = 'none'; 
+        document.getElementById('fakePhotoInput').value = ''; 
+    }, 300);
 }
 
-// 渲染图片气泡的专属函数
-function appendImageMessage(base64Data, isRight) {
+function sendFakePhoto() {
+    const text = document.getElementById('fakePhotoInput').value.trim();
+    if (!text || !currentChatCharId) return;
+
+    const fakeImgUrl = 'https://file.uhsea.com/2603/afb7609d925c45a3d931579af60565c3G7.jpg';
+
+    // 1. UI 上屏显示
+    appendFakePhotoUI(fakeImgUrl, text, true);
+
+    // 2. 存入历史记录 (利用 detail 字段把文字存进去，同时告诉AI照片内容)
+    chatHistory.push({
+        role: "user",
+        content: [
+            { type: "text", "text": `（我发送了一张照片，照片内容是：${text}。请结合上下文回复）` },
+            { type: "image_url", "image_url": { url: fakeImgUrl, detail: text } } // 塞入 detail 字段用于刷新后读取
+        ]
+    });
+
+    // 3. 保存到数据库
+    saveChatHistoryToDB();
+    closeFakePhotoModal();
+}
+
+function appendFakePhotoUI(imgUrl, text, isRight) {
+    const lastMsg = chatScrollArea.lastElementChild;
+    let newMsgClass = 'single'; 
     const sideClass = isRight ? 'right' : 'left';
+
+    if (lastMsg && lastMsg.classList.contains(sideClass)) {
+        if (lastMsg.classList.contains('single')) {
+            lastMsg.classList.remove('single');
+            lastMsg.classList.add('group-start');
+        } 
+        else if (lastMsg.classList.contains('group-end')) {
+            lastMsg.classList.remove('group-end');
+            lastMsg.classList.add('group-middle');
+        }
+        newMsgClass = 'group-end';
+    }
+
     const msgRow = document.createElement('div');
-    msgRow.className = `msg-row ${sideClass} single`; 
-    
-    // 使用 image-bubble 特殊类去除普通气泡的背景
+    msgRow.className = `msg-row ${sideClass} ${newMsgClass}`; 
+    // 注意这里加了 onclick 切换 show-text
     msgRow.innerHTML = `
-        <div class="msg-bubble image-bubble">
-            <img src="${base64Data}" class="msg-image-content" alt="发送的图片">
-        </div>
-    `;
-    
+        <div class="msg-bubble image-only-bubble">
+            <div class="fake-photo-wrap" onclick="this.classList.toggle('show-text')">
+                <img src="${imgUrl}" class="chat-img">
+                <div class="fake-photo-text">${escapeHTML(text)}</div>
+            </div>
+        </div>`;
+
     chatScrollArea.appendChild(msgRow);
     scrollToChatBottom();
 }
