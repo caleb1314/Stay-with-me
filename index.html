@@ -484,118 +484,118 @@
     <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeGeneralSettings()"></div></div>
 </div>
 
-    <!-- ========================================= -->
-    <!-- === 新增：API 配置界面 (二级菜单) === -->
-    <!-- ========================================= -->
-    <div id="apiSettingsScreen" class="settings-base-screen sub-screen">
-        <div class="nav-header">
-            <!-- 左侧 Done 按钮 -->
-            <div class="nav-text-btn left" onclick="closeApiSettings()">Done</div>
-            <div class="nav-title">API Configuration</div>
-            <!-- 右侧 Save 按钮 -->
-            <div class="nav-text-btn right" onclick="manualSave()" id="apiSaveBtn">Save</div>
-        </div>
-        
-        <div class="screen-content">
-            <!-- 1. API 配置 -->
-            <div class="section-title">
-                <div class="section-title-line"></div>
-                <div class="section-title-text">API</div>
-            </div>
-            <div class="glass-card">
-                <div class="input-stack">
-                    <div class="label-row">
-                        <div class="row-icon"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>
-                        <div class="row-label">URL</div>
-                    </div>
-                    <input type="text" class="row-input" id="apiUrl" placeholder="https://api.openai.com/v1" onchange="saveCurrentContext()">
-                </div>
-                
-                <div class="input-stack">
-                    <div class="label-row">
-                        <div class="row-icon"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>
-                        <div class="row-label">API Key</div>
-                    </div>
-                    <!-- 找到 id="apiKey" 的那一行，替换成下面这样 -->
-<input type="password" class="row-input" id="apiKey" placeholder="sk-..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" onchange="saveCurrentContext()">
-                </div>
-            </div>
-
-            <!-- 2. Model 配置 -->
-            <div class="section-title">
-                <div class="section-title-line"></div>
-                <div class="section-title-text">Model</div>
-            </div>
-            <div class="glass-card">
-                <div class="input-stack">
-                    <div class="label-row">
-                        <div class="row-icon"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>
-                        <div class="row-label">Model Selection</div>
-                    </div>
-                    <select class="row-input" id="modelSelect" onchange="saveCurrentContext()">
-                        <option value="">请先拉取模型...</option>
-                    </select>
-                </div>
-                <div class="tag-btn-group">
-                    <div class="tag-btn" onclick="fetchModels()"><span>#</span>拉取模型</div>
-                </div>
-            </div>
-
-            <!-- 3. 预设 (Presets) -->
-            <div class="section-title">
-                <div class="section-title-line"></div>
-                <div class="section-title-text">Presets</div>
-            </div>
-            <div class="glass-card">
-                <div class="segment-wrapper">
-                    <div class="ios-segment" id="contextSegment" data-active="0">
-                        <div class="segment-slider"></div>
-                        <div class="segment-tab active" onclick="switchContext(0)">主 API</div>
-                        <div class="segment-tab" onclick="switchContext(1)">副 API</div>
-                    </div>
-                </div>
-
-                <div class="tag-btn-group" style="padding-top: 0;">
-                    <div class="tag-btn" onclick="saveNewPreset()"><span>#</span>保存预设</div>
-                    <div class="tag-btn" onclick="loadSelectedPreset()"><span>#</span>加载</div>
-                    <div class="tag-btn" onclick="deleteSelectedPreset()"><span>#</span>删除</div>
-                </div>
-
-                <div id="presetList" class="preset-list"></div>
-            </div>
-
-            <!-- 4. 模型调节 (Parameters) -->
-            <div class="section-title">
-                <div class="section-title-line"></div>
-                <div class="section-title-text">Parameters</div>
-            </div>
-            <div class="glass-card">
-                <div class="slider-stack">
-                    <div class="slider-header">
-                        <span class="slider-label">Temperature</span>
-                        <span class="slider-value" id="val-temp">1.0</span>
-                    </div>
-                    <input type="range" class="ios-range" id="slider-temp" min="0" max="2" step="0.1" value="1.0" oninput="updateSlider('temp'); saveCurrentContext()">
-                </div>
-                <div class="slider-stack">
-                    <div class="slider-header">
-                        <span class="slider-label">Top-P</span>
-                        <span class="slider-value" id="val-topp">1.0</span>
-                    </div>
-                    <input type="range" class="ios-range" id="slider-topp" min="0" max="1" step="0.05" value="1.0" oninput="updateSlider('topp'); saveCurrentContext()">
-                </div>
-                <div class="slider-stack">
-                    <div class="slider-header">
-                        <span class="slider-label">Top-K</span>
-                        <span class="slider-value" id="val-topk">40</span>
-                    </div>
-                    <input type="range" class="ios-range" id="slider-topk" min="0" max="100" step="1" value="40" oninput="updateSlider('topk'); saveCurrentContext()">
-                </div>
-            </div>
-        </div>
-        <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeApiSettings()"></div></div>
+  <!-- ========================================= -->
+<!-- === 新增：API 配置界面 (二级菜单) === -->
+<!-- ========================================= -->
+<div id="apiSettingsScreen" class="settings-base-screen sub-screen">
+    <div class="nav-header">
+        <div class="nav-text-btn left" onclick="closeApiSettings()">Done</div>
+        <div class="nav-title">API Configuration</div>
+        <div class="nav-text-btn right" onclick="manualSave()" id="apiSaveBtn">Save</div>
     </div>
+    
+    <div class="screen-content">
+        <!-- 1. API 配置 -->
+        <div class="section-title">
+            <div class="section-title-line"></div>
+            <div class="section-title-text">API</div>
+        </div>
+        <!-- 【修改点 1】这里改成了 api-glass-card -->
+        <div class="api-glass-card">
+            <div class="input-stack">
+                <div class="label-row">
+                    <div class="row-icon"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>
+                    <div class="row-label">URL</div>
+                </div>
+                <input type="text" class="row-input" id="apiUrl" placeholder="https://api.openai.com/v1" onchange="saveCurrentContext()">
+            </div>
+            
+            <div class="input-stack">
+                <div class="label-row">
+                    <div class="row-icon"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>
+                    <div class="row-label">API Key</div>
+                </div>
+                <input type="password" class="row-input" id="apiKey" placeholder="sk-..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" onchange="saveCurrentContext()">
+            </div>
+        </div>
 
+        <!-- 2. Model 配置 -->
+        <div class="section-title">
+            <div class="section-title-line"></div>
+            <div class="section-title-text">Model</div>
+        </div>
+        <!-- 【修改点 2】这里改成了 api-glass-card -->
+        <div class="api-glass-card">
+            <div class="input-stack">
+                <div class="label-row">
+                    <div class="row-icon"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>
+                    <div class="row-label">Model Selection</div>
+                </div>
+                <select class="row-input" id="modelSelect" onchange="saveCurrentContext()">
+                    <option value="">请先拉取模型...</option>
+                </select>
+            </div>
+            <div class="tag-btn-group">
+                <div class="tag-btn" onclick="fetchModels()"><span>#</span>拉取模型</div>
+            </div>
+        </div>
+
+        <!-- 3. 预设 (Presets) -->
+        <div class="section-title">
+            <div class="section-title-line"></div>
+            <div class="section-title-text">Presets</div>
+        </div>
+        <!-- 【修改点 3】这里改成了 api-glass-card -->
+        <div class="api-glass-card">
+            <div class="segment-wrapper">
+                <div class="ios-segment" id="contextSegment" data-active="0">
+                    <div class="segment-slider"></div>
+                    <div class="segment-tab active" onclick="switchContext(0)">主 API</div>
+                    <div class="segment-tab" onclick="switchContext(1)">副 API</div>
+                </div>
+            </div>
+
+            <div class="tag-btn-group" style="padding-top: 0;">
+                <div class="tag-btn" onclick="saveNewPreset()"><span>#</span>保存预设</div>
+                <div class="tag-btn" onclick="loadSelectedPreset()"><span>#</span>加载</div>
+                <div class="tag-btn" onclick="deleteSelectedPreset()"><span>#</span>删除</div>
+            </div>
+
+            <div id="presetList" class="preset-list"></div>
+        </div>
+
+        <!-- 4. 模型调节 (Parameters) -->
+        <div class="section-title">
+            <div class="section-title-line"></div>
+            <div class="section-title-text">Parameters</div>
+        </div>
+        <!-- 【修改点 4】这里改成了 api-glass-card -->
+        <div class="api-glass-card">
+            <div class="slider-stack">
+                <div class="slider-header">
+                    <span class="slider-label">Temperature</span>
+                    <span class="slider-value" id="val-temp">1.0</span>
+                </div>
+                <input type="range" class="ios-range" id="slider-temp" min="0" max="2" step="0.1" value="1.0" oninput="updateSlider('temp'); saveCurrentContext()">
+            </div>
+            <div class="slider-stack">
+                <div class="slider-header">
+                    <span class="slider-label">Top-P</span>
+                    <span class="slider-value" id="val-topp">1.0</span>
+                </div>
+                <input type="range" class="ios-range" id="slider-topp" min="0" max="1" step="0.05" value="1.0" oninput="updateSlider('topp'); saveCurrentContext()">
+            </div>
+            <div class="slider-stack">
+                <div class="slider-header">
+                    <span class="slider-label">Top-K</span>
+                    <span class="slider-value" id="val-topk">40</span>
+                </div>
+                <input type="range" class="ios-range" id="slider-topk" min="0" max="100" step="1" value="40" oninput="updateSlider('topk'); saveCurrentContext()">
+            </div>
+        </div>
+    </div>
+    <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeApiSettings()"></div></div>
+</div>
     <!-- 壁纸界面 -->
     <div id="wallpaperScreen" class="settings-base-screen">
         <div class="settings-nav-bar">
