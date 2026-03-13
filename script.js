@@ -3030,11 +3030,12 @@ function handleTransferClick(id, isRight) {
                     desc.innerText = '已被领取';
                 }
                 
-                // 自动发送一条消息并触发 AI 回复
+                // 仅在屏幕上显示一条提示并存入历史，但不触发 AI 回复
                 appendMessage("（已收取你的转账）", true);
                 chatHistory.push({ role: "user", content: "（我已收取了你的转账）" });
                 saveChatHistoryToDB();
-                fetchAIResponse();
+                
+                // 删除了这里的 fetchAIResponse(); 
             }
         } else if (msg.status === 'received') {
             alert("已收取");
