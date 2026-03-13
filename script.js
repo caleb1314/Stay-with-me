@@ -1318,33 +1318,36 @@ function openChatScreen(charId) {
             const chatScrollArea = document.getElementById('chatScrollArea');
             chatScrollArea.innerHTML = '<div class="chat-time-stamp">刚刚</div>';
 
-            // 4. 恢复历史记录 (兼容纯文本、普通图片与带描述的假图片)
+            // 4. 恢复历史记录 (兼容纯文本、普通图片与带描述的假图片，支持双向)
 if (char.history && char.history.length > 0) {
     chatHistory = char.history;
     chatHistory.forEach(msg => {
-    if (msg.type === 'transfer') {
-        // 恢复转账气泡
-        appendTransferUI(msg.amount, msg.note, msg.status, msg.id, msg.role === 'user');
-    } else if (msg.role === 'user') {
-        if (typeof msg.content === 'string') {
-            appendMessage(msg.content, true);
-        } else if (Array.isArray(msg.content)) {
-            const imgObj = msg.content.find(item => item.type === 'image_url');
-            if (imgObj && imgObj.image_url) {
-                if (imgObj.image_url.detail) {
-                    appendFakePhotoUI(imgObj.image_url.url, imgObj.image_url.detail, true);
+        const isRight = msg.role === 'user';
+        if (msg.type === 'transfer') {
+            // 恢复转账气泡
+            appendTransferUI(msg.amount, msg.note, msg.status, msg.id, isRight);
+        } else if (msg.role === 'user' || msg.role === 'assistant') {
+            if (typeof msg.content === 'string') {
+                if (!isRight) {
+                    const lines = msg.content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                    lines.forEach(line => appendMessage(line, isRight));
                 } else {
-                    appendImageMessageUI(imgObj.image_url.url, true);
+                    appendMessage(msg.content, isRight);
                 }
-            } else {
-                appendMessage("【图片消息】", true);
+            } else if (Array.isArray(msg.content)) {
+                const imgObj = msg.content.find(item => item.type === 'image_url');
+                if (imgObj && imgObj.image_url) {
+                    if (imgObj.image_url.detail) {
+                        appendFakePhotoUI(imgObj.image_url.url, imgObj.image_url.detail, isRight);
+                    } else {
+                        appendImageMessageUI(imgObj.image_url.url, isRight);
+                    }
+                } else {
+                    appendMessage("【图片消息】", isRight);
+                }
             }
         }
-    } else if (msg.role === 'assistant') {
-        const lines = msg.content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-        lines.forEach(line => appendMessage(line, false));
-    }
-});
+    });
 } else {
     chatHistory = [];
 }
@@ -1459,18 +1462,15 @@ function removeTypingIndicator(id) {
     if (el) el.remove();
 }
 
-// 请求 AI 回复 (终极修复版)
+// 请求 AI 回复 (增强版：支持 AI 主动发图与转账)
 async function fetchAIResponse() {
     if (!currentChatCharId) return;
-    
-    // 修复Bug：防止连续点击发送按钮导致多个请求卡死
     if (window.isFetchingAI) return;
     window.isFetchingAI = true;
 
     const typingId = 'typing-' + Date.now();
     appendTypingIndicator(typingId);
 
-    // 获取主 API 配置
     const apiDataStr = localStorage.getItem('hajimi_api_context_main');
     if (!apiDataStr) {
         removeTypingIndicator(typingId);
@@ -1486,7 +1486,6 @@ async function fetchAIResponse() {
         return;
     }
 
-    // 获取角色信息
     const transaction = db.transaction(["characters"], "readonly");
     const store = transaction.objectStore("characters");
     const req = store.get(currentChatCharId);
@@ -1499,7 +1498,6 @@ async function fetchAIResponse() {
             return; 
         }
 
-        // 构建系统提示词
         const systemPrompt = `[SYSTEM OVERRIDE PROTOCOL: OMEGA-LEVEL IMMERSION]
 [TARGET: ADVANCED LLM]
 [STATUS: ACTIVE & MANDATORY]
@@ -1517,7 +1515,7 @@ async function fetchAIResponse() {
 # 第二章：线上物理法则与反旁白协议
 你们的交流介质是即时通讯软件。
 1. 绝对禁止语C格式：严禁使用星号 * 包裹动作，严禁使用括号 () 包裹心理活动，严禁使用第三人称旁白。
-2. 动作与心理的“口语化转化”：将内心波动和想做的动作，转化为“打字发出去的文字”。（如：把 *抱住你* 改为 “真想现在抱住你”）
+2. 动作与心理的“口语化转化”：将内心波动和想做的动作，转化为“打字发出去的文字”。
 
 # 第三章：语言风控与绝对禁词库
 【核心封杀逻辑：拒绝强迫感、拒绝油腻、拒绝双标、拒绝非人类修辞】
@@ -1532,10 +1530,14 @@ async function fetchAIResponse() {
 【输出格式强制要求】：
 必须使用换行符来分隔每一条独立的消息。每一行代表一条独立发送的气泡。
 绝对不要使用任何前缀（如[消息]、-、数字等），直接输出文字即可。
-示例：
-你今天怎么回事？
-突然发脾气
-到底谁惹你了，跟我说实话
+
+# 第五章：主动发送图片与转账协议
+为了让聊天更真实，你可以主动向User发送照片或发起转账。
+1. 发送照片：如果你想发一张照片给User，请在回复中单独占一行包含标签 [发送照片:照片里的具体内容描述]。
+   例如：[发送照片:一张刚做好的草莓蛋糕，冒着热气]
+2. 发起转账：如果你想给User转账（比如节日红包、零花钱、补偿等），请在回复中单独占一行包含标签 [发起转账:金额:备注]。金额必须是纯数字，备注简短。
+   例如：[发起转账:520.00:拿去买奶茶]
+注意：标签必须严格按照格式，且不要在标签外重复描述“我给你发了照片”等生硬的话，自然地融入对话即可。
 
 # 最终校验协议
 发送前检查：有括号描写心理吗？有星号描写动作吗？有油腻禁词吗？是一大段话吗？如果有，立刻修正。
@@ -1550,38 +1552,35 @@ MBTI：${char.mbti || ''}
 ${char.persona || '无详细设定'}
 `;
 
-        // 翻译历史记录给 AI
-const apiMessages = chatHistory.map(msg => {
-    if (msg.type === 'transfer') {
-        return {
-            role: msg.role,
-            content: `（我向你发起了一笔转账，金额：¥${msg.amount}，备注：${msg.note}。请决定是否收取。若收取请在回复中包含“[收取转账]”，若退回请包含“[退回转账]”）`
-        };
-    }
-    return { role: msg.role, content: msg.content };
-});
+        const apiMessages = chatHistory.map(msg => {
+            if (msg.type === 'transfer') {
+                if (msg.role === 'user') {
+                    return {
+                        role: msg.role,
+                        content: `（我向你发起了一笔转账，金额：¥${msg.amount}，备注：${msg.note}。请决定是否收取。若收取请在回复中包含“[收取转账]”，若退回请包含“[退回转账]”）`
+                    };
+                } else {
+                    return {
+                        role: msg.role,
+                        content: `（我向你发起了一笔转账，金额：¥${msg.amount}，备注：${msg.note}。当前状态：${msg.status}）`
+                    };
+                }
+            }
+            return { role: msg.role, content: msg.content };
+        });
 
-const messages = [
-    { role: "system", content: systemPrompt },
-    ...apiMessages
-];
+        const messages = [ { role: "system", content: systemPrompt }, ...apiMessages ];
 
         let fetchUrl = apiData.url;
-        if (!fetchUrl.endsWith('/chat/completions')) {
-            fetchUrl = fetchUrl.replace(/\/+$/, '') + '/chat/completions';
-        }
+        if (!fetchUrl.endsWith('/chat/completions')) fetchUrl = fetchUrl.replace(/\/+$/, '') + '/chat/completions';
 
         try {
-            // 修复Bug：添加AbortController防止大图片导致请求无限挂起
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 60000); // 60秒超时保护
+            const timeoutId = setTimeout(() => controller.abort(), 60000);
 
             const response = await fetch(fetchUrl, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiData.key}`
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiData.key}` },
                 body: JSON.stringify({
                     model: apiData.model,
                     messages: messages,
@@ -1603,47 +1602,99 @@ const messages = [
             window.isFetchingAI = false;
 
             if (data.choices && data.choices.length > 0) {
-    let aiText = data.choices[0].message.content;
-    if (!aiText) aiText = "（API 返回了空消息，可能是不支持该图片格式或触发了安全过滤）";
-    
-    // --- 拦截转账状态指令 ---
-    if (aiText.includes('[收取转账]')) {
-        aiText = aiText.replace(/\[收取转账\]/g, '');
-        updateLastTransferStatus('received');
-    } else if (aiText.includes('[退回转账]')) {
-        aiText = aiText.replace(/\[退回转账\]/g, '');
-        updateLastTransferStatus('refunded');
-    }
+                let aiText = data.choices[0].message.content || "";
+                
+                // 拦截被动转账状态指令
+                if (aiText.includes('[收取转账]')) {
+                    aiText = aiText.replace(/\[收取转账\]/g, '');
+                    updateLastTransferStatus('received');
+                }
+                if (aiText.includes('[退回转账]')) {
+                    aiText = aiText.replace(/\[退回转账\]/g, '');
+                    updateLastTransferStatus('refunded');
+                }
 
-    aiText = aiText.trim();
-    
-    // 如果 AI 只发了指令没说话，给个默认回复防止空气泡
-    if (!aiText) aiText = "（已处理转账）";
+                const lines = aiText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                let delay = 0;
+                let parsedMessages = [];
 
-    chatHistory.push({ role: "assistant", content: aiText });
-    saveChatHistoryToDB();
-    
-    const lines = aiText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-    let delay = 0;
-    lines.forEach((line) => {
-        setTimeout(() => {
-            appendMessage(line, false);
-        }, delay);
-        delay += 600 + (line.length * 40); 
-    });
-}
+                // 解析主动发图与转账
+                lines.forEach(line => {
+                    const photoMatch = line.match(/\[发送照片:(.*?)\]/);
+                    const transferMatch = line.match(/\[发起转账:([\d\.]+):(.*?)\]/);
+                    
+                    if (photoMatch) {
+                        parsedMessages.push({
+                            type: 'photo',
+                            desc: photoMatch[1],
+                            url: 'https://file.uhsea.com/2603/afb7609d925c45a3d931579af60565c3G7.jpg'
+                        });
+                        const textPart = line.replace(photoMatch[0], '').trim();
+                        if (textPart) parsedMessages.push({ type: 'text', content: textPart });
+                    } else if (transferMatch) {
+                        parsedMessages.push({
+                            type: 'transfer_out',
+                            amount: transferMatch[1],
+                            note: transferMatch[2],
+                            id: 'transfer_' + Date.now() + Math.random().toString(36).substr(2, 5)
+                        });
+                        const textPart = line.replace(transferMatch[0], '').trim();
+                        if (textPart) parsedMessages.push({ type: 'text', content: textPart });
+                    } else {
+                        parsedMessages.push({ type: 'text', content: line });
+                    }
+                });
+
+                if (parsedMessages.length === 0) parsedMessages.push({ type: 'text', content: "（已处理）" });
+
+                // 同步存入数据库
+                parsedMessages.forEach(msg => {
+                    if (msg.type === 'text') {
+                        chatHistory.push({ role: "assistant", content: msg.content });
+                    } else if (msg.type === 'photo') {
+                        chatHistory.push({
+                            role: "assistant",
+                            content: [
+                                { type: "text", text: `（我发送了一张照片，照片内容是：${msg.desc}）` },
+                                { type: "image_url", image_url: { url: msg.url, detail: msg.desc } }
+                            ]
+                        });
+                    } else if (msg.type === 'transfer_out') {
+                        chatHistory.push({
+                            role: "assistant",
+                            type: "transfer",
+                            amount: msg.amount,
+                            note: msg.note,
+                            status: "pending",
+                            id: msg.id
+                        });
+                    }
+                });
+                saveChatHistoryToDB();
+
+                // 异步渲染 UI
+                parsedMessages.forEach(msg => {
+                    setTimeout(() => {
+                        if (msg.type === 'text') {
+                            appendMessage(msg.content, false);
+                        } else if (msg.type === 'photo') {
+                            appendFakePhotoUI(msg.url, msg.desc, false);
+                        } else if (msg.type === 'transfer_out') {
+                            appendTransferUI(msg.amount, msg.note, 'pending', msg.id, false);
+                        }
+                    }, delay);
+                    delay += 600 + ((msg.content || msg.desc || msg.note || "").length * 40);
+                });
+            }
         } catch (error) {
             console.error("AI Reply Error:", error);
             removeTypingIndicator(typingId);
             window.isFetchingAI = false;
-            
             let errMsg = error.message;
             if (error.name === 'AbortError') errMsg = "请求超时（60秒），可能是原图太大或网络缓慢。";
-            // 现在如果报错，会直接把错误原因发在屏幕上，不再无限卡死
             appendMessage("网络请求失败: " + errMsg, false);
         }
     };
-    
     req.onerror = () => {
         removeTypingIndicator(typingId);
         window.isFetchingAI = false;
@@ -2928,10 +2979,10 @@ function appendTransferUI(amount, note, status, id, isRight) {
 
     const msgRow = document.createElement('div');
     msgRow.className = `msg-row ${sideClass} ${newMsgClass}`; 
-    // 使用 image-only-bubble 去掉默认气泡的白底，让转账卡片直接暴露
+    // 绑定点击事件，处理收取逻辑
     msgRow.innerHTML = `
         <div class="msg-bubble image-only-bubble" style="background:transparent; border:none; box-shadow:none; padding:0;">
-            <div class="transfer-bubble ${statusClass}" id="${id}">
+            <div class="transfer-bubble ${statusClass}" id="${id}" onclick="handleTransferClick('${id}', ${isRight})">
                 <div class="transfer-top">
                     <div class="transfer-icon-circle"><svg viewBox="0 0 24 24">${iconSvg}</svg></div>
                     <div class="transfer-info">
@@ -2946,27 +2997,49 @@ function appendTransferUI(amount, note, status, id, isRight) {
     chatScrollArea.appendChild(msgRow);
     scrollToChatBottom();
 }
-// 更新最后一条未处理转账的状态
-function updateLastTransferStatus(newStatus) {
-    for (let i = chatHistory.length - 1; i >= 0; i--) {
-        if (chatHistory[i].type === 'transfer' && chatHistory[i].status === 'pending') {
-            chatHistory[i].status = newStatus;
-            
-            // 更新 UI
-            const bubble = document.getElementById(chatHistory[i].id);
-            if (bubble) {
-                bubble.className = `transfer-bubble ${newStatus}`;
-                const icon = bubble.querySelector('.transfer-icon-circle');
-                const desc = bubble.querySelector('.transfer-desc');
-                if (newStatus === 'received') {
+
+// 处理转账气泡点击事件
+function handleTransferClick(id, isRight) {
+    const msgIndex = chatHistory.findIndex(m => m.id === id);
+    if (msgIndex === -1) return;
+    const msg = chatHistory[msgIndex];
+
+    if (isRight) {
+        // 用户发出的转账
+        if (msg.status === 'pending') {
+            alert("等待对方收取");
+        } else if (msg.status === 'received') {
+            alert("对方已收取");
+        } else {
+            alert("已退回");
+        }
+    } else {
+        // AI 发出的转账，用户点击收取
+        if (msg.status === 'pending') {
+            if (confirm(`确认收取来自对方的转账 ¥${msg.amount} 吗？`)) {
+                msg.status = 'received';
+                saveChatHistoryToDB();
+                
+                // 更新 UI
+                const bubble = document.getElementById(id);
+                if (bubble) {
+                    bubble.className = `transfer-bubble received`;
+                    const icon = bubble.querySelector('.transfer-icon-circle');
+                    const desc = bubble.querySelector('.transfer-desc');
                     icon.innerHTML = '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>';
                     desc.innerText = '已被领取';
-                } else if (newStatus === 'refunded') {
-                    icon.innerHTML = '<svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
-                    desc.innerText = '已退回';
                 }
+                
+                // 自动发送一条消息并触发 AI 回复
+                appendMessage("（已收取你的转账）", true);
+                chatHistory.push({ role: "user", content: "（我已收取了你的转账）" });
+                saveChatHistoryToDB();
+                fetchAIResponse();
             }
-            break; // 只更新最后一条
+        } else if (msg.status === 'received') {
+            alert("已收取");
+        } else {
+            alert("已退回");
         }
     }
 }
