@@ -1885,3 +1885,68 @@ input:-webkit-autofill:active {
 .msg-bubble.pressing {
     transform: scale(0.96);
 }
+/* ========================================= */
+/* === 多选功能专属样式 (滑动多选+悬浮底栏) === */
+/* ========================================= */
+
+/* 1. 修复气泡对齐方式 (替代原来的 row-reverse) */
+.msg-row { transition: background 0.2s, transform 0.2s; }
+.msg-content { flex: 1; display: flex; align-items: flex-end; pointer-events: auto; }
+.msg-row.left .msg-content { justify-content: flex-start; }
+.msg-row.right .msg-content { justify-content: flex-end; }
+
+/* 2. 复选框容器与动画 */
+.checkbox-wrap {
+    width: 0; overflow: hidden; display: flex; align-items: center;
+    transition: width 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); flex-shrink: 0;
+    margin-bottom: 15px; 
+}
+#chatScreen.multi-select .checkbox-wrap { width: 38px; }
+
+.checkbox {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.35); 
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.8); box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+}
+.checkbox svg {
+    width: 13px; height: 13px; stroke: #fff; stroke-width: 2.5; fill: none;
+    stroke-linecap: round; stroke-linejoin: round;
+    stroke-dasharray: 24; stroke-dashoffset: 24; transition: stroke-dashoffset 0.3s ease;
+}
+.msg-row.selected .checkbox { 
+    background: rgba(0, 0, 0, 0.65); border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+}
+.msg-row.selected .checkbox svg { stroke-dashoffset: 0; }
+
+/* 3. 悬浮玻璃底栏 */
+.glass-dock {
+    position: absolute; bottom: 25px; left: 16px; right: 16px;
+    background: rgba(255, 255, 255, 0.65); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+    border-radius: 24px; border: 0.5px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 15px 40px rgba(0,0,0,0.12); display: flex; flex-direction: column; overflow: hidden;
+    z-index: 100; transform: translateY(150%) scale(0.9); opacity: 0; pointer-events: none;
+    transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+}
+#chatScreen.multi-select .glass-dock { transform: translateY(0) scale(1); opacity: 1; pointer-events: auto; }
+
+/* 隐藏原有的输入框底栏 */
+#chatScreen .bottom-bar-container { transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1); }
+#chatScreen.multi-select .bottom-bar-container { transform: translateY(150%); opacity: 0; pointer-events: none; }
+
+/* 底栏内部元素 */
+.dock-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-bottom: 0.5px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.15); }
+.dock-cancel { font-size: 14px; font-weight: 600; color: #555; cursor: pointer; }
+.dock-cancel:active { opacity: 0.5; }
+.dock-title { font-size: 14px; font-weight: 700; color: #000; letter-spacing: 0.5px; }
+.dock-placeholder { width: 30px; }
+.dock-actions { display: flex; justify-content: space-around; align-items: center; padding: 16px 10px; }
+.action-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s; width: 60px; }
+.action-btn:active { transform: scale(0.9); }
+.action-btn.disabled { opacity: 0.3; pointer-events: none; }
+.action-btn svg { width: 22px; height: 22px; stroke: #333; stroke-width: 1.8; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.action-btn span { font-size: 11px; color: #333; font-weight: 600; letter-spacing: 0.5px; }
+.action-btn.danger svg { stroke: #ff3b30; }
+.action-btn.danger span { color: #ff3b30; }
