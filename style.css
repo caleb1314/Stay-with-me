@@ -2080,3 +2080,50 @@ input:-webkit-autofill:active {
 .resize-handle::after { content: ''; position: absolute; bottom: 8px; right: 8px; width: 8px; height: 8px; border-right: 2.5px solid rgba(0,0,0,0.3); border-bottom: 2.5px solid rgba(0,0,0,0.3); border-radius: 1px; }
 .resize-handle-tl { position: absolute; top: 0; left: 0; width: 28px; height: 28px; cursor: nwse-resize; z-index: 20; }
 .resize-handle-tl::after { content: ''; position: absolute; top: 8px; left: 8px; width: 8px; height: 8px; border-left: 2.5px solid rgba(0,0,0,0.3); border-top: 2.5px solid rgba(0,0,0,0.3); border-radius: 1px; }
+/* ========================================= */
+/* === 撤回功能专属样式 === */
+/* ========================================= */
+.recall-wrapper {
+    display: flex; justify-content: center; width: 100%; margin: 15px 0;
+    animation: fadeIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+@keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+
+.recall-tip {
+    font-size: 12px; color: #fff; 
+    background: rgba(0,0,0,0.2); 
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    padding: 6px 14px; border-radius: 12px; text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    display: flex; align-items: center; gap: 8px;
+}
+.recall-action {
+    color: #fff; font-weight: 600; cursor: pointer; opacity: 0.9;
+    padding-left: 8px; border-left: 1px solid rgba(255,255,255,0.3);
+    transition: opacity 0.2s;
+}
+.recall-action:active { opacity: 0.5; }
+
+.recall-modal {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.25); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    display: flex; align-items: center; justify-content: center; z-index: 100000;
+    opacity: 0; pointer-events: none; transition: opacity 0.3s;
+}
+.recall-modal.active { opacity: 1; pointer-events: auto; }
+
+.recall-card {
+    width: 75%; max-width: 300px; background: rgba(255,255,255,0.85);
+    border-radius: 18px; padding: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: flex; flex-direction: column; align-items: center; border: 0.5px solid rgba(255,255,255,0.5);
+}
+.recall-modal.active .recall-card { transform: scale(1); }
+
+.recall-title { font-size: 13px; font-weight: 700; color: #888; margin-bottom: 12px; letter-spacing: 1px; }
+.recall-content-text { font-size: 15px; font-weight: 600; color: #1c1c1e; text-align: center; line-height: 1.5; margin-bottom: 20px; word-break: break-all; max-height: 40vh; overflow-y: auto; }
+
+.recall-close-btn {
+    width: 100%; padding: 12px; background: rgba(0,0,0,0.05); border-radius: 12px;
+    font-size: 14px; font-weight: 600; color: #333; text-align: center; cursor: pointer; transition: background 0.2s;
+}
+.recall-close-btn:active { background: rgba(0,0,0,0.1); }
