@@ -967,82 +967,117 @@
             </div>
 
             <!-- 聊天内容 -->
-            <div class="chat-scroll-area" id="chatScrollArea">
-                <div class="chat-time-stamp">昨天 21:24</div>
-                
-                <!-- 静态示例：Char 组 -->
-                <div class="msg-row left group-start">
-                    <div class="msg-bubble">May you participate in my winter</div>
-                </div>
-                <div class="msg-row left group-middle">
-                    <div class="msg-bubble">Time will prove love</div>
-                </div>
-                <div class="msg-row left group-end">
-                    <div class="msg-bubble">愿你参与我的冬天</div>
-                </div>
+<div class="chat-scroll-area" id="chatScrollArea">
+    <div class="chat-time-stamp">昨天 21:24</div>
+    
+    <!-- 静态示例：Char 组 -->
+    <div class="msg-row left group-start">
+        <div class="checkbox-wrap"><div class="checkbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div></div>
+        <div class="msg-content"><div class="msg-bubble">May you participate in my winter</div></div>
+    </div>
+    <div class="msg-row left group-middle">
+        <div class="checkbox-wrap"><div class="checkbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div></div>
+        <div class="msg-content"><div class="msg-bubble">Time will prove love</div></div>
+    </div>
+    <div class="msg-row left group-end">
+        <div class="checkbox-wrap"><div class="checkbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div></div>
+        <div class="msg-content"><div class="msg-bubble">愿你参与我的冬天</div></div>
+    </div>
 
-                <!-- 静态示例：User 组 -->
-                <div class="msg-row right group-start">
-                    <div class="msg-bubble">独木舟就敢来到这里</div>
-                </div>
-                <div class="msg-row right group-middle">
-                    <div class="msg-bubble">所以你是船翻了也能活下来[♡]人</div>
-                </div>
-                <div class="msg-row right group-end">
-                    <div class="msg-bubble">是靠着[★]块木板也能漂浮[♡]人”</div>
-                </div>
+    <!-- 静态示例：User 组 -->
+    <div class="msg-row right group-start">
+        <div class="checkbox-wrap"><div class="checkbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div></div>
+        <div class="msg-content"><div class="msg-bubble">独木舟就敢来到这里</div></div>
+    </div>
+    <div class="msg-row right group-middle">
+        <div class="checkbox-wrap"><div class="checkbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div></div>
+        <div class="msg-content"><div class="msg-bubble">所以你是船翻了也能活下来[♡]人</div></div>
+    </div>
+    <div class="msg-row right group-end">
+        <div class="checkbox-wrap"><div class="checkbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div></div>
+        <div class="msg-content"><div class="msg-bubble">是靠着[★]块木板也能漂浮[♡]人”</div></div>
+    </div>
 
-                <div class="msg-row right single">
-                    <div class="msg-bubble">你失言了 再见</div>
+    <div class="msg-row right single">
+        <div class="checkbox-wrap"><div class="checkbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div></div>
+        <div class="msg-content"><div class="msg-bubble">你失言了 再见</div></div>
+    </div>
+</div>
+
+                    <!-- 底栏 (原有的输入框) -->
+        <div class="bottom-bar-container">
+            <!-- 左侧：曲别针 -->
+            <div class="glass-box btn-circle" onclick="toggleChatFuncPanel()">
+                <svg class="svg-icon" viewBox="0 0 24 24">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                </svg>
+            </div>
+
+            <!-- 中间：输入栏 -->
+            <div class="glass-box input-pill">
+                <input type="text" class="chat-input" id="chatInput" placeholder="Type..." autocomplete="off">
+                <!-- 内部右侧：信封 -->
+                <div class="emoji-btn-inner">
+                    <svg class="svg-icon" viewBox="0 0 24 24" style="width: 20px; height: 20px;">
+                        <rect x="2" y="4" width="20" height="16" rx="2"/>
+                        <path d="M22 6l-10 7L2 6"/>
+                    </svg>
                 </div>
             </div>
 
-            <!-- 底栏 -->
-            <div class="bottom-bar-container">
-            <!-- iOS 气泡长按菜单结构 -->
-<div class="ios-tooltip-wrapper" id="chatMsgMenu">
-    <div class="ios-tooltip-menu">
-        <div class="tooltip-item" onclick="handleMsgMenuAction('复制')">复制</div>
-        <div class="tooltip-item" onclick="handleMsgMenuAction('编辑')">编辑</div>
-        <div class="tooltip-item" onclick="handleMsgMenuAction('引用')">引用</div>
-        <div class="tooltip-item" onclick="handleMsgMenuAction('翻译')">翻译</div>
-        <div class="tooltip-item" onclick="handleMsgMenuAction('多选')">多选</div>
-        <div class="tooltip-item icon-item" onclick="handleMsgMenuAction('更多')">
-            <svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
-        </div>
-    </div>
-    <div class="ios-tooltip-arrow"></div>
-</div>
-                <!-- 左侧：曲别针 -->
-<div class="glass-box btn-circle" onclick="toggleChatFuncPanel()">
-    <svg class="svg-icon" viewBox="0 0 24 24">
-        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-    </svg>
-</div>
-
-                <!-- 中间：输入栏 -->
-                <div class="glass-box input-pill">
-                    <input type="text" class="chat-input" id="chatInput" placeholder="Type..." autocomplete="off">
-                    <!-- 内部右侧：信封 -->
-                    <div class="emoji-btn-inner">
-                        <svg class="svg-icon" viewBox="0 0 24 24" style="width: 20px; height: 20px;">
-                            <rect x="2" y="4" width="20" height="16" rx="2"/>
-                            <path d="M22 6l-10 7L2 6"/>
-                        </svg>
-                    </div>
-                </div>
-
-                            <!-- 右侧：发送 -->
-<div class="glass-box btn-circle" onclick="handleSendBtnClick()">
-    <svg class="send-icon" viewBox="0 0 24 24">
-        <path d="M22 2L11 13" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-</div>
+            <!-- 右侧：发送 -->
+            <div class="glass-box btn-circle" onclick="handleSendBtnClick()">
+                <svg class="send-icon" viewBox="0 0 24 24">
+                    <path d="M22 2L11 13" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
             </div>
-
         </div>
-    </div>
+
+        <!-- ========================================== -->
+        <!-- ⬇️ 把长按菜单和多选底栏放在这里！⬇️ -->
+        <!-- ========================================== -->
+
+        <!-- iOS 气泡长按菜单结构 -->
+        <div class="ios-tooltip-wrapper" id="chatMsgMenu">
+            <div class="ios-tooltip-menu">
+                <div class="tooltip-item" onclick="handleMsgMenuAction('复制')">复制</div>
+                <div class="tooltip-item" onclick="handleMsgMenuAction('编辑')">编辑</div>
+                <div class="tooltip-item" onclick="handleMsgMenuAction('引用')">引用</div>
+                <div class="tooltip-item" onclick="handleMsgMenuAction('翻译')">翻译</div>
+                <div class="tooltip-item" onclick="handleMsgMenuAction('多选')">多选</div>
+                <div class="tooltip-item icon-item" onclick="handleMsgMenuAction('更多')">
+                    <svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+                </div>
+            </div>
+            <div class="ios-tooltip-arrow"></div>
+        </div>
+
+        <!-- 悬浮玻璃底栏 (多选模式专属) -->
+        <div class="glass-dock" id="multiSelectDock">
+            <div class="dock-header">
+                <div class="dock-cancel" onclick="cancelSelectMode()">取消</div>
+                <div class="dock-title" id="selectCount">选择消息</div>
+                <div class="dock-placeholder"></div>
+            </div>
+            <div class="dock-actions">
+                <div class="action-btn disabled" onclick="handleMultiAction('转发')">
+                    <svg viewBox="0 0 24 24"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg>
+                    <span>转发</span>
+                </div>
+                <div class="action-btn disabled" onclick="handleMultiAction('收藏')">
+                    <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    <span>收藏</span>
+                </div>
+                <div class="action-btn danger disabled" onclick="handleMultiAction('删除')">
+                    <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                    <span>删除</span>
+                </div>
+            </div>
+        </div>
+
+    </div> <!-- 这里是 chat-layer-card 的结束标签 -->
+</div> <!-- 这里是 chatScreen 的结束标签 -->
 <!-- 拍照功能专属输入弹窗 -->
 <div class="modal-overlay" id="fakePhotoModal" style="z-index: 7000;">
     <div class="modal-content">
