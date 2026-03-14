@@ -1712,11 +1712,6 @@ function distributeAIResponse(charId, parsedMessages, isFromFloat) {
         }
     };
 }
-        store.put(char); // 保存回数据库
-        renderWxChatList(); // 刷新微信列表（更新红点和预览）
-    };
-}
-
 // 延迟渲染动画
 function renderMessagesWithDelay(parsedMessages, isFloat) {
     let delay = 0;
