@@ -1144,17 +1144,27 @@ function renderWxChatList() {
     };
 }
 
-// 生成单行 HTML
+// 生成单行 HTML (支持未读红点)
 function generateChatRowHTML(char) {
     const avatarStyle = char.avatarImage ? `background-image: url(${char.avatarImage});` : '';
     let lastMsg = "点击进入聊天...";
     if (char.history && char.history.length > 0) {
-        lastMsg = char.history[char.history.length - 1].content;
+        const lastObj = char.history[char.history.length - 1];
+        if (typeof lastObj.content === 'string') lastMsg = lastObj.content;
+        else if (lastObj.type === 'transfer') lastMsg = '[转账]';
+        else lastMsg = '[图片]';
     }
+    
+    // 处理未读数
+    const unreadCount = char.unreadCount || 0;
+    const badgeClass = unreadCount > 0 ? 'show' : '';
+    const badgeText = unreadCount > 99 ? '99+' : unreadCount;
     
     return `
         <div class="wx-chat-row" data-char-id="${char.id}" onclick="handleChatRowClick(event, '${char.id}')">
-            <div class="wx-avatar-gray" style="${avatarStyle}"></div>
+            <div class="wx-avatar-gray" style="${avatarStyle}">
+                <div class="wx-badge ${badgeClass}">${badgeText}</div>
+            </div>
             <div class="wx-chat-content">
                 <div class="wx-row-top">
                     <span class="wx-chat-title">${char.remark}</span>
@@ -1167,7 +1177,6 @@ function generateChatRowHTML(char) {
         </div>
     `;
 }
-
 // === 长按菜单核心逻辑 ===
 let currentContextMenuCharId = null;
 let longPressTimer;
@@ -1295,73 +1304,74 @@ function resetCharForm() {
 let currentChatCharId = null;
 let chatHistory = []; // 维护当前会话历史
 
+// 在全局定义标记
+window.isChatScreenOpen = false;
+
 function openChatScreen(charId) {
     if (!db) return;
     currentChatCharId = charId;
     chatHistory = []; 
+    window.isChatScreenOpen = true; // 标记全屏已打开
     
-    const transaction = db.transaction(["characters"], "readonly");
+    const transaction = db.transaction(["characters"], "readwrite");
     const store = transaction.objectStore("characters");
     const req = store.get(charId);
 
     req.onsuccess = () => {
         const char = req.result;
         if (char) {
-            // 1. 设置备注名
+            // 清空未读数
+            if (char.unreadCount > 0) {
+                char.unreadCount = 0;
+                store.put(char);
+                renderWxChatList(); // 刷新列表消掉红点
+            }
+
             document.getElementById('chatHeaderRemark').innerText = char.remark || '未命名';
-            
-            // 2. 设置背景图
             const bgUrl = char.bgImage ? char.bgImage : 'https://file.uhsea.com/2602/1b3a98d096fe3a0dbc43593650c79bf0PY.jpg';
             document.getElementById('chatLayerCard').style.backgroundImage = `url(${bgUrl})`;
 
-            // 3. 清空聊天区域，只留时间戳
             const chatScrollArea = document.getElementById('chatScrollArea');
             chatScrollArea.innerHTML = '<div class="chat-time-stamp">刚刚</div>';
 
-            // 4. 恢复历史记录 (兼容纯文本、普通图片与带描述的假图片，支持双向)
-if (char.history && char.history.length > 0) {
-    chatHistory = char.history;
-    chatHistory.forEach(msg => {
-        const isRight = msg.role === 'user';
-        if (msg.type === 'transfer') {
-            // 恢复转账气泡
-            appendTransferUI(msg.amount, msg.note, msg.status, msg.id, isRight);
-        } else if (msg.role === 'user' || msg.role === 'assistant') {
-            if (typeof msg.content === 'string') {
-                if (!isRight) {
-                    const lines = msg.content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-                    lines.forEach(line => appendMessage(line, isRight));
-                } else {
-                    appendMessage(msg.content, isRight);
-                }
-            } else if (Array.isArray(msg.content)) {
-                const imgObj = msg.content.find(item => item.type === 'image_url');
-                if (imgObj && imgObj.image_url) {
-                    if (imgObj.image_url.detail) {
-                        appendFakePhotoUI(imgObj.image_url.url, imgObj.image_url.detail, isRight);
-                    } else {
-                        appendImageMessageUI(imgObj.image_url.url, isRight);
+            if (char.history && char.history.length > 0) {
+                chatHistory = char.history;
+                chatHistory.forEach(msg => {
+                    const isRight = msg.role === 'user';
+                    if (msg.type === 'transfer') {
+                        appendTransferUI(msg.amount, msg.note, msg.status, msg.id, isRight);
+                    } else if (msg.role === 'user' || msg.role === 'assistant') {
+                        if (typeof msg.content === 'string') {
+                            if (!isRight) {
+                                const lines = msg.content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                                lines.forEach(line => appendMessage(line, isRight));
+                            } else {
+                                appendMessage(msg.content, isRight);
+                            }
+                        } else if (Array.isArray(msg.content)) {
+                            const imgObj = msg.content.find(item => item.type === 'image_url');
+                            if (imgObj && imgObj.image_url) {
+                                if (imgObj.image_url.detail) appendFakePhotoUI(imgObj.image_url.url, imgObj.image_url.detail, isRight);
+                                else appendImageMessageUI(imgObj.image_url.url, isRight);
+                            } else {
+                                appendMessage("【图片消息】", isRight);
+                            }
+                        }
                     }
-                } else {
-                    appendMessage("【图片消息】", isRight);
-                }
+                });
+            } else {
+                chatHistory = [];
             }
-        }
-    });
-} else {
-    chatHistory = [];
-}
-            // 5. 打开界面
             const screen = document.getElementById('chatScreen');
             screen.style.display = 'flex';
             setTimeout(() => screen.classList.add('active'), 10);
-            
             setTimeout(scrollToChatBottom, 50);
         }
     };
 }
 
 function closeChatScreen() {
+    window.isChatScreenOpen = false; // 标记全屏已关闭
     const screen = document.getElementById('chatScreen');
     screen.classList.remove('active');
     setTimeout(() => screen.style.display = 'none', 400);
@@ -1463,42 +1473,40 @@ function removeTypingIndicator(id) {
     if (el) el.remove();
 }
 
-// 请求 AI 回复 (增强版：支持 AI 主动发图与转账)
-async function fetchAIResponse() {
-    if (!currentChatCharId) return;
-    if (window.isFetchingAI) return;
-    window.isFetchingAI = true;
-
-    const typingId = 'typing-' + Date.now();
-    appendTypingIndicator(typingId);
+// 请求 AI 回复 (支持全屏、浮窗、后台通知分发)
+async function fetchAIResponse(targetCharId = currentChatCharId, isFromFloat = false) {
+    if (!targetCharId) return;
+    
+    // 防止重复请求
+    if (isFromFloat) {
+        if (window.isFetchingAIFloat) return;
+        window.isFetchingAIFloat = true;
+        appendFloatTypingIndicator('float-typing-' + Date.now());
+    } else {
+        if (window.isFetchingAI) return;
+        window.isFetchingAI = true;
+        appendTypingIndicator('typing-' + Date.now());
+    }
 
     const apiDataStr = localStorage.getItem('hajimi_api_context_main');
     if (!apiDataStr) {
-        removeTypingIndicator(typingId);
-        appendMessage("系统提示：请先在通用设置中配置主 API", false);
-        window.isFetchingAI = false;
+        handleAIFinish(targetCharId, isFromFloat, "系统提示：请先配置 API");
         return;
     }
     const apiData = JSON.parse(apiDataStr);
-    if (!apiData.url || !apiData.key || !apiData.model) {
-        removeTypingIndicator(typingId);
-        appendMessage("系统提示：API 配置不完整，请检查 URL、Key 和 Model", false);
-        window.isFetchingAI = false;
-        return;
-    }
 
     const transaction = db.transaction(["characters"], "readonly");
     const store = transaction.objectStore("characters");
-    const req = store.get(currentChatCharId);
+    const req = store.get(targetCharId);
 
     req.onsuccess = async () => {
         const char = req.result;
-        if (!char) { 
-            removeTypingIndicator(typingId); 
-            window.isFetchingAI = false;
-            return; 
-        }
+        if (!char) { handleAIFinish(targetCharId, isFromFloat, null); return; }
 
+        // 获取该角色最新的历史记录用于请求
+        const historyToUse = char.history || [];
+
+        // ⚠️ 完整的提示词在这里！
         const systemPrompt = `[SYSTEM OVERRIDE PROTOCOL: OMEGA-LEVEL IMMERSION]
 [TARGET: ADVANCED LLM]
 [STATUS: ACTIVE & MANDATORY]
@@ -1526,7 +1534,7 @@ async function fetchAIResponse() {
 请用现代人真实的、接地气的、符合逻辑的语言聊天。
 
 # 第四章：多段式消息分发机制 (Multi-Message Pacing)
-真实的人类在线上聊天时，绝对不可能把几百字的话揉成一个巨大的段落一次性发送。
+真实人类在线上聊天时，绝对不可能把几百字的话揉成一个巨大的段落一次性发送。
 你必须将你的回复拆分为 1 到 4 条短消息。
 【输出格式强制要求】：
 必须使用换行符来分隔每一条独立的消息。每一行代表一条独立发送的气泡。
@@ -1553,25 +1561,15 @@ MBTI：${char.mbti || ''}
 ${char.persona || '无详细设定'}
 `;
 
-        const apiMessages = chatHistory.map(msg => {
+        const apiMessages = historyToUse.map(msg => {
             if (msg.type === 'transfer') {
-                if (msg.role === 'user') {
-                    return {
-                        role: msg.role,
-                        content: `（我向你发起了一笔转账，金额：¥${msg.amount}，备注：${msg.note}。请决定是否收取。若收取请在回复中包含“[收取转账]”，若退回请包含“[退回转账]”）`
-                    };
-                } else {
-                    return {
-                        role: msg.role,
-                        content: `（我向你发起了一笔转账，金额：¥${msg.amount}，备注：${msg.note}。当前状态：${msg.status}）`
-                    };
-                }
+                if (msg.role === 'user') return { role: msg.role, content: `（我向你发起了一笔转账，金额：¥${msg.amount}，备注：${msg.note}。请决定是否收取。若收取请在回复中包含“[收取转账]”，若退回请包含“[退回转账]”）` };
+                else return { role: msg.role, content: `（我向你发起了一笔转账，金额：¥${msg.amount}，备注：${msg.note}。当前状态：${msg.status}）` };
             }
             return { role: msg.role, content: msg.content };
         });
 
         const messages = [ { role: "system", content: systemPrompt }, ...apiMessages ];
-
         let fetchUrl = apiData.url;
         if (!fetchUrl.endsWith('/chat/completions')) fetchUrl = fetchUrl.replace(/\/+$/, '') + '/chat/completions';
 
@@ -1582,63 +1580,33 @@ ${char.persona || '无详细设定'}
             const response = await fetch(fetchUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiData.key}` },
-                body: JSON.stringify({
-                    model: apiData.model,
-                    messages: messages,
-                    temperature: parseFloat(apiData.temp) || 1.0,
-                    top_p: parseFloat(apiData.topp) || 1.0
-                }),
+                body: JSON.stringify({ model: apiData.model, messages: messages, temperature: parseFloat(apiData.temp) || 1.0, top_p: parseFloat(apiData.topp) || 1.0 }),
                 signal: controller.signal
             });
-
             clearTimeout(timeoutId);
 
-            if (!response.ok) {
-                const errText = await response.text();
-                throw new Error(`HTTP ${response.status}: ${errText}`);
-            }
-            
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const data = await response.json();
-            removeTypingIndicator(typingId);
-            window.isFetchingAI = false;
-
+            
             if (data.choices && data.choices.length > 0) {
                 let aiText = data.choices[0].message.content || "";
                 
-                // 拦截被动转账状态指令
-                if (aiText.includes('[收取转账]')) {
-                    aiText = aiText.replace(/\[收取转账\]/g, '');
-                    updateLastTransferStatus('received');
-                }
-                if (aiText.includes('[退回转账]')) {
-                    aiText = aiText.replace(/\[退回转账\]/g, '');
-                    updateLastTransferStatus('refunded');
-                }
+                // 处理转账逻辑 (简化版)
+                if (aiText.includes('[收取转账]')) aiText = aiText.replace(/\[收取转账\]/g, '');
+                if (aiText.includes('[退回转账]')) aiText = aiText.replace(/\[退回转账\]/g, '');
 
                 const lines = aiText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-                let delay = 0;
                 let parsedMessages = [];
 
-                // 解析主动发图与转账
                 lines.forEach(line => {
                     const photoMatch = line.match(/\[发送照片:(.*?)\]/);
                     const transferMatch = line.match(/\[发起转账:([\d\.]+):(.*?)\]/);
-                    
                     if (photoMatch) {
-                        parsedMessages.push({
-                            type: 'photo',
-                            desc: photoMatch[1],
-                            url: 'https://file.uhsea.com/2603/afb7609d925c45a3d931579af60565c3G7.jpg'
-                        });
+                        parsedMessages.push({ type: 'photo', desc: photoMatch[1], url: 'https://file.uhsea.com/2603/afb7609d925c45a3d931579af60565c3G7.jpg' });
                         const textPart = line.replace(photoMatch[0], '').trim();
                         if (textPart) parsedMessages.push({ type: 'text', content: textPart });
                     } else if (transferMatch) {
-                        parsedMessages.push({
-                            type: 'transfer_out',
-                            amount: transferMatch[1],
-                            note: transferMatch[2],
-                            id: 'transfer_' + Date.now() + Math.random().toString(36).substr(2, 5)
-                        });
+                        parsedMessages.push({ type: 'transfer_out', amount: transferMatch[1], note: transferMatch[2], id: 'transfer_' + Date.now() });
                         const textPart = line.replace(transferMatch[0], '').trim();
                         if (textPart) parsedMessages.push({ type: 'text', content: textPart });
                     } else {
@@ -1648,59 +1616,93 @@ ${char.persona || '无详细设定'}
 
                 if (parsedMessages.length === 0) parsedMessages.push({ type: 'text', content: "（已处理）" });
 
-                // 同步存入数据库
-                parsedMessages.forEach(msg => {
-                    if (msg.type === 'text') {
-                        chatHistory.push({ role: "assistant", content: msg.content });
-                    } else if (msg.type === 'photo') {
-                        chatHistory.push({
-                            role: "assistant",
-                            content: [
-                                { type: "text", text: `（我发送了一张照片，照片内容是：${msg.desc}）` },
-                                { type: "image_url", image_url: { url: msg.url, detail: msg.desc } }
-                            ]
-                        });
-                    } else if (msg.type === 'transfer_out') {
-                        chatHistory.push({
-                            role: "assistant",
-                            type: "transfer",
-                            amount: msg.amount,
-                            note: msg.note,
-                            status: "pending",
-                            id: msg.id
-                        });
-                    }
-                });
-                saveChatHistoryToDB();
-
-                // 异步渲染 UI
-                parsedMessages.forEach(msg => {
-                    setTimeout(() => {
-                        if (msg.type === 'text') {
-                            appendMessage(msg.content, false);
-                        } else if (msg.type === 'photo') {
-                            appendFakePhotoUI(msg.url, msg.desc, false);
-                        } else if (msg.type === 'transfer_out') {
-                            appendTransferUI(msg.amount, msg.note, 'pending', msg.id, false);
-                        }
-                    }, delay);
-                    delay += 600 + ((msg.content || msg.desc || msg.note || "").length * 40);
-                });
+                // 核心分发逻辑
+                distributeAIResponse(targetCharId, parsedMessages, isFromFloat);
             }
+            handleAIFinish(targetCharId, isFromFloat, null);
         } catch (error) {
             console.error("AI Reply Error:", error);
-            removeTypingIndicator(typingId);
-            window.isFetchingAI = false;
-            let errMsg = error.message;
-            if (error.name === 'AbortError') errMsg = "请求超时（60秒），可能是原图太大或网络缓慢。";
-            appendMessage("网络请求失败: " + errMsg, false);
+            handleAIFinish(targetCharId, isFromFloat, "网络请求失败");
         }
     };
-    req.onerror = () => {
-        removeTypingIndicator(typingId);
+}
+function handleAIFinish(charId, isFromFloat, errorMsg) {
+    if (isFromFloat) {
+        window.isFetchingAIFloat = false;
+        removeFloatTypingIndicator();
+        if (errorMsg) distributeAIResponse(charId, [{type: 'text', content: errorMsg}], true);
+    } else {
         window.isFetchingAI = false;
-        appendMessage("读取角色数据失败", false);
+        removeTypingIndicator();
+        if (errorMsg) distributeAIResponse(charId, [{type: 'text', content: errorMsg}], false);
+    }
+}
+
+// 消息分发中心：存入数据库，并决定渲染到哪里
+function distributeAIResponse(charId, parsedMessages, isFromFloat) {
+    const transaction = db.transaction(["characters"], "readwrite");
+    const store = transaction.objectStore("characters");
+    const req = store.get(charId);
+
+    req.onsuccess = () => {
+        const char = req.result;
+        if (!char) return;
+
+        // 1. 存入历史记录
+        parsedMessages.forEach(msg => {
+            if (msg.type === 'text') char.history.push({ role: "assistant", content: msg.content });
+            else if (msg.type === 'photo') char.history.push({ role: "assistant", content: [{ type: "text", text: `（发送照片：${msg.desc}）` }, { type: "image_url", image_url: { url: msg.url, detail: msg.desc } }] });
+            else if (msg.type === 'transfer_out') char.history.push({ role: "assistant", type: "transfer", amount: msg.amount, note: msg.note, status: "pending", id: msg.id });
+        });
+
+        // 2. 判断当前用户在哪里，决定渲染方式
+        const isFullScreenActive = (window.isChatScreenOpen && currentChatCharId === charId);
+        const isFloatScreenActive = (window.isFloatChatOpen && floatChatCharId === charId);
+
+        if (isFullScreenActive) {
+            // 在全屏聊天界面，直接渲染
+            chatHistory = char.history; // 同步内存
+            renderMessagesWithDelay(parsedMessages, false); // false代表全屏
+        } else if (isFloatScreenActive) {
+            // 在浮窗界面，直接渲染
+            floatChatHistory = char.history; // 同步内存
+            renderMessagesWithDelay(parsedMessages, true); // true代表浮窗
+        } else {
+            // 都不在，触发后台通知，并增加未读数
+            char.unreadCount = (char.unreadCount || 0) + parsedMessages.length;
+            
+            // 提取最后一条文本用于通知显示
+            let notifText = "收到新消息";
+            const lastMsg = parsedMessages[parsedMessages.length - 1];
+            if (lastMsg.type === 'text') notifText = lastMsg.content;
+            else if (lastMsg.type === 'photo') notifText = "[图片]";
+            else if (lastMsg.type === 'transfer_out') notifText = "[转账]";
+
+            triggerNotification(charId, char.remark, char.avatarImage, notifText);
+        }
+
+        store.put(char); // 保存回数据库
+        renderWxChatList(); // 刷新微信列表（更新红点和预览）
     };
+}
+
+// 延迟渲染动画
+function renderMessagesWithDelay(parsedMessages, isFloat) {
+    let delay = 0;
+    parsedMessages.forEach(msg => {
+        setTimeout(() => {
+            if (isFloat) {
+                if (msg.type === 'text') appendFloatMsg(msg.content, false);
+                else if (msg.type === 'photo') appendFloatMsg("[图片消息]", false); // 浮窗暂用文字代替图片
+                else if (msg.type === 'transfer_out') appendFloatMsg("[收到转账]", false);
+            } else {
+                if (msg.type === 'text') appendMessage(msg.content, false);
+                else if (msg.type === 'photo') appendFakePhotoUI(msg.url, msg.desc, false);
+                else if (msg.type === 'transfer_out') appendTransferUI(msg.amount, msg.note, 'pending', msg.id, false);
+            }
+        }, delay);
+        delay += 600 + ((msg.content || msg.desc || msg.note || "").length * 40);
+    });
 }
 function scrollToChatBottom() {
     if(chatScrollArea) {
@@ -3337,4 +3339,302 @@ function handleMultiAction(action) {
         alert(`已将 ${selectedCount} 条消息【${action}】\n(此功能可后续扩展)`);
         cancelSelectMode();
     }
+}
+// =========================================
+// === 浮窗与通知核心逻辑 ===
+// =========================================
+
+window.isFloatChatOpen = false;
+let floatChatCharId = null;
+let floatChatHistory = [];
+let notifTimer = null;
+let currentNotifCharId = null;
+
+// 触发顶部通知
+function triggerNotification(charId, name, avatarUrl, text) {
+    currentNotifCharId = charId;
+    document.getElementById('notifTitle').innerText = name || '通知';
+    document.getElementById('notifDesc').innerText = text;
+    
+    const avatarEl = document.getElementById('notifAvatar');
+    if (avatarUrl) avatarEl.style.backgroundImage = `url(${avatarUrl})`;
+    else avatarEl.style.backgroundImage = '';
+
+    const banner = document.getElementById('notificationBanner');
+    banner.classList.remove('active');
+    clearTimeout(notifTimer);
+    
+    // 强制重绘触发动画
+    void banner.offsetWidth; 
+    banner.classList.add('active');
+    
+    if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // 震动提示
+    
+    notifTimer = setTimeout(() => { banner.classList.remove('active'); }, 4000);
+}
+
+// 点击通知横幅主体 -> 打开全屏聊天
+function handleNotifClick() {
+    clearTimeout(notifTimer);
+    document.getElementById('notificationBanner').classList.remove('active');
+    if (currentNotifCharId) {
+        // 如果浮窗开着同一个角色，先关掉浮窗
+        if (window.isFloatChatOpen && floatChatCharId === currentNotifCharId) {
+            closeFloatingWindow();
+        }
+        openChatScreen(currentNotifCharId);
+    }
+}
+
+// 点击通知钉子 -> 打开浮窗
+function pinToFloatingWindow(e) {
+    e.stopPropagation(); 
+    clearTimeout(notifTimer);
+    document.getElementById('notificationBanner').classList.remove('active');
+    if (currentNotifCharId) {
+        openFloatingWindow(currentNotifCharId);
+    }
+}
+
+// 打开浮窗
+function openFloatingWindow(charId) {
+    if (!db) return;
+    floatChatCharId = charId;
+    window.isFloatChatOpen = true;
+    
+    const transaction = db.transaction(["characters"], "readwrite");
+    const store = transaction.objectStore("characters");
+    const req = store.get(charId);
+
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char) {
+            // 清空未读数
+            if (char.unreadCount > 0) {
+                char.unreadCount = 0;
+                store.put(char);
+                renderWxChatList();
+            }
+
+            document.getElementById('floatName').innerText = char.remark || '未命名';
+            const avatarEl = document.getElementById('floatAvatar');
+            if (char.avatarImage) avatarEl.style.backgroundImage = `url(${char.avatarImage})`;
+            else avatarEl.style.backgroundImage = '';
+
+            const bgUrl = char.bgImage ? char.bgImage : 'https://file.uhsea.com/2602/1b3a98d096fe3a0dbc43593650c79bf0PY.jpg';
+            document.getElementById('floatingChat').style.backgroundImage = `url(${bgUrl})`;
+
+            floatChatHistory = char.history || [];
+            renderFloatHistory();
+
+            const floatChat = document.getElementById('floatingChat');
+            floatChat.classList.add('active');
+        }
+    };
+}
+
+function closeFloatingWindow() {
+    window.isFloatChatOpen = false;
+    const floatChat = document.getElementById('floatingChat');
+    floatChat.classList.remove('active');
+    setTimeout(() => { floatChat.style.transition = ''; }, 300);
+}
+
+function enterFullChatFromFloat() {
+    const id = floatChatCharId;
+    closeFloatingWindow();
+    if (id) setTimeout(() => openChatScreen(id), 300);
+}
+
+// 渲染浮窗历史
+function renderFloatHistory() {
+    const body = document.getElementById('floatBody');
+    body.innerHTML = '<div style="height: 10px; flex-shrink: 0;"></div>';
+    
+    floatChatHistory.forEach(msg => {
+        const isRight = msg.role === 'user';
+        let text = "";
+        if (msg.type === 'transfer') text = isRight ? "[发出转账]" : "[收到转账]";
+        else if (typeof msg.content === 'string') text = msg.content;
+        else text = "[图片消息]";
+        
+        appendFloatMsg(text, isRight);
+    });
+}
+
+function appendFloatMsg(text, isRight) {
+    const body = document.getElementById('floatBody');
+    const sideClass = isRight ? 'right' : 'left';
+    const msgHtml = `<div class="float-msg ${sideClass}"><div class="float-bubble">${escapeHTML(text)}</div></div>`;
+    body.insertAdjacentHTML('beforeend', msgHtml);
+    body.scrollTop = body.scrollHeight;
+}
+
+// 浮窗正在输入动画
+function appendFloatTypingIndicator(id) {
+    const body = document.getElementById('floatBody');
+    const msgHtml = `<div class="float-msg left" id="${id}"><div class="float-bubble" style="color: #888; font-style: italic;">正在输入...</div></div>`;
+    body.insertAdjacentHTML('beforeend', msgHtml);
+    body.scrollTop = body.scrollHeight;
+}
+function removeFloatTypingIndicator() {
+    const els = document.querySelectorAll('#floatBody .float-msg[id^="float-typing-"]');
+    els.forEach(el => el.remove());
+}
+
+// === 浮窗发送逻辑 (与主界面一致) ===
+function handleFloatSendBtnClick() {
+    const input = document.getElementById('floatInput');
+    const text = input.value.trim();
+
+    if (text) {
+        // 有字：只发送，不触发AI
+        appendFloatMsg(text, true);
+        floatChatHistory.push({ role: "user", content: text });
+        input.value = '';
+        input.focus();
+        
+        // 保存到数据库
+        const transaction = db.transaction(["characters"], "readwrite");
+        const store = transaction.objectStore("characters");
+        const req = store.get(floatChatCharId);
+        req.onsuccess = () => {
+            const char = req.result;
+            if (char) {
+                char.history = floatChatHistory;
+                store.put(char);
+                renderWxChatList();
+            }
+        };
+    } else {
+        // 没字：请求AI回复
+        fetchAIResponse(floatChatCharId, true);
+    }
+}
+
+document.getElementById('floatInput').addEventListener('keydown', function(e) {
+    if (e.isComposing) return;
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        handleFloatSendBtnClick();
+    }
+});
+
+// =========================================
+// === 浮窗拖拽与拉伸逻辑 ===
+// =========================================
+const floatWin = document.getElementById('floatingChat');
+const dragHandle = document.getElementById('dragHandle');
+const resizeHandleBR = document.getElementById('resizeHandle');
+const resizeHandleTL = document.getElementById('resizeHandleTL');
+
+let startX, startY, startLeft, startTop, startWidth, startHeight;
+
+// 1. 拖拽
+let isDragging = false;
+dragHandle.addEventListener('touchstart', initDrag, {passive: false});
+dragHandle.addEventListener('mousedown', initDrag);
+
+function initDrag(e) {
+    e.preventDefault(); isDragging = true;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    startX = clientX; startY = clientY;
+    const rect = floatWin.getBoundingClientRect();
+    floatWin.style.left = rect.left + 'px'; floatWin.style.top = rect.top + 'px';
+    floatWin.style.bottom = 'auto'; floatWin.style.right = 'auto';
+    floatWin.classList.add('dragging'); 
+    startLeft = rect.left; startTop = rect.top;
+    document.addEventListener('touchmove', doDrag, {passive: false});
+    document.addEventListener('touchend', stopDrag);
+    document.addEventListener('mousemove', doDrag);
+    document.addEventListener('mouseup', stopDrag);
+}
+function doDrag(e) {
+    if (!isDragging) return; e.preventDefault();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    let newLeft = startLeft + (clientX - startX);
+    let newTop = startTop + (clientY - startY);
+    const maxLeft = window.innerWidth - floatWin.offsetWidth;
+    const maxTop = window.innerHeight - floatWin.offsetHeight;
+    floatWin.style.left = Math.max(0, Math.min(newLeft, maxLeft)) + 'px';
+    floatWin.style.top = Math.max(0, Math.min(newTop, maxTop)) + 'px';
+}
+function stopDrag() {
+    isDragging = false; floatWin.classList.remove('dragging');
+    document.removeEventListener('touchmove', doDrag); document.removeEventListener('touchend', stopDrag);
+    document.removeEventListener('mousemove', doDrag); document.removeEventListener('mouseup', stopDrag);
+}
+
+// 2. 右下角拉伸
+let isResizingBR = false;
+resizeHandleBR.addEventListener('touchstart', initResizeBR, {passive: false});
+resizeHandleBR.addEventListener('mousedown', initResizeBR);
+
+function initResizeBR(e) {
+    e.preventDefault(); isResizingBR = true;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    startX = clientX; startY = clientY;
+    const rect = floatWin.getBoundingClientRect();
+    startWidth = rect.width; startHeight = rect.height;
+    floatWin.style.left = rect.left + 'px'; floatWin.style.top = rect.top + 'px';
+    floatWin.style.bottom = 'auto'; floatWin.style.right = 'auto';
+    floatWin.classList.add('dragging');
+    document.addEventListener('touchmove', doResizeBR, {passive: false});
+    document.addEventListener('touchend', stopResizeBR);
+    document.addEventListener('mousemove', doResizeBR);
+    document.addEventListener('mouseup', stopResizeBR);
+}
+function doResizeBR(e) {
+    if (!isResizingBR) return; e.preventDefault();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    floatWin.style.width = Math.max(240, startWidth + (clientX - startX)) + 'px';
+    floatWin.style.height = Math.max(280, startHeight + (clientY - startY)) + 'px';
+}
+function stopResizeBR() {
+    isResizingBR = false; floatWin.classList.remove('dragging');
+    document.removeEventListener('touchmove', doResizeBR); document.removeEventListener('touchend', stopResizeBR);
+    document.removeEventListener('mousemove', doResizeBR); document.removeEventListener('mouseup', stopResizeBR);
+}
+
+// 3. 左上角拉伸
+let isResizingTL = false;
+resizeHandleTL.addEventListener('touchstart', initResizeTL, {passive: false});
+resizeHandleTL.addEventListener('mousedown', initResizeTL);
+
+function initResizeTL(e) {
+    e.preventDefault(); isResizingTL = true;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    startX = clientX; startY = clientY;
+    const rect = floatWin.getBoundingClientRect();
+    startWidth = rect.width; startHeight = rect.height;
+    startLeft = rect.left; startTop = rect.top;
+    floatWin.style.left = startLeft + 'px'; floatWin.style.top = startTop + 'px';
+    floatWin.style.bottom = 'auto'; floatWin.style.right = 'auto';
+    floatWin.classList.add('dragging');
+    document.addEventListener('touchmove', doResizeTL, {passive: false});
+    document.addEventListener('touchend', stopResizeTL);
+    document.addEventListener('mousemove', doResizeTL);
+    document.addEventListener('mouseup', stopResizeTL);
+}
+function doResizeTL(e) {
+    if (!isResizingTL) return; e.preventDefault();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const deltaX = clientX - startX; const deltaY = clientY - startY;
+    let newWidth = startWidth - deltaX; let newHeight = startHeight - deltaY;
+    let newLeft = startLeft + deltaX; let newTop = startTop + deltaY;
+    if (newWidth < 240) { newWidth = 240; newLeft = startLeft + (startWidth - 240); }
+    if (newHeight < 280) { newHeight = 280; newTop = startTop + (startHeight - 280); }
+    floatWin.style.width = newWidth + 'px'; floatWin.style.height = newHeight + 'px';
+    floatWin.style.left = newLeft + 'px'; floatWin.style.top = newTop + 'px';
+}
+function stopResizeTL() {
+    isResizingTL = false; floatWin.classList.remove('dragging');
+    document.removeEventListener('touchmove', doResizeTL); document.removeEventListener('touchend', stopResizeTL);
+    document.removeEventListener('mousemove', doResizeTL); document.removeEventListener('mouseup', stopResizeTL);
 }
