@@ -1663,7 +1663,7 @@ input:-webkit-autofill:active {
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     color: #ffffff;
-    font-size: 11px; /* 字体稍微小一点 */
+    font-size: 11px; 
     font-weight: 500;
     display: flex;
     align-items: center;
@@ -1672,8 +1672,15 @@ input:-webkit-autofill:active {
     padding: 12px;
     opacity: 0;
     transition: opacity 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    pointer-events: none; /* 让点击事件穿透到父级 */
+    pointer-events: none; 
     letter-spacing: 0.5px;
+    
+    /* 关键修复：强制换行与行高 */
+    white-space: normal; 
+    word-wrap: break-word; 
+    word-break: break-all; 
+    line-height: 1.5; 
+    box-sizing: border-box;
 }
 
 /* 点击后添加 show-text 类名来显示文字 */
@@ -1980,9 +1987,24 @@ input:-webkit-autofill:active {
 .notif-content { flex: 1; display: flex; align-items: center; padding: 8px 12px; gap: 12px; cursor: pointer; }
 .notif-content:active { background: rgba(0,0,0,0.03); }
 .notif-avatar { width: 42px; height: 42px; border-radius: 10px; background-size: cover; background-position: center; flex-shrink: 0; background-color: #d1d1d6; }
-.notif-text { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 2px; overflow: hidden; }
+.notif-text { 
+    flex: 1; 
+    display: flex; 
+    flex-direction: column; 
+    justify-content: center; 
+    gap: 2px; 
+    overflow: hidden; 
+    min-width: 0; /* 关键：防止 flex 子项撑破父级 */
+}
 .notif-title { font-size: 14px; font-weight: 600; color: #000; }
-.notif-desc { font-size: 13px; color: #444; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.notif-desc { 
+    font-size: 13px; 
+    color: #444; 
+    white-space: nowrap; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+    width: 100%; /* 关键：强制宽度受限，触发省略号 */
+}
 
 .notif-pin {
     width: 44px; display: flex; align-items: center; justify-content: center;
