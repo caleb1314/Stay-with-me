@@ -1385,13 +1385,12 @@ if(chatInput) {
         }
     });
 }
-// 通用添加气泡函数 (支持左/右，自动拼接圆角) - 确保这个函数没有被删掉
+// 通用添加气泡函数 (支持左/右，自动拼接圆角)
 function appendMessage(text, isRight) {
     const lastMsg = chatScrollArea.lastElementChild;
     let newMsgClass = 'single'; 
     const sideClass = isRight ? 'right' : 'left';
 
-    // 气泡圆角拼接逻辑
     if (lastMsg && lastMsg.classList.contains(sideClass)) {
         if (lastMsg.classList.contains('single')) {
             lastMsg.classList.remove('single');
@@ -1406,12 +1405,14 @@ function appendMessage(text, isRight) {
 
     const msgRow = document.createElement('div');
     msgRow.className = `msg-row ${sideClass} ${newMsgClass}`; 
-    msgRow.innerHTML = `<div class="msg-bubble">${escapeHTML(text)}</div>`;
+    // 【修改点】：加入了 checkbox-wrap 和 msg-content 容器
+    msgRow.innerHTML = `
+        <div class="checkbox-wrap"><div class="checkbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div></div>
+        <div class="msg-content"><div class="msg-bubble">${escapeHTML(text)}</div></div>`;
 
     chatScrollArea.appendChild(msgRow);
     scrollToChatBottom();
 }
-
 // 新增：将当前聊天记录同步到 IndexedDB
 function saveChatHistoryToDB() {
     if (!db || !currentChatCharId) return;
@@ -2744,7 +2745,7 @@ function handleSendBtnClick() {
         fetchAIResponse();
     }
 }
-// 专门用于渲染图片气泡的 UI 函数 (保持不变)
+// 专门用于渲染图片气泡的 UI 函数
 function appendImageMessageUI(base64Data, isRight) {
     const lastMsg = chatScrollArea.lastElementChild;
     let newMsgClass = 'single'; 
@@ -2764,7 +2765,10 @@ function appendImageMessageUI(base64Data, isRight) {
 
     const msgRow = document.createElement('div');
     msgRow.className = `msg-row ${sideClass} ${newMsgClass}`; 
-    msgRow.innerHTML = `<div class="msg-bubble image-only-bubble"><img src="${base64Data}" class="chat-img"></div>`;
+    // 【修改点】：加入了 checkbox-wrap 和 msg-content 容器
+    msgRow.innerHTML = `
+        <div class="checkbox-wrap"><div class="checkbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div></div>
+        <div class="msg-content"><div class="msg-bubble image-only-bubble"><img src="${base64Data}" class="chat-img"></div></div>`;
 
     chatScrollArea.appendChild(msgRow);
     scrollToChatBottom();
@@ -2823,12 +2827,15 @@ function appendFakePhotoUI(imgUrl, text, isRight) {
 
     const msgRow = document.createElement('div');
     msgRow.className = `msg-row ${sideClass} ${newMsgClass}`; 
-    // 注意这里加了 onclick 切换 show-text
+    // 【修改点】：加入了 checkbox-wrap 和 msg-content 容器，并拦截了多选模式下的点击事件
     msgRow.innerHTML = `
-        <div class="msg-bubble image-only-bubble">
-            <div class="fake-photo-wrap" onclick="this.classList.toggle('show-text')">
-                <img src="${imgUrl}" class="chat-img">
-                <div class="fake-photo-text">${escapeHTML(text)}</div>
+        <div class="checkbox-wrap"><div class="checkbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div></div>
+        <div class="msg-content">
+            <div class="msg-bubble image-only-bubble">
+                <div class="fake-photo-wrap" onclick="if(!isMultiSelectMode) this.classList.toggle('show-text')">
+                    <img src="${imgUrl}" class="chat-img">
+                    <div class="fake-photo-text">${escapeHTML(text)}</div>
+                </div>
             </div>
         </div>`;
 
@@ -2979,25 +2986,27 @@ function appendTransferUI(amount, note, status, id, isRight) {
 
     const msgRow = document.createElement('div');
     msgRow.className = `msg-row ${sideClass} ${newMsgClass}`; 
-    // 绑定点击事件，处理收取逻辑
+    // 【修改点】：加入了 checkbox-wrap 和 msg-content 容器，并拦截了多选模式下的点击事件
     msgRow.innerHTML = `
-        <div class="msg-bubble image-only-bubble" style="background:transparent; border:none; box-shadow:none; padding:0;">
-            <div class="transfer-bubble ${statusClass}" id="${id}" onclick="handleTransferClick('${id}', ${isRight})">
-                <div class="transfer-top">
-                    <div class="transfer-icon-circle"><svg viewBox="0 0 24 24">${iconSvg}</svg></div>
-                    <div class="transfer-info">
-                        <div class="transfer-amount">¥ ${amount}</div>
-                        <div class="transfer-desc">${descText}</div>
+        <div class="checkbox-wrap"><div class="checkbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div></div>
+        <div class="msg-content">
+            <div class="msg-bubble image-only-bubble" style="background:transparent; border:none; box-shadow:none; padding:0;">
+                <div class="transfer-bubble ${statusClass}" id="${id}" onclick="if(!isMultiSelectMode) handleTransferClick('${id}', ${isRight})">
+                    <div class="transfer-top">
+                        <div class="transfer-icon-circle"><svg viewBox="0 0 24 24">${iconSvg}</svg></div>
+                        <div class="transfer-info">
+                            <div class="transfer-amount">¥ ${amount}</div>
+                            <div class="transfer-desc">${descText}</div>
+                        </div>
                     </div>
+                    <div class="transfer-bottom"><span class="transfer-mark">微信转账</span></div>
                 </div>
-                <div class="transfer-bottom"><span class="transfer-mark">微信转账</span></div>
             </div>
         </div>`;
 
     chatScrollArea.appendChild(msgRow);
     scrollToChatBottom();
 }
-
 // 处理转账气泡点击事件
 function handleTransferClick(id, isRight) {
     const msgIndex = chatHistory.findIndex(m => m.id === id);
@@ -3045,128 +3054,166 @@ function handleTransferClick(id, isRight) {
     }
 }
 // =========================================
-// === iOS 气泡长按菜单逻辑 (缝合版) ===
+// === iOS 气泡长按菜单 & 多选功能 (终极完整版) ===
 // =========================================
 
-let msgMenuTarget = null; // 当前选中的气泡元素
+let msgMenuTarget = null;
 let msgMenuTimer = null;
 let isMsgLongPress = false;
 
+let isMultiSelectMode = false;
+let selectedCount = 0;
+let isSwiping = false;
+let currentSwipeAction = true;
+let lastToggledRow = null;
+
 const chatMenuWrapper = document.getElementById('chatMsgMenu');
-const chatMenuArrow = chatMenuWrapper.querySelector('.ios-tooltip-arrow');
+const chatMenuArrow = chatMenuWrapper ? chatMenuWrapper.querySelector('.ios-tooltip-arrow') : null;
 const chatAreaEl = document.getElementById('chatScrollArea');
 
-// 1. 事件委托：监听整个聊天区域的触摸事件
-chatAreaEl.addEventListener('touchstart', (e) => {
-    // 查找最近的 .msg-bubble 元素
-    const bubble = e.target.closest('.msg-bubble');
-    // 排除转账气泡内部的点击区域，防止冲突
-    if (!bubble || e.target.closest('.transfer-bubble')) return;
+// 1. 统一触摸事件 (支持长按菜单 & 滑动多选)
+if (chatAreaEl) {
+    chatAreaEl.addEventListener('touchstart', (e) => {
+        const row = e.target.closest('.msg-row');
+        if (!row) return;
 
-    msgMenuTarget = bubble;
-    isMsgLongPress = false;
-    
-    // 添加按压效果
-    bubble.classList.add('pressing');
+        // 如果已经在多选模式，拦截点击，直接触发滑动选择
+        if (isMultiSelectMode) {
+            e.preventDefault(); 
+            isSwiping = true;
+            currentSwipeAction = !row.classList.contains('selected');
+            toggleRow(row, currentSwipeAction);
+            return;
+        }
 
-    msgMenuTimer = setTimeout(() => {
-        isMsgLongPress = true;
-        bubble.classList.remove('pressing');
-        if (navigator.vibrate) navigator.vibrate(50); // 震动反馈
+        // --- 原有长按菜单逻辑 ---
+        const bubble = e.target.closest('.msg-bubble');
+        if (!bubble || e.target.closest('.transfer-bubble')) return;
+
+        msgMenuTarget = bubble;
+        isMsgLongPress = false;
+        bubble.classList.add('pressing');
+
+        msgMenuTimer = setTimeout(() => {
+            isMsgLongPress = true;
+            bubble.classList.remove('pressing');
+            if (navigator.vibrate) navigator.vibrate(50);
+            showMsgMenu(bubble);
+        }, 500);
+    }, { passive: false });
+
+    chatAreaEl.addEventListener('touchmove', (e) => {
+        if (isMultiSelectMode) {
+            if (isSwiping) {
+                e.preventDefault(); // 阻止屏幕滚动，专心滑动选择
+                let clientX = e.touches[0].clientX;
+                let clientY = e.touches[0].clientY;
+                const el = document.elementFromPoint(clientX, clientY);
+                if (el) {
+                    const row = el.closest('.msg-row');
+                    if (row && row !== lastToggledRow) toggleRow(row, currentSwipeAction);
+                }
+            }
+            return;
+        }
+        // --- 原有长按菜单逻辑 ---
+        clearTimeout(msgMenuTimer);
+        if (msgMenuTarget) msgMenuTarget.classList.remove('pressing');
+    }, { passive: false });
+
+    chatAreaEl.addEventListener('touchend', (e) => {
+        if (isMultiSelectMode) {
+            isSwiping = false;
+            lastToggledRow = null;
+            return;
+        }
+        // --- 原有长按菜单逻辑 ---
+        clearTimeout(msgMenuTimer);
+        if (msgMenuTarget) msgMenuTarget.classList.remove('pressing');
+    });
+
+    // 兼容 PC 端右键点击调试
+    chatAreaEl.addEventListener('contextmenu', (e) => {
+        if (isMultiSelectMode) return;
+        const bubble = e.target.closest('.msg-bubble');
+        if (!bubble || e.target.closest('.transfer-bubble')) return;
+        e.preventDefault();
+        msgMenuTarget = bubble;
         showMsgMenu(bubble);
-    }, 500); // 500ms 触发长按
-}, { passive: true });
-
-chatAreaEl.addEventListener('touchmove', () => {
-    clearTimeout(msgMenuTimer);
-    if (msgMenuTarget) msgMenuTarget.classList.remove('pressing');
-});
-
-chatAreaEl.addEventListener('touchend', () => {
-    clearTimeout(msgMenuTimer);
-    if (msgMenuTarget) msgMenuTarget.classList.remove('pressing');
-});
-
-// 兼容 PC 端右键点击调试
-chatAreaEl.addEventListener('contextmenu', (e) => {
-    const bubble = e.target.closest('.msg-bubble');
-    if (!bubble) return;
-    e.preventDefault();
-    msgMenuTarget = bubble;
-    showMsgMenu(bubble);
-});
+    });
+}
 
 // 点击空白处关闭菜单
 document.addEventListener('touchstart', (e) => {
-    if (!chatMenuWrapper.contains(e.target) && (!msgMenuTarget || !msgMenuTarget.contains(e.target))) {
+    if (chatMenuWrapper && !chatMenuWrapper.contains(e.target) && (!msgMenuTarget || !msgMenuTarget.contains(e.target))) {
         hideMsgMenu();
     }
 }, { passive: true });
 
 document.addEventListener('mousedown', (e) => {
-    if (!chatMenuWrapper.contains(e.target) && (!msgMenuTarget || !msgMenuTarget.contains(e.target))) {
+    if (chatMenuWrapper && !chatMenuWrapper.contains(e.target) && (!msgMenuTarget || !msgMenuTarget.contains(e.target))) {
         hideMsgMenu();
     }
 });
 
-// 2. 显示菜单 (核心定位算法)
+// 2. 显示/隐藏菜单
 function showMsgMenu(bubble) {
+    if (!chatMenuWrapper) return;
     chatMenuWrapper.style.display = 'block';
     
     const rect = bubble.getBoundingClientRect();
     const menuWidth = chatMenuWrapper.offsetWidth;
     const menuHeight = chatMenuWrapper.offsetHeight;
     
-    // 默认居中定位在气泡正上方
     let left = rect.left + (rect.width / 2) - (menuWidth / 2);
-    let top = rect.top - menuHeight - 8; // 8px 间距
+    let top = rect.top - menuHeight - 8; 
     
     let arrowLeft = '50%';
-
-    // 边界检测
     const padding = 10; 
     const screenWidth = window.innerWidth;
 
     if (left < padding) {
         left = padding;
-        // 计算小三角偏移量
         arrowLeft = (rect.left + rect.width / 2 - left) + 'px';
     } else if (left + menuWidth > screenWidth - padding) {
         left = screenWidth - menuWidth - padding;
         arrowLeft = (rect.left + rect.width / 2 - left) + 'px';
     }
 
-    // 防止菜单顶部超出屏幕
     if (top < 50) {
-        top = rect.bottom + 8; // 改为显示在气泡下方
-        chatMenuArrow.style.top = '-6px';
-        chatMenuArrow.style.bottom = 'auto';
-        chatMenuArrow.style.borderTop = 'none';
-        chatMenuArrow.style.borderBottom = '7px solid #ffffff';
+        top = rect.bottom + 8; 
+        if(chatMenuArrow) {
+            chatMenuArrow.style.top = '-6px';
+            chatMenuArrow.style.bottom = 'auto';
+            chatMenuArrow.style.borderTop = 'none';
+            chatMenuArrow.style.borderBottom = '7px solid #ffffff';
+        }
     } else {
-        chatMenuArrow.style.top = 'auto';
-        chatMenuArrow.style.bottom = '-6px';
-        chatMenuArrow.style.borderBottom = 'none';
-        chatMenuArrow.style.borderTop = '7px solid #ffffff';
+        if(chatMenuArrow) {
+            chatMenuArrow.style.top = 'auto';
+            chatMenuArrow.style.bottom = '-6px';
+            chatMenuArrow.style.borderBottom = 'none';
+            chatMenuArrow.style.borderTop = '7px solid #ffffff';
+        }
     }
 
     chatMenuWrapper.style.left = left + 'px';
     chatMenuWrapper.style.top = top + 'px';
-    chatMenuArrow.style.left = arrowLeft;
+    if(chatMenuArrow) chatMenuArrow.style.left = arrowLeft;
 
-    // 强制重绘触发动画
     void chatMenuWrapper.offsetWidth;
     chatMenuWrapper.classList.add('active');
 }
 
 function hideMsgMenu() {
+    if (!chatMenuWrapper) return;
     chatMenuWrapper.classList.remove('active');
     setTimeout(() => {
         chatMenuWrapper.style.display = 'none';
     }, 250);
 }
 
-// 3. 菜单功能实现
+// 3. 菜单功能实现 (单条操作)
 function handleMsgMenuAction(action) {
     if (!msgMenuTarget) return;
     const text = msgMenuTarget.innerText;
@@ -3175,43 +3222,119 @@ function handleMsgMenuAction(action) {
 
     switch (action) {
         case '复制':
-            // 复制纯文本
-            navigator.clipboard.writeText(text).then(() => {
-                alert('已复制'); // 这里可以用个轻提示代替
-            });
+            navigator.clipboard.writeText(text).then(() => { alert('已复制'); });
             break;
-            
         case '编辑':
-            // 将气泡内容填入输入框
             const input = document.getElementById('chatInput');
             input.value = text;
             input.focus();
             break;
-            
         case '引用':
             const quoteInput = document.getElementById('chatInput');
             quoteInput.value = `「${text}」\n----------------\n` + quoteInput.value;
             quoteInput.focus();
             break;
-            
         case '翻译':
-            alert('正在翻译...\n(这里可以接入翻译API)');
+            alert('正在翻译...');
             break;
-            
         case '多选':
-            alert('进入多选模式');
+            // 触发进入多选模式，并默认选中当前长按的气泡
+            enterSelectMode(msgMenuTarget.closest('.msg-row'));
             break;
-            
         case '更多':
+            // 单条删除真实逻辑
             if(confirm('确定要删除这条消息吗？')) {
-                // 视觉删除
                 const row = msgMenuTarget.closest('.msg-row');
-                if(row) row.remove();
-                
-                // 数据删除 (简单实现：从 chatHistory 移除)
-                // 注意：这里为了严谨应该用 ID 匹配，但为了演示简单先这样
-                // 实际项目中建议给每个气泡加 data-id
+                if(row) {
+                    const allRows = Array.from(document.querySelectorAll('#chatScrollArea .msg-row'));
+                    const index = allRows.indexOf(row);
+                    if (index !== -1) {
+                        chatHistory.splice(index, 1);
+                        saveChatHistoryToDB(); // 真实保存
+                    }
+                    row.style.opacity = '0';
+                    row.style.transform = 'scale(0.9)';
+                    setTimeout(() => row.remove(), 200);
+                }
             }
             break;
+    }
+}
+
+// 4. 多选模式控制函数
+function enterSelectMode(initialRow) {
+    if (isMultiSelectMode) return;
+    isMultiSelectMode = true;
+    document.getElementById('chatScreen').classList.add('multi-select');
+    if (initialRow) toggleRow(initialRow, true);
+    else updateCountUI();
+}
+
+function cancelSelectMode() {
+    isMultiSelectMode = false;
+    document.getElementById('chatScreen').classList.remove('multi-select');
+    document.querySelectorAll('.msg-row').forEach(row => row.classList.remove('selected'));
+    selectedCount = 0;
+}
+
+function toggleRow(row, forceSelect) {
+    if (forceSelect) row.classList.add('selected');
+    else row.classList.remove('selected');
+    lastToggledRow = row;
+    selectedCount = document.querySelectorAll('.msg-row.selected').length;
+    updateCountUI();
+}
+
+function updateCountUI() {
+    const titleEl = document.getElementById('selectCount');
+    const actionBtns = document.querySelectorAll('.glass-dock .action-btn');
+    if (selectedCount > 0) {
+        titleEl.innerText = `已选择 ${selectedCount} 项`;
+        actionBtns.forEach(btn => btn.classList.remove('disabled'));
+    } else {
+        titleEl.innerText = '选择消息';
+        actionBtns.forEach(btn => btn.classList.add('disabled'));
+    }
+}
+
+// 5. 真实绑定数据库的批量删除逻辑
+function handleMultiAction(action) {
+    if (selectedCount === 0) return;
+    
+    if (action === '删除') {
+        if(confirm(`确定要删除选中的 ${selectedCount} 条消息吗？`)) {
+            const allRows = Array.from(document.querySelectorAll('#chatScrollArea .msg-row'));
+            const selectedRows = document.querySelectorAll('#chatScrollArea .msg-row.selected');
+            
+            // 获取要删除的索引 (DOM 顺序与 chatHistory 数组顺序严格对应)
+            let indicesToRemove = [];
+            selectedRows.forEach(row => {
+                const index = allRows.indexOf(row);
+                if (index !== -1) indicesToRemove.push(index);
+            });
+            
+            // 从大到小排序，防止 splice 时索引错乱
+            indicesToRemove.sort((a, b) => b - a);
+            
+            // 1. 从内存数组中删除
+            indicesToRemove.forEach(index => {
+                chatHistory.splice(index, 1);
+            });
+            
+            // 2. 保存到 IndexedDB
+            saveChatHistoryToDB();
+            
+            // 3. UI 动画移除
+            selectedRows.forEach(row => {
+                row.style.opacity = '0';
+                row.style.transform = 'scale(0.9)';
+                setTimeout(() => row.remove(), 200);
+            });
+            
+            setTimeout(cancelSelectMode, 200);
+        }
+    } else {
+        alert(`已将 ${selectedCount} 条消息【${action}】\n(此功能可后续扩展)`);
+        cancelSelectMode();
     }
 }
