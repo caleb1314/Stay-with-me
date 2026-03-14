@@ -1148,12 +1148,14 @@ function renderWxChatList() {
 function generateChatRowHTML(char) {
     const avatarStyle = char.avatarImage ? `background-image: url(${char.avatarImage});` : '';
     let lastMsg = "点击进入聊天...";
-    if (char.history && char.history.length > 0) {
-        const lastObj = char.history[char.history.length - 1];
-        if (typeof lastObj.content === 'string') lastMsg = lastObj.content;
-        else if (lastObj.type === 'transfer') lastMsg = '[转账]';
-        else lastMsg = '[图片]';
-    }
+if (char.history && char.history.length > 0) {
+    const lastObj = char.history[char.history.length - 1];
+    // 👇 新增撤回状态的判断 👇
+    if (lastObj.type === 'recalled') lastMsg = '[撤回了一条消息]';
+    else if (typeof lastObj.content === 'string') lastMsg = lastObj.content;
+    else if (lastObj.type === 'transfer') lastMsg = '[转账]';
+    else lastMsg = '[图片]';
+}
     
     // 处理未读数
     const unreadCount = char.unreadCount || 0;
@@ -1338,9 +1340,12 @@ function openChatScreen(charId) {
                 chatHistory = char.history;
                 chatHistory.forEach(msg => {
                     const isRight = msg.role === 'user';
-                    if (msg.type === 'transfer') {
-                        appendTransferUI(msg.amount, msg.note, msg.status, msg.id, isRight);
-                    } else if (msg.role === 'user' || msg.role === 'assistant') {
+                     if (msg.type === 'recalled') {
+        appendRecallUI(msg.originalContent);
+    } 
+    else if (msg.type === 'transfer') {
+        appendTransferUI(msg.amount, msg.note, msg.status, msg.id, isRight);
+    } else if (msg.role === 'user' || msg.role === 'assistant') {
                         if (typeof msg.content === 'string') {
                             if (!isRight) {
                                 const lines = msg.content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
@@ -3266,11 +3271,50 @@ function handleMsgMenuAction(action) {
             alert('正在翻译...');
             break;
         case '多选':
-            // 触发进入多选模式，并默认选中当前长按的气泡
             enterSelectMode(msgMenuTarget.closest('.msg-row'));
             break;
+        case '撤回':
+            if(confirm('确定要撤回这条消息吗？')) {
+                const row = msgMenuTarget.closest('.msg-row');
+                if(row) {
+                    const allRows = Array.from(document.querySelectorAll('#chatScrollArea .msg-row'));
+                    const index = allRows.indexOf(row);
+                    
+                    // 获取文本内容 (如果是图片，给个默认提示)
+                    let recallText = "不支持查看的内容";
+                    const textEl = row.querySelector('.msg-bubble');
+                    if (textEl && !textEl.classList.contains('image-only-bubble')) {
+                        recallText = textEl.innerText;
+                    }
+
+                    if (index !== -1) {
+                        // 修改数据库中的数据结构
+                        const originalRole = chatHistory[index].role;
+                        chatHistory[index] = { role: originalRole, type: 'recalled', originalContent: recallText };
+                        saveChatHistoryToDB();
+                        renderWxChatList(); // 🌟 修复 Bug：刷新外部微信列表
+                    }
+                    
+                    // UI 动画替换
+                    row.style.opacity = '0';
+                    row.style.transform = 'scale(0.9)';
+                    row.style.transition = 'all 0.2s';
+                    
+                    setTimeout(() => {
+                        const recallHtml = `
+                            <div class="recall-wrapper msg-row">
+                                <div class="recall-tip">
+                                    你撤回了一条消息 
+                                    <span class="recall-action" onclick="showRecallModal('${encodeURIComponent(recallText)}')">查看</span>
+                                </div>
+                            </div>
+                        `;
+                        row.outerHTML = recallHtml;
+                    }, 200);
+                }
+            }
+            break;
         case '更多':
-            // 单条删除真实逻辑
             if(confirm('确定要删除这条消息吗？')) {
                 const row = msgMenuTarget.closest('.msg-row');
                 if(row) {
@@ -3278,7 +3322,8 @@ function handleMsgMenuAction(action) {
                     const index = allRows.indexOf(row);
                     if (index !== -1) {
                         chatHistory.splice(index, 1);
-                        saveChatHistoryToDB(); // 真实保存
+                        saveChatHistoryToDB(); 
+                        renderWxChatList(); // 🌟 修复 Bug：刷新外部微信列表
                     }
                     row.style.opacity = '0';
                     row.style.transform = 'scale(0.9)';
@@ -3345,15 +3390,18 @@ function handleMultiAction(action) {
             indicesToRemove.sort((a, b) => b - a);
             
             // 1. 从内存数组中删除
-            indicesToRemove.forEach(index => {
-                chatHistory.splice(index, 1);
-            });
-            
-            // 2. 保存到 IndexedDB
-            saveChatHistoryToDB();
-            
-            // 3. UI 动画移除
-            selectedRows.forEach(row => {
+indicesToRemove.forEach(index => {
+    chatHistory.splice(index, 1);
+});
+
+// 2. 保存到 IndexedDB
+saveChatHistoryToDB();
+
+// 3. 🌟 修复 Bug：刷新外部微信列表
+renderWxChatList(); 
+
+// 4. UI 动画移除
+selectedRows.forEach(row => {
                 row.style.opacity = '0';
                 row.style.transform = 'scale(0.9)';
                 setTimeout(() => row.remove(), 200);
@@ -3663,4 +3711,34 @@ function stopResizeTL() {
     isResizingTL = false; floatWin.classList.remove('dragging');
     document.removeEventListener('touchmove', doResizeTL); document.removeEventListener('touchend', stopResizeTL);
     document.removeEventListener('mousemove', doResizeTL); document.removeEventListener('mouseup', stopResizeTL);
+}
+// =========================================
+// === 撤回功能辅助函数 ===
+// =========================================
+
+// 初始化渲染时生成撤回 UI (注意必须带上 msg-row 类名，保证索引不乱)
+function appendRecallUI(text) {
+    const chatScrollArea = document.getElementById('chatScrollArea');
+    const recallHtml = `
+        <div class="recall-wrapper msg-row">
+            <div class="recall-tip">
+                你撤回了一条消息 
+                <span class="recall-action" onclick="showRecallModal('${encodeURIComponent(text)}')">查看</span>
+            </div>
+        </div>
+    `;
+    chatScrollArea.insertAdjacentHTML('beforeend', recallHtml);
+    scrollToChatBottom();
+}
+
+// 显示撤回内容弹窗
+function showRecallModal(encodedText) {
+    const text = decodeURIComponent(encodedText);
+    document.getElementById('recallText').innerText = text;
+    document.getElementById('recallModal').classList.add('active');
+}
+
+// 关闭撤回内容弹窗
+function closeRecallModal() {
+    document.getElementById('recallModal').classList.remove('active');
 }
