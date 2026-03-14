@@ -1661,36 +1661,56 @@ function distributeAIResponse(charId, parsedMessages, isFromFloat) {
 
         if (isFullScreenActive) {
             // 在全屏聊天界面，直接渲染
-            chatHistory = char.history; // 同步内存
-            renderMessagesWithDelay(parsedMessages, false); // false代表全屏
+            chatHistory = char.history; 
+            renderMessagesWithDelay(parsedMessages, false); 
+            store.put(char); 
+            renderWxChatList(); 
         } else if (isFloatScreenActive) {
             // 在浮窗界面，直接渲染
-            floatChatHistory = char.history; // 同步内存
-            renderMessagesWithDelay(parsedMessages, true); // true代表浮窗
+            floatChatHistory = char.history; 
+            renderMessagesWithDelay(parsedMessages, true); 
+            store.put(char); 
+            renderWxChatList(); 
         } else {
-    // 都不在，触发后台通知，模拟真实一条一条发送
-    let delay = 0;
-    
-    parsedMessages.forEach((msg, index) => {
-        setTimeout(() => {
-            // 1. 每次收到一条，未读数 +1
-            char.unreadCount = (char.unreadCount || 0) + 1;
-            store.put(char); // 实时更新数据库
-            renderWxChatList(); // 实时刷新微信列表红点
+            // 都不在，触发后台通知，模拟真实一条一条发送
+            // 注意：先保存历史记录，但不加未读数
+            store.put(char);
+            renderWxChatList(); 
 
-            // 2. 提取当前这条消息的文本
-            let notifText = "收到新消息";
-            if (msg.type === 'text') notifText = msg.content;
-            else if (msg.type === 'photo') notifText = "[图片]";
-            else if (msg.type === 'transfer_out') notifText = "[转账]";
+            let delay = 0;
+            parsedMessages.forEach((msg) => {
+                setTimeout(() => {
+                    // 重新开启安全事务更新未读数
+                    const tx = db.transaction(["characters"], "readwrite");
+                    const charStore = tx.objectStore("characters");
+                    const getReq = charStore.get(charId);
+                    
+                    getReq.onsuccess = () => {
+                        const latestChar = getReq.result;
+                        if (latestChar) {
+                            latestChar.unreadCount = (latestChar.unreadCount || 0) + 1;
+                            charStore.put(latestChar);
+                            tx.oncomplete = () => {
+                                renderWxChatList(); // 实时刷新微信列表红点
+                            };
+                        }
+                    };
 
-            // 3. 触发顶部弹窗
-            triggerNotification(charId, char.remark, char.avatarImage, notifText);
-        }, delay);
-        
-        // 动态计算下一条的延迟时间 (基础延迟 1.5秒 + 字数读取时间)
-        delay += 1500 + ((msg.content || msg.desc || msg.note || "").length * 50);
-    });
+                    // 提取当前这条消息的文本
+                    let notifText = "收到新消息";
+                    if (msg.type === 'text') notifText = msg.content;
+                    else if (msg.type === 'photo') notifText = "[图片]";
+                    else if (msg.type === 'transfer_out') notifText = "[转账]";
+
+                    // 触发顶部弹窗
+                    triggerNotification(charId, char.remark, char.avatarImage, notifText);
+                }, delay);
+                
+                // 动态计算下一条的延迟时间 (基础延迟 1.5秒 + 字数读取时间)
+                delay += 1500 + ((msg.content || msg.desc || msg.note || "").length * 50);
+            });
+        }
+    };
 }
         store.put(char); // 保存回数据库
         renderWxChatList(); // 刷新微信列表（更新红点和预览）
