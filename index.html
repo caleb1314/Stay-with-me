@@ -1042,6 +1042,7 @@
         <div class="ios-tooltip-wrapper" id="chatMsgMenu">
             <div class="ios-tooltip-menu">
                 <div class="tooltip-item" onclick="handleMsgMenuAction('复制')">复制</div>
+                <div class="tooltip-item" onclick="handleMsgMenuAction('撤回')" style="color: #ff3b30;">撤回</div>
                 <div class="tooltip-item" onclick="handleMsgMenuAction('编辑')">编辑</div>
                 <div class="tooltip-item" onclick="handleMsgMenuAction('引用')">引用</div>
                 <div class="tooltip-item" onclick="handleMsgMenuAction('翻译')">翻译</div>
@@ -1364,6 +1365,14 @@
     
     <!-- 底部导航条 -->
     <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeChatSettings()"></div></div>
+</div>
+<!-- 撤回内容查看弹窗 -->
+<div class="recall-modal" id="recallModal">
+    <div class="recall-card">
+        <div class="recall-title">撤回的内容</div>
+        <div class="recall-content-text" id="recallText"></div>
+        <div class="recall-close-btn" onclick="closeRecallModal()">关闭</div>
+    </div>
 </div>
     <script src="script.js" defer></script>
     
