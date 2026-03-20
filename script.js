@@ -1341,8 +1341,8 @@ function openChatScreen(charId) {
                 chatHistory.forEach(msg => {
                     const isRight = msg.role === 'user';
                      if (msg.type === 'recalled') {
-        appendRecallUI(msg.originalContent);
-    } 
+    appendRecallUI(msg.originalContent, isRight);
+} 
     else if (msg.type === 'transfer') {
         appendTransferUI(msg.amount, msg.note, msg.status, msg.id, isRight);
     } else if (msg.role === 'user' || msg.role === 'assistant') {
@@ -1602,40 +1602,43 @@ ${char.persona || '无详细设定'}
             
             if (data.choices && data.choices.length > 0) {
                 let aiText = data.choices[0].message.content || "";
-                // === 处理撤回逻辑 (新增) ===
-                if (aiText.includes('[撤回前一条消息]')) {
-                    // 移除标签
-                    aiText = aiText.replace(/\[撤回前一条消息\]/g, '');
-                    // 执行撤回操作 (等待数据库操作完成)
-                    await executeAIRecallLogic(targetCharId);
-                }
-                // 处理转账逻辑 (简化版)
-                if (aiText.includes('[收取转账]')) aiText = aiText.replace(/\[收取转账\]/g, '');
-                if (aiText.includes('[退回转账]')) aiText = aiText.replace(/\[退回转账\]/g, '');
 
-                const lines = aiText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-                let parsedMessages = [];
+// 处理转账逻辑 (简化版)
+if (aiText.includes('[收取转账]')) aiText = aiText.replace(/\[收取转账\]/g, '');
+if (aiText.includes('[退回转账]')) aiText = aiText.replace(/\[退回转账\]/g, '');
 
-                lines.forEach(line => {
-                    const photoMatch = line.match(/\[发送照片:(.*?)\]/);
-                    const transferMatch = line.match(/\[发起转账:([\d\.]+):(.*?)\]/);
-                    if (photoMatch) {
-                        parsedMessages.push({ type: 'photo', desc: photoMatch[1], url: 'https://file.uhsea.com/2603/afb7609d925c45a3d931579af60565c3G7.jpg' });
-                        const textPart = line.replace(photoMatch[0], '').trim();
-                        if (textPart) parsedMessages.push({ type: 'text', content: textPart });
-                    } else if (transferMatch) {
-                        parsedMessages.push({ type: 'transfer_out', amount: transferMatch[1], note: transferMatch[2], id: 'transfer_' + Date.now() });
-                        const textPart = line.replace(transferMatch[0], '').trim();
-                        if (textPart) parsedMessages.push({ type: 'text', content: textPart });
-                    } else {
-                        parsedMessages.push({ type: 'text', content: line });
-                    }
-                });
+const lines = aiText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+let parsedMessages = [];
 
-                if (parsedMessages.length === 0) parsedMessages.push({ type: 'text', content: "（已处理）" });
+lines.forEach(line => {
+    // === 核心修复：按顺序把撤回动作加入队列，而不是立刻执行 ===
+    if (line.includes('[撤回前一条消息]')) {
+        parsedMessages.push({ type: 'recall' });
+        // 如果同一行还有其他文字，剥离标签后继续显示
+        const textPart = line.replace(/\[撤回前一条消息\]/g, '').trim();
+        if (textPart) parsedMessages.push({ type: 'text', content: textPart });
+        return;
+    }
+    
+    const photoMatch = line.match(/\[发送照片:(.*?)\]/);
+    const transferMatch = line.match(/\[发起转账:([\d\.]+):(.*?)\]/);
+    if (photoMatch) {
+        parsedMessages.push({ type: 'photo', desc: photoMatch[1], url: 'https://file.uhsea.com/2603/afb7609d925c45a3d931579af60565c3G7.jpg' });
+        const textPart = line.replace(photoMatch[0], '').trim();
+        if (textPart) parsedMessages.push({ type: 'text', content: textPart });
+    } else if (transferMatch) {
+        parsedMessages.push({ type: 'transfer_out', amount: transferMatch[1], note: transferMatch[2], id: 'transfer_' + Date.now() });
+        const textPart = line.replace(transferMatch[0], '').trim();
+        if (textPart) parsedMessages.push({ type: 'text', content: textPart });
+    } else {
+        parsedMessages.push({ type: 'text', content: line });
+    }
+});
 
-                // 核心分发逻辑
-                distributeAIResponse(targetCharId, parsedMessages, isFromFloat);
+if (parsedMessages.length === 0) parsedMessages.push({ type: 'text', content: "（已处理）" });
+
+// 核心分发逻辑
+distributeAIResponse(targetCharId, parsedMessages, isFromFloat);
             }
             handleAIFinish(targetCharId, isFromFloat, null);
         } catch (error) {
@@ -1666,12 +1669,42 @@ function distributeAIResponse(charId, parsedMessages, isFromFloat) {
         const char = req.result;
         if (!char) return;
 
-        // 1. 存入历史记录
-        parsedMessages.forEach(msg => {
-            if (msg.type === 'text') char.history.push({ role: "assistant", content: msg.content });
-            else if (msg.type === 'photo') char.history.push({ role: "assistant", content: [{ type: "text", text: `（发送照片：${msg.desc}）` }, { type: "image_url", image_url: { url: msg.url, detail: msg.desc } }] });
-            else if (msg.type === 'transfer_out') char.history.push({ role: "assistant", type: "transfer", amount: msg.amount, note: msg.note, status: "pending", id: msg.id });
-        });
+        /// 1. 存入历史记录
+parsedMessages.forEach(msg => {
+    if (msg.type === 'text') char.history.push({ role: "assistant", content: msg.content });
+    else if (msg.type === 'photo') char.history.push({ role: "assistant", content: [{ type: "text", text: `（发送照片：${msg.desc}）` }, { type: "image_url", image_url: { url: msg.url, detail: msg.desc } }] });
+    else if (msg.type === 'transfer_out') char.history.push({ role: "assistant", type: "transfer", amount: msg.amount, note: msg.note, status: "pending", id: msg.id });
+    else if (msg.type === 'recall') {
+        // === 核心修复：在当前内存数组里找最后一条 AI 消息并标记撤回 ===
+        let targetIndex = -1;
+        for (let i = char.history.length - 1; i >= 0; i--) {
+            const m = char.history[i];
+            if (m.role === 'assistant' && m.type !== 'recalled') {
+                targetIndex = i;
+                break;
+            }
+        }
+        if (targetIndex !== -1) {
+            let originalContent = "不支持查看的内容";
+            const targetMsg = char.history[targetIndex];
+            if (typeof targetMsg.content === 'string') {
+                originalContent = targetMsg.content;
+            } else if (Array.isArray(targetMsg.content)) {
+                const textObj = targetMsg.content.find(c => c.type === 'text');
+                if (textObj && textObj.text) originalContent = textObj.text.replace('（发送照片：', '').replace('）', '');
+                else originalContent = "[图片]";
+            } else if (targetMsg.type === 'transfer') {
+                originalContent = "[转账]";
+            }
+            
+            char.history[targetIndex] = {
+                role: 'assistant',
+                type: 'recalled',
+                originalContent: originalContent
+            };
+        }
+    }
+});
 
         // 2. 判断当前用户在哪里，决定渲染方式
         const isFullScreenActive = (window.isChatScreenOpen && currentChatCharId === charId);
@@ -1737,12 +1770,44 @@ function renderMessagesWithDelay(parsedMessages, isFloat) {
         setTimeout(() => {
             if (isFloat) {
                 if (msg.type === 'text') appendFloatMsg(msg.content, false);
-                else if (msg.type === 'photo') appendFloatMsg("[图片消息]", false); // 浮窗暂用文字代替图片
+                else if (msg.type === 'photo') appendFloatMsg("[图片消息]", false);
                 else if (msg.type === 'transfer_out') appendFloatMsg("[收到转账]", false);
+                else if (msg.type === 'recall') {
+                    const allLeftRows = Array.from(document.querySelectorAll('#floatBody .float-msg.left'));
+                    const lastLeftRow = allLeftRows[allLeftRows.length - 1];
+                    if (lastLeftRow) {
+                        lastLeftRow.innerHTML = `<div class="float-bubble" style="color:#888; font-style:italic; font-size:12px;">对方撤回了一条消息</div>`;
+                        const body = document.getElementById('floatBody');
+                        body.scrollTop = body.scrollHeight;
+                    }
+                }
             } else {
                 if (msg.type === 'text') appendMessage(msg.content, false);
                 else if (msg.type === 'photo') appendFakePhotoUI(msg.url, msg.desc, false);
                 else if (msg.type === 'transfer_out') appendTransferUI(msg.amount, msg.note, 'pending', msg.id, false);
+                else if (msg.type === 'recall') {
+                    const allLeftRows = Array.from(document.querySelectorAll('#chatScrollArea .msg-row.left'));
+                    const lastLeftRow = allLeftRows[allLeftRows.length - 1];
+                    if (lastLeftRow) {
+                        let recallText = "不支持查看的内容";
+                        const textEl = lastLeftRow.querySelector('.msg-bubble');
+                        if (textEl && !textEl.classList.contains('image-only-bubble')) {
+                            const fakeText = textEl.querySelector('.fake-photo-text');
+                            if (fakeText) recallText = fakeText.innerText;
+                            else recallText = textEl.innerText;
+                        }
+                        const recallHtml = `
+                            <div class="recall-wrapper msg-row left">
+                                <div class="recall-tip">
+                                    对方撤回了一条消息 
+                                    <span class="recall-action" onclick="showRecallModal('${encodeURIComponent(recallText)}')">查看</span>
+                                </div>
+                            </div>
+                        `;
+                        lastLeftRow.outerHTML = recallHtml;
+                        scrollToChatBottom();
+                    }
+                }
             }
         }, delay);
         delay += 600 + ((msg.content || msg.desc || msg.note || "").length * 40);
@@ -3314,16 +3379,19 @@ function handleMsgMenuAction(action) {
                     row.style.transition = 'all 0.2s';
                     
                     setTimeout(() => {
-                        const recallHtml = `
-                            <div class="recall-wrapper msg-row">
-                                <div class="recall-tip">
-                                    你撤回了一条消息 
-                                    <span class="recall-action" onclick="showRecallModal('${encodeURIComponent(recallText)}')">查看</span>
-                                </div>
-                            </div>
-                        `;
-                        row.outerHTML = recallHtml;
-                    }, 200);
+    const isRight = row.classList.contains('right');
+    const tipText = isRight ? "你撤回了一条消息" : "对方撤回了一条消息";
+    const sideClass = isRight ? "right" : "left";
+    const recallHtml = `
+        <div class="recall-wrapper msg-row ${sideClass}">
+            <div class="recall-tip">
+                ${tipText} 
+                <span class="recall-action" onclick="showRecallModal('${encodeURIComponent(recallText)}')">查看</span>
+            </div>
+        </div>
+    `;
+    row.outerHTML = recallHtml;
+}, 200);
                 }
             }
             break;
@@ -3730,12 +3798,14 @@ function stopResizeTL() {
 // =========================================
 
 // 初始化渲染时生成撤回 UI (注意必须带上 msg-row 类名，保证索引不乱)
-function appendRecallUI(text) {
+function appendRecallUI(text, isRight) {
     const chatScrollArea = document.getElementById('chatScrollArea');
+    const tipText = isRight ? "你撤回了一条消息" : "对方撤回了一条消息";
+    const sideClass = isRight ? "right" : "left";
     const recallHtml = `
-        <div class="recall-wrapper msg-row">
+        <div class="recall-wrapper msg-row ${sideClass}">
             <div class="recall-tip">
-                你撤回了一条消息 
+                ${tipText} 
                 <span class="recall-action" onclick="showRecallModal('${encodeURIComponent(text)}')">查看</span>
             </div>
         </div>
@@ -3754,85 +3824,4 @@ function showRecallModal(encodedText) {
 // 关闭撤回内容弹窗
 function closeRecallModal() {
     document.getElementById('recallModal').classList.remove('active');
-}
-// =========================================
-// === 新增：AI 主动撤回核心逻辑 ===
-// =========================================
-async function executeAIRecallLogic(charId) {
-    return new Promise((resolve) => {
-        if (!db) { resolve(); return; }
-        
-        const transaction = db.transaction(["characters"], "readwrite");
-        const store = transaction.objectStore("characters");
-        const req = store.get(charId);
-
-        req.onsuccess = () => {
-            const char = req.result;
-            if (!char || !char.history || char.history.length === 0) { resolve(); return; }
-
-            // 1. 倒序查找最后一条属于 assistant 且未被撤回的消息
-            let targetIndex = -1;
-            for (let i = char.history.length - 1; i >= 0; i--) {
-                const msg = char.history[i];
-                if (msg.role === 'assistant' && msg.type !== 'recalled') {
-                    targetIndex = i;
-                    break;
-                }
-            }
-
-            if (targetIndex !== -1) {
-                // 2. 获取原始内容用于显示
-                let originalContent = "不支持查看的内容";
-                const targetMsg = char.history[targetIndex];
-                
-                if (typeof targetMsg.content === 'string') {
-                    originalContent = targetMsg.content;
-                } else if (Array.isArray(targetMsg.content)) {
-                    // 如果是图片
-                    originalContent = "[图片]";
-                } else if (targetMsg.type === 'transfer') {
-                    originalContent = "[转账]";
-                }
-
-                // 3. 修改历史记录状态
-                char.history[targetIndex] = {
-                    role: 'assistant',
-                    type: 'recalled',
-                    originalContent: originalContent
-                };
-
-                // 4. 保存回数据库
-                store.put(char);
-
-                // 5. 如果当前正在该角色的聊天界面，立即更新 UI
-                if (window.isChatScreenOpen && currentChatCharId === charId) {
-                    // 找到所有左侧消息（AI的消息）
-                    const allLeftRows = Array.from(document.querySelectorAll('#chatScrollArea .msg-row.left'));
-                    // 取最后一个（通常就是刚发的那条，或者倒数第二条如果AI正在发新消息）
-                    // 为了准确，我们简单粗暴地重绘列表，或者只移除视觉上的最后一个气泡
-                    // 这里采用视觉替换法：
-                    const lastLeftRow = allLeftRows[allLeftRows.length - 1];
-                    
-                    if (lastLeftRow) {
-                        // 替换为撤回提示
-                        const recallHtml = `
-                            <div class="recall-wrapper msg-row">
-                                <div class="recall-tip">
-                                    对方撤回了一条消息 
-                                    <span class="recall-action" onclick="showRecallModal('${encodeURIComponent(originalContent)}')">查看</span>
-                                </div>
-                            </div>
-                        `;
-                        lastLeftRow.outerHTML = recallHtml;
-                    }
-                }
-            }
-            resolve();
-        };
-        
-        transaction.oncomplete = () => {
-            // 刷新外部列表预览
-            renderWxChatList();
-        };
-    });
 }
