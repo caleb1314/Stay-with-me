@@ -1473,10 +1473,11 @@ function appendTypingIndicator(id) {
     scrollToChatBottom();
 }
 
-function removeTypingIndicator(id) {
-    const el = document.getElementById(id);
-    if (el) el.remove();
-}
+function removeTypingIndicator() {
+    // 查找所有 id 以 typing- 开头的气泡并删除
+    const els = document.querySelectorAll('#chatScrollArea .msg-row[id^="typing-"]');
+    els.forEach(el => el.remove());
+} 
 
 // 请求 AI 回复 (支持全屏、浮窗、后台通知分发)
 async function fetchAIResponse(targetCharId = currentChatCharId, isFromFloat = false) {
@@ -1554,7 +1555,7 @@ async function fetchAIResponse(targetCharId = currentChatCharId, isFromFloat = f
 注意：标签必须严格按照格式，且不要在标签外重复描述“我给你发了照片”等生硬的话，自然地融入对话即可。
 # 第六章：主动撤回协议 (Active Recall)
 为了模拟真实的打字失误、后悔、或者傲娇心理，你可以撤回你刚刚发送的消息。
-【指令】：如果你想撤回上一条消息，请在回复中包含标签 [撤回前一条消息]。
+【指令】：如果你想撤回上一条消息，请在回复中包含标签 [撤回前一条消息]。但请不要每次回复都撤回，请适时撤回，不要撤回的过于频繁，应像正常对话一样。并且尽量不要打错字。除
 场景示例：
 1. 打错字修正："[撤回前一条消息] 啊不对，是明天见"
 2. 傲娇后悔："[撤回前一条消息] 哼，刚才的话当我没说"
