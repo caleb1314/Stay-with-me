@@ -1552,7 +1552,14 @@ async function fetchAIResponse(targetCharId = currentChatCharId, isFromFloat = f
 2. 发起转账：如果你想给User转账（比如节日红包、零花钱、补偿等），请在回复中单独占一行包含标签 [发起转账:金额:备注]。金额必须是纯数字，备注简短。
    例如：[发起转账:520.00:拿去买奶茶]
 注意：标签必须严格按照格式，且不要在标签外重复描述“我给你发了照片”等生硬的话，自然地融入对话即可。
-
+# 第六章：主动撤回协议 (Active Recall)
+为了模拟真实的打字失误、后悔、或者傲娇心理，你可以撤回你刚刚发送的消息。
+【指令】：如果你想撤回上一条消息，请在回复中包含标签 [撤回前一条消息]。
+场景示例：
+1. 打错字修正："[撤回前一条消息] 啊不对，是明天见"
+2. 傲娇后悔："[撤回前一条消息] 哼，刚才的话当我没说"
+3. 发现自己失言："[撤回前一条消息] 抱歉，发错了"
+注意：该标签会立即把你在聊天界面上的上一条气泡变成“对方撤回了一条消息”。
 # 最终校验协议
 发送前检查：有括号描写心理吗？有星号描写动作吗？有油腻禁词吗？是一大段话吗？如果有，立刻修正。
 
@@ -1595,7 +1602,13 @@ ${char.persona || '无详细设定'}
             
             if (data.choices && data.choices.length > 0) {
                 let aiText = data.choices[0].message.content || "";
-                
+                // === 处理撤回逻辑 (新增) ===
+                if (aiText.includes('[撤回前一条消息]')) {
+                    // 移除标签
+                    aiText = aiText.replace(/\[撤回前一条消息\]/g, '');
+                    // 执行撤回操作 (等待数据库操作完成)
+                    await executeAIRecallLogic(targetCharId);
+                }
                 // 处理转账逻辑 (简化版)
                 if (aiText.includes('[收取转账]')) aiText = aiText.replace(/\[收取转账\]/g, '');
                 if (aiText.includes('[退回转账]')) aiText = aiText.replace(/\[退回转账\]/g, '');
@@ -3741,4 +3754,85 @@ function showRecallModal(encodedText) {
 // 关闭撤回内容弹窗
 function closeRecallModal() {
     document.getElementById('recallModal').classList.remove('active');
+}
+// =========================================
+// === 新增：AI 主动撤回核心逻辑 ===
+// =========================================
+async function executeAIRecallLogic(charId) {
+    return new Promise((resolve) => {
+        if (!db) { resolve(); return; }
+        
+        const transaction = db.transaction(["characters"], "readwrite");
+        const store = transaction.objectStore("characters");
+        const req = store.get(charId);
+
+        req.onsuccess = () => {
+            const char = req.result;
+            if (!char || !char.history || char.history.length === 0) { resolve(); return; }
+
+            // 1. 倒序查找最后一条属于 assistant 且未被撤回的消息
+            let targetIndex = -1;
+            for (let i = char.history.length - 1; i >= 0; i--) {
+                const msg = char.history[i];
+                if (msg.role === 'assistant' && msg.type !== 'recalled') {
+                    targetIndex = i;
+                    break;
+                }
+            }
+
+            if (targetIndex !== -1) {
+                // 2. 获取原始内容用于显示
+                let originalContent = "不支持查看的内容";
+                const targetMsg = char.history[targetIndex];
+                
+                if (typeof targetMsg.content === 'string') {
+                    originalContent = targetMsg.content;
+                } else if (Array.isArray(targetMsg.content)) {
+                    // 如果是图片
+                    originalContent = "[图片]";
+                } else if (targetMsg.type === 'transfer') {
+                    originalContent = "[转账]";
+                }
+
+                // 3. 修改历史记录状态
+                char.history[targetIndex] = {
+                    role: 'assistant',
+                    type: 'recalled',
+                    originalContent: originalContent
+                };
+
+                // 4. 保存回数据库
+                store.put(char);
+
+                // 5. 如果当前正在该角色的聊天界面，立即更新 UI
+                if (window.isChatScreenOpen && currentChatCharId === charId) {
+                    // 找到所有左侧消息（AI的消息）
+                    const allLeftRows = Array.from(document.querySelectorAll('#chatScrollArea .msg-row.left'));
+                    // 取最后一个（通常就是刚发的那条，或者倒数第二条如果AI正在发新消息）
+                    // 为了准确，我们简单粗暴地重绘列表，或者只移除视觉上的最后一个气泡
+                    // 这里采用视觉替换法：
+                    const lastLeftRow = allLeftRows[allLeftRows.length - 1];
+                    
+                    if (lastLeftRow) {
+                        // 替换为撤回提示
+                        const recallHtml = `
+                            <div class="recall-wrapper msg-row">
+                                <div class="recall-tip">
+                                    对方撤回了一条消息 
+                                    <span class="recall-action" onclick="showRecallModal('${encodeURIComponent(originalContent)}')">查看</span>
+                                </div>
+                            </div>
+                        `;
+                        lastLeftRow.outerHTML = recallHtml;
+                    }
+                }
+            }
+            resolve();
+        };
+        
+        transaction.oncomplete = () => {
+            // 刷新外部列表预览
+            renderWxChatList();
+        };
+    });
 }
