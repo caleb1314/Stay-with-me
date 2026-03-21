@@ -242,12 +242,13 @@ const dbName = "HajimiStorage";
 const storeName = "images";
 let db;
 
-const request = indexedDB.open(dbName, 2); // 注意：这里版本号改成了 2
+const request = indexedDB.open(dbName, 3); // 🌟 这里必须改成 3
 request.onupgradeneeded = (e) => {
     db = e.target.result;
     if (!db.objectStoreNames.contains(storeName)) db.createObjectStore(storeName, { keyPath: "id" });
-    // 新增：用于存储角色数据的 store
     if (!db.objectStoreNames.contains("characters")) db.createObjectStore("characters", { keyPath: "id" });
+    // 🌟 新增：世界书数据库
+    if (!db.objectStoreNames.contains("worldBooks")) db.createObjectStore("worldBooks", { keyPath: "id" });
 };
 request.onsuccess = (e) => {
     db = e.target.result;
@@ -1078,7 +1079,7 @@ function saveCharacter() {
         nickname: document.getElementById('charNickname').value,
         age: document.getElementById('charAge').value,
         mbti: document.getElementById('charMbti').value,
-        world: document.getElementById('charWorld').value,
+        worldIds: JSON.parse(document.getElementById('charWorldIds').value || '[]'),
         userBind: document.getElementById('charUser').value,
         phone: document.getElementById('charPhone').value,
         ins: document.getElementById('charIns').value,
@@ -1297,6 +1298,11 @@ function resetCharForm() {
         updateCharColor('--header-bg', '#f2f2f7'); document.getElementById('charColorHeader').value = '#f2f2f7';
         updateCharColor('--url-bg', '#ffffff'); document.getElementById('charColorUrl').value = '#ffffff';
         updateCharColor('--content-bg', '#ffffff'); document.getElementById('charColorBg').value = '#ffffff';
+        // 👇 新增：清空世界书选择 UI 和数据
+const wbIdsInput = document.getElementById('charWorldIds');
+if(wbIdsInput) wbIdsInput.value = '[]';
+const wbSelect = document.getElementById('charWorldSelect');
+if(wbSelect) wbSelect.innerText = '未选择';
     }
 }
 // =========================================
@@ -1511,6 +1517,28 @@ async function fetchAIResponse(targetCharId = currentChatCharId, isFromFloat = f
 
         // 获取该角色最新的历史记录用于请求
         const historyToUse = char.history || [];
+        // --- 读取绑定的世界书内容 ---
+let worldBookText = "";
+if (char.worldIds && char.worldIds.length > 0) {
+    const wbTx = db.transaction(["worldBooks"], "readonly");
+    const wbStore = wbTx.objectStore("worldBooks");
+    const allBooks = await new Promise(res => {
+        wbStore.getAll().onsuccess = e => res(e.target.result);
+    });
+    
+    allBooks.forEach(book => {
+        if (char.worldIds.includes(book.id)) {
+            worldBookText += `\n【世界书设定：${book.name}】\n`;
+            if(book.items) {
+                book.items.forEach(item => {
+                    if(item.title || item.content) {
+                        worldBookText += `- ${item.title}：${item.content}\n`;
+                    }
+                });
+            }
+        }
+    });
+}
 
         // ⚠️ 完整的提示词在这里！
         const systemPrompt = `[SYSTEM OVERRIDE PROTOCOL: OMEGA-LEVEL IMMERSION]
@@ -1572,6 +1600,7 @@ MBTI：${char.mbti || ''}
 性别：${char.gender || ''}
 详细设定：
 ${char.persona || '无详细设定'}
+${worldBookText ? '\n# 附加世界观设定（你必须遵循以下世界规则）：' + worldBookText : ''}
 `;
 
         const apiMessages = historyToUse.map(msg => {
@@ -3825,4 +3854,234 @@ function showRecallModal(encodedText) {
 // 关闭撤回内容弹窗
 function closeRecallModal() {
     document.getElementById('recallModal').classList.remove('active');
+}
+// =========================================
+// === 世界书核心逻辑 (真实数据库) ===
+// =========================================
+let currentWbId = null;
+
+function openWorldBookScreen() {
+    const screen = document.getElementById('worldBookScreen');
+    screen.style.display = 'flex';
+    setTimeout(() => screen.classList.add('active'), 10);
+    loadWorldBooksList();
+}
+
+function closeWorldBookScreen() {
+    const screen = document.getElementById('worldBookScreen');
+    screen.classList.remove('active');
+    setTimeout(() => screen.style.display = 'none', 400);
+}
+
+// 加载左侧列表
+function loadWorldBooksList() {
+    if (!db) return;
+    const tx = db.transaction(["worldBooks"], "readonly");
+    const store = tx.objectStore("worldBooks");
+    const req = store.getAll();
+    req.onsuccess = () => {
+        const books = req.result;
+        const sidebarList = document.getElementById('wbSidebarList');
+        sidebarList.innerHTML = '';
+        
+        if (books.length === 0) {
+            currentWbId = null;
+            renderWbContent(null);
+            return;
+        }
+        
+        if (!currentWbId || !books.find(b => b.id === currentWbId)) {
+            currentWbId = books[0].id;
+        }
+
+        books.forEach(book => {
+            const tab = document.createElement('div');
+            tab.className = `wb-tab ${book.id === currentWbId ? 'active' : ''}`;
+            tab.onclick = () => { currentWbId = book.id; loadWorldBooksList(); };
+            tab.innerHTML = `<div class="wb-tab-text">${book.name}</div>`;
+            sidebarList.appendChild(tab);
+        });
+        
+        renderWbContent(books.find(b => b.id === currentWbId));
+    };
+}
+
+// 渲染右侧内容
+function renderWbContent(book) {
+    const list = document.getElementById('wbItemList');
+    list.innerHTML = '<div class="wb-particle-track"></div>';
+    
+    if (!book) {
+        document.getElementById('wbBookNameInput').value = '';
+        list.insertAdjacentHTML('beforeend', '<div style="text-align:center; color:#888; font-size:12px; margin-top:40px;">请先添加世界书</div>');
+        return;
+    }
+
+    document.getElementById('wbBookNameInput').value = book.name;
+
+    if (!book.items || book.items.length === 0) {
+        list.insertAdjacentHTML('beforeend', '<div style="text-align:center; color:#888; font-size:12px; margin-top:40px;">点击右上角星星添加条目</div>');
+        return;
+    }
+
+    book.items.forEach((item, index) => {
+        const row = document.createElement('div');
+        row.className = 'wb-item-row';
+        row.innerHTML = `
+            <div class="wb-card">
+                <div class="wb-card-header">
+                    <div class="wb-title-group">
+                        <div class="wb-title-bar"></div>
+                        <input type="text" class="wb-card-title-input" value="${item.title}" placeholder="标题" onchange="saveWbItem(${index}, 'title', this.value)">
+                    </div>
+                    <div class="wb-card-del" onclick="deleteWbItem(${index})">
+                        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </div>
+                </div>
+                <textarea class="wb-textarea" placeholder="输入内容..." onchange="saveWbItem(${index}, 'content', this.value)">${item.content}</textarea>
+            </div>
+            <div class="wb-connect-line"></div>
+            <div class="wb-particle-node"></div>
+        `;
+        list.appendChild(row);
+    });
+}
+
+// 增删改操作
+function addWorldBook() {
+    const name = prompt("新世界书名称：");
+    if (name && name.trim()) {
+        const newBook = { id: 'wb_' + Date.now(), name: name.trim(), items: [] };
+        const tx = db.transaction(["worldBooks"], "readwrite");
+        tx.objectStore("worldBooks").put(newBook);
+        tx.oncomplete = () => { currentWbId = newBook.id; loadWorldBooksList(); };
+    }
+}
+
+function deleteCurrentWorldBook() {
+    if (!currentWbId) return;
+    if (confirm("确定要删除当前世界书吗？")) {
+        const tx = db.transaction(["worldBooks"], "readwrite");
+        tx.objectStore("worldBooks").delete(currentWbId);
+        tx.oncomplete = () => { currentWbId = null; loadWorldBooksList(); };
+    }
+}
+
+function saveCurrentWorldBookName() {
+    if (!currentWbId) return;
+    const newName = document.getElementById('wbBookNameInput').value.trim();
+    if (!newName) return;
+    const tx = db.transaction(["worldBooks"], "readwrite");
+    const store = tx.objectStore("worldBooks");
+    store.get(currentWbId).onsuccess = (e) => {
+        const book = e.target.result;
+        book.name = newName;
+        store.put(book).onsuccess = () => loadWorldBooksList();
+    };
+}
+
+function addWorldBookItem() {
+    if (!currentWbId) return alert("请先选择或创建世界书");
+    const tx = db.transaction(["worldBooks"], "readwrite");
+    const store = tx.objectStore("worldBooks");
+    store.get(currentWbId).onsuccess = (e) => {
+        const book = e.target.result;
+        if(!book.items) book.items = [];
+        book.items.unshift({ title: "", content: "" });
+        store.put(book).onsuccess = () => loadWorldBooksList();
+    };
+}
+
+function saveWbItem(index, field, value) {
+    if (!currentWbId) return;
+    const tx = db.transaction(["worldBooks"], "readwrite");
+    const store = tx.objectStore("worldBooks");
+    store.get(currentWbId).onsuccess = (e) => {
+        const book = e.target.result;
+        book.items[index][field] = value;
+        store.put(book);
+    };
+}
+
+function deleteWbItem(index) {
+    if (!currentWbId) return;
+    if (confirm("删除此条目？")) {
+        const tx = db.transaction(["worldBooks"], "readwrite");
+        const store = tx.objectStore("worldBooks");
+        store.get(currentWbId).onsuccess = (e) => {
+            const book = e.target.result;
+            book.items.splice(index, 1);
+            store.put(book).onsuccess = () => loadWorldBooksList();
+        };
+    }
+}
+
+// =========================================
+// === 角色添加界面的世界书多选逻辑 ===
+// =========================================
+let tempSelectedWbIds = [];
+
+function openWorldBookSelector() {
+    if (!db) return;
+    const tx = db.transaction(["worldBooks"], "readonly");
+    const store = tx.objectStore("worldBooks");
+    store.getAll().onsuccess = (e) => {
+        const books = e.target.result;
+        const listEl = document.getElementById('wbSelectorList');
+        listEl.innerHTML = '';
+        
+        // 读取当前已选
+        const currentIdsStr = document.getElementById('charWorldIds').value;
+        tempSelectedWbIds = currentIdsStr ? JSON.parse(currentIdsStr) : [];
+
+        if (books.length === 0) {
+            listEl.innerHTML = '<div style="text-align:center; color:#888; font-size:13px;">暂无世界书，请先去主页添加</div>';
+        } else {
+            books.forEach(book => {
+                const isChecked = tempSelectedWbIds.includes(book.id);
+                const item = document.createElement('div');
+                item.className = `wb-select-item ${isChecked ? 'active' : ''}`;
+                item.innerHTML = `
+                    <span>${book.name}</span>
+                    <div class="checkbox" style="width:18px; height:18px; background:${isChecked ? '#333' : 'transparent'}; border:1px solid #888;">
+                        <svg viewBox="0 0 24 24" style="stroke:${isChecked ? '#fff' : 'transparent'}; width:12px; height:12px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    </div>
+                `;
+                item.onclick = () => {
+                    if (tempSelectedWbIds.includes(book.id)) {
+                        tempSelectedWbIds = tempSelectedWbIds.filter(id => id !== book.id);
+                        item.classList.remove('active');
+                        item.querySelector('.checkbox').style.background = 'transparent';
+                        item.querySelector('svg').style.stroke = 'transparent';
+                    } else {
+                        tempSelectedWbIds.push(book.id);
+                        item.classList.add('active');
+                        item.querySelector('.checkbox').style.background = '#333';
+                        item.querySelector('svg').style.stroke = '#fff';
+                    }
+                };
+                listEl.appendChild(item);
+            });
+        }
+
+        const modal = document.getElementById('wbSelectorModal');
+        modal.style.display = 'flex';
+        setTimeout(() => modal.classList.add('active'), 10);
+    };
+}
+
+function confirmWorldBookSelection() {
+    document.getElementById('charWorldIds').value = JSON.stringify(tempSelectedWbIds);
+    const displayEl = document.getElementById('charWorldSelect');
+    if (tempSelectedWbIds.length === 0) {
+        displayEl.innerText = "未选择";
+    } else if (tempSelectedWbIds.length === 1) {
+        displayEl.innerText = "已选 1 个";
+    } else {
+        displayEl.innerText = `已选 ${tempSelectedWbIds.length} 个`;
+    }
+    
+    const modal = document.getElementById('wbSelectorModal');
+    modal.classList.remove('active');
+    setTimeout(() => modal.style.display = 'none', 300);
 }
