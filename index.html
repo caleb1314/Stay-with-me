@@ -267,7 +267,9 @@
                     <div class="app-item" data-app-id="p1-app-world" onclick="openWorldBookScreen()">
     <div class="app-icon gray-3"></div><span class="app-name">世界</span>
 </div>
-                    <div class="app-item" data-app-id="p1-app-contacts"><div class="app-icon gray-4"></div><span class="app-name">通讯录</span></div>
+                    <div class="app-item" data-app-id="p1-app-contacts" onclick="openContactsScreen()">
+    <div class="app-icon gray-4"></div><span class="app-name">通讯录</span>
+</div>
                 </div>
                 <div class="right-widget-wrap">
                     <div class="large-widget img-upload-target" data-img-id="p1-large-widget"></div>
@@ -1368,6 +1370,82 @@
     
     <!-- 底部导航条 -->
     <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeChatSettings()"></div></div>
+</div>
+<!-- ========================================= -->
+<!-- === 通讯录人设库 (Contacts Browser) === -->
+<!-- ========================================= -->
+<div id="contactsScreen" class="app-screen-overlay" style="z-index: 5300; background-image: url('https://file.uhsea.com/2603/f06227d622830863b7274640523032e3OQ.jpg'); background-size: cover; background-position: center;">
+    
+    <!-- 顶部占位 (避开你的全局状态栏) -->
+    <div style="height: 50px; width: 100%; flex-shrink: 0;"></div>
+
+    <div class="glass-sheet">
+        
+        <!-- 头像 (点击更换) -->
+        <div class="protruding-avatar" id="contactAvatar" onclick="triggerContactUpload('avatar')">
+            <div class="edit-badge">
+                <svg viewBox="0 0 24 24"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+            </div>
+        </div>
+
+        <!-- 控制栏 (切换 Char/User) -->
+        <div class="control-bar">
+            <div class="ios-segment">
+                <div class="segment-item active" id="seg-char" onclick="switchContactTab(0)">Char</div>
+                <div class="segment-item" id="seg-user" onclick="switchContactTab(1)">User</div>
+            </div>
+            
+            <!-- 搜索 (预留) -->
+            <div class="circle-btn" onclick="alert('搜索功能开发中...')">
+                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </div>
+            
+            <!-- 更换背景 -->
+            <div class="circle-btn" onclick="triggerContactUpload('bg')">
+                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            </div>
+        </div>
+
+        <!-- 名字与艺术字 (实时编辑区) -->
+        <div class="user-info">
+            <!-- 艺术字 Persona -->
+            <div class="artistic-typography" data-text="Persona">Persona</div>
+            
+            <!-- 名字区域：可编辑，实时同步数据库 -->
+            <div class="user-name">
+                <span id="contactNameEditor" contenteditable="true" spellcheck="false" oninput="handleContactNameEdit()">Loading...</span>
+                <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="user-sub">
+                <svg viewBox="0 0 24 24"><path d="M12 22v-6m-4-6a4 4 0 1 1 8 0 4 4 0 1 1-8 0z"/></svg>
+                <span id="contactSubEditor" contenteditable="true" spellcheck="false" oninput="handleContactSubEdit()">...</span>
+            </div>
+        </div>
+
+        <!-- 卡片轮播 -->
+        <div class="carousel-stage" id="contactCarouselStage">
+            <div class="card-container" id="contactCardContainer"></div>
+            
+            <div class="nav-arrow left" onclick="prevContactCard()">
+                <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+            </div>
+            <div class="nav-arrow right" onclick="nextContactCard()">
+                <svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+            </div>
+        </div>
+
+        <div class="bottom-area">
+            <div class="learn-more">愛是两颗相擁的透明心臓</div>
+        </div>
+        
+        <!-- 底部退出条 -->
+        <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeContactsScreen()"></div></div>
+    </div>
+
+    <!-- 专用上传控件 -->
+    <input type="file" id="contactUploadInput" hidden accept="image/*">
+    <!-- 提示条 -->
+    <div class="toast" id="contactToast">已更新</div>
 </div>
 <!-- 撤回内容查看弹窗 -->
 <div class="recall-modal" id="recallModal">
