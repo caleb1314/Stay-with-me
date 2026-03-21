@@ -4085,3 +4085,272 @@ function confirmWorldBookSelection() {
     modal.classList.remove('active');
     setTimeout(() => modal.style.display = 'none', 300);
 }
+// =========================================
+// === 通讯录人设库核心逻辑 (Contacts Browser) ===
+// =========================================
+
+let contactList = [];
+let contactIndex = 0;
+let contactTab = 0; // 0: Char, 1: User
+let contactUploadTarget = null;
+
+// 打开界面
+function openContactsScreen() {
+    const screen = document.getElementById('contactsScreen');
+    screen.style.display = 'flex';
+    setTimeout(() => screen.classList.add('active'), 10);
+    
+    // 默认加载 Char 列表
+    switchContactTab(0);
+}
+
+// 关闭界面
+function closeContactsScreen() {
+    const screen = document.getElementById('contactsScreen');
+    screen.classList.remove('active');
+    setTimeout(() => screen.style.display = 'none', 400);
+}
+
+// 切换 Tab (Char / User)
+function switchContactTab(index) {
+    contactTab = index;
+    const segChar = document.getElementById('seg-char');
+    const segUser = document.getElementById('seg-user');
+    
+    if (index === 0) {
+        segChar.classList.add('active');
+        segUser.classList.remove('active');
+        loadCharData(); // 加载真实角色
+    } else {
+        segChar.classList.remove('active');
+        segUser.classList.add('active');
+        loadUserData(); // 加载 User 人设
+    }
+}
+
+// 1. 加载 Char 数据 (从 IndexedDB)
+function loadCharData() {
+    if (!db) return;
+    const tx = db.transaction(["characters"], "readonly");
+    const store = tx.objectStore("characters");
+    const req = store.getAll();
+    
+    req.onsuccess = () => {
+        // 按时间倒序排列
+        contactList = req.result.sort((a, b) => b.timestamp - a.timestamp);
+        
+        if (contactList.length === 0) {
+            // 如果没有角色，创建一个伪造的“添加”卡片
+            contactList = [{
+                id: 'placeholder',
+                name: '暂无角色',
+                nickname: '点击去微信添加',
+                bgImage: 'https://file.uhsea.com/2603/f06227d622830863b7274640523032e3OQ.jpg', // 默认图
+                avatarImage: ''
+            }];
+        }
+        
+        contactIndex = 0;
+        renderContactCards();
+        updateContactUI();
+    };
+}
+
+// 2. 加载 User 数据 (从 LocalStorage，模拟多个人设)
+function loadUserData() {
+    // 这里演示用 LocalStorage 存 User 数组，如果没有则初始化默认的
+    let users = JSON.parse(localStorage.getItem('hajimi_user_personas') || '[]');
+    
+    if (users.length === 0) {
+        users = [
+            { id: 'user_main', name: 'User', nickname: '主人设', bgImage: '', avatarImage: '' },
+            { id: 'user_2', name: 'User B', nickname: '第二人设', bgImage: '', avatarImage: '' }
+        ];
+        localStorage.setItem('hajimi_user_personas', JSON.stringify(users));
+    }
+    
+    contactList = users;
+    contactIndex = 0;
+    renderContactCards();
+    updateContactUI();
+}
+
+// 渲染卡片 DOM
+function renderContactCards() {
+    const container = document.getElementById('contactCardContainer');
+    container.innerHTML = '';
+    
+    contactList.forEach((item, index) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        // 如果有图显示图，没图显示默认灰
+        const bg = item.bgImage ? `url(${item.bgImage})` : 'linear-gradient(135deg, #e0e0e0, #cccccc)';
+        card.style.backgroundImage = bg;
+        
+        card.onclick = () => {
+            if (index === contactIndex) {
+                triggerContactUpload('card'); // 点击当前卡片换背景
+            } else {
+                contactIndex = index;
+                updateContactUI();
+            }
+        };
+        
+        // 纯净版：只有爱心，没有文字
+        card.innerHTML = `
+            <div class="card-heart">
+                <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+// 更新界面 (轮播位置 + 顶部文字 + 头像)
+function updateContactUI() {
+    const cards = document.querySelectorAll('#contactCardContainer .card');
+    const currentData = contactList[contactIndex];
+    
+    // 1. 更新顶部信息
+    const nameEditor = document.getElementById('contactNameEditor');
+    const subEditor = document.getElementById('contactSubEditor');
+    const avatarEl = document.getElementById('contactAvatar');
+    
+    // 避免重置正在编辑的内容 (如果 ID 没变)
+    if (nameEditor.dataset.currentId !== currentData.id) {
+        nameEditor.innerText = currentData.name || currentData.remark || '未命名';
+        nameEditor.dataset.currentId = currentData.id; // 标记当前 ID
+    }
+    
+    if (subEditor.dataset.currentId !== currentData.id) {
+        subEditor.innerText = currentData.nickname || '点击编辑签名';
+        subEditor.dataset.currentId = currentData.id;
+    }
+    
+    // 更新头像
+    if (currentData.avatarImage) {
+        avatarEl.style.backgroundImage = `url(${currentData.avatarImage})`;
+    } else {
+        avatarEl.style.backgroundImage = ''; // 默认灰
+    }
+
+    // 2. 更新轮播 3D 效果
+    cards.forEach((card, index) => {
+        const offset = index - contactIndex;
+        card.classList.remove('active');
+        card.style.zIndex = 0;
+        card.style.filter = 'brightness(0.6)';
+        card.style.pointerEvents = 'none';
+
+        if (offset === 0) {
+            card.style.transform = `translateX(0) scale(1)`;
+            card.style.zIndex = 10;
+            card.style.opacity = 1;
+            card.style.filter = 'brightness(1)';
+            card.classList.add('active');
+            card.style.pointerEvents = 'auto';
+        } else if (Math.abs(offset) === 1) {
+            const tx = offset > 0 ? '65%' : '-65%'; 
+            card.style.transform = `translateX(${tx}) scale(0.85) translateZ(-50px)`;
+            card.style.zIndex = 5;
+            card.style.opacity = 0.9;
+        } else {
+            const tx = offset > 0 ? '150%' : '-150%';
+            card.style.transform = `translateX(${tx}) scale(0.7)`;
+            card.style.opacity = 0;
+        }
+    });
+}
+
+// 左右切换
+function prevContactCard() {
+    if (contactIndex > 0) { contactIndex--; updateContactUI(); if(navigator.vibrate) navigator.vibrate(10); }
+}
+function nextContactCard() {
+    if (contactIndex < contactList.length - 1) { contactIndex++; updateContactUI(); if(navigator.vibrate) navigator.vibrate(10); }
+}
+
+// === 核心：实时编辑与保存 ===
+
+// 1. 编辑名字
+function handleContactNameEdit() {
+    const newName = document.getElementById('contactNameEditor').innerText;
+    const currentItem = contactList[contactIndex];
+    currentItem.name = newName; // 更新内存
+    saveContactChange(currentItem); // 保存到 DB
+}
+
+// 2. 编辑签名/昵称
+function handleContactSubEdit() {
+    const newSub = document.getElementById('contactSubEditor').innerText;
+    const currentItem = contactList[contactIndex];
+    currentItem.nickname = newSub; // 更新内存
+    saveContactChange(currentItem); // 保存到 DB
+}
+
+// 3. 上传图片 (头像/背景/全局背景)
+function triggerContactUpload(type) {
+    contactUploadTarget = type;
+    document.getElementById('contactUploadInput').click();
+}
+
+document.getElementById('contactUploadInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        const base64 = event.target.result;
+        const currentItem = contactList[contactIndex];
+
+        if (contactUploadTarget === 'avatar') {
+            currentItem.avatarImage = base64;
+            document.getElementById('contactAvatar').style.backgroundImage = `url(${base64})`;
+            saveContactChange(currentItem);
+            showContactToast("头像已更新");
+        } else if (contactUploadTarget === 'card') {
+            currentItem.bgImage = base64;
+            updateContactUI(); // 刷新卡片背景
+            saveContactChange(currentItem);
+            showContactToast("人设卡背景已更新");
+        } else if (contactUploadTarget === 'bg') {
+            // 全局背景，存到 localStorage
+            document.getElementById('contactsScreen').style.backgroundImage = `url(${base64})`;
+            localStorage.setItem('hajimi_contacts_bg', base64);
+            showContactToast("背景已更换");
+        }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+});
+
+// 统一保存逻辑
+function saveContactChange(item) {
+    if (contactTab === 0) {
+        // 保存 Char 到 IndexedDB
+        if (item.id === 'placeholder') return; // 占位符不保存
+        const tx = db.transaction(["characters"], "readwrite");
+        const store = tx.objectStore("characters");
+        store.put(item);
+        // 同时刷新微信列表 (静默)
+        renderWxChatList();
+    } else {
+        // 保存 User 到 LocalStorage
+        localStorage.setItem('hajimi_user_personas', JSON.stringify(contactList));
+    }
+}
+
+function showContactToast(msg) {
+    const t = document.getElementById('contactToast');
+    t.innerText = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 1500);
+}
+
+// 初始化时加载背景
+document.addEventListener('DOMContentLoaded', () => {
+    const savedBg = localStorage.getItem('hajimi_contacts_bg');
+    if (savedBg) {
+        document.getElementById('contactsScreen').style.backgroundImage = `url(${savedBg})`;
+    }
+});
