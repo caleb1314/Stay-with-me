@@ -1060,48 +1060,133 @@ function saveCharUrlImage() {
     }
 }
 
-// 5. 保存角色数据到 IndexedDB
+// 保存角色数据到 IndexedDB (支持新建与覆盖更新)
 function saveCharacter() {
     const btn = document.getElementById('charSaveBtn');
     btn.classList.add('saved');
     setTimeout(() => btn.classList.remove('saved'), 1000);
 
-    // 获取背景图和头像的 URL (去掉 url("") 包装)
     const bgStyle = document.getElementById('charBgTarget').style.backgroundImage;
     const avatarStyle = document.getElementById('charAvatarTarget').style.backgroundImage;
-    const bgUrl = bgStyle ? bgStyle.slice(5, -2) : '';
-    const avatarUrl = avatarStyle ? avatarStyle.slice(5, -2) : '';
+    const bgUrl = bgStyle && bgStyle !== 'none' ? bgStyle.slice(5, -2).replace(/["']/g, "") : '';
+    const avatarUrl = avatarStyle && avatarStyle !== 'none' ? avatarStyle.slice(5, -2).replace(/["']/g, "") : '';
 
-    const charData = {
-        id: 'char_' + Date.now(),
-        remark: document.getElementById('charRemark').value || '未命名角色',
-        name: document.getElementById('charName').value,
-        nickname: document.getElementById('charNickname').value,
-        age: document.getElementById('charAge').value,
-        mbti: document.getElementById('charMbti').value,
-        worldIds: JSON.parse(document.getElementById('charWorldIds').value || '[]'),
-        userBind: document.getElementById('charUser').value,
-        phone: document.getElementById('charPhone').value,
-        ins: document.getElementById('charIns').value,
-        email: document.getElementById('charEmail').value,
-        persona: document.getElementById('charPersona').value,
-        bgImage: bgUrl,
-        avatarImage: avatarUrl,
-        gender: charGenders[charGIdx].t,
-        timestamp: Date.now()
-    };
+    // 如果 editingCharId 有值，说明是编辑模式，否则是新建
+    const targetId = editingCharId || ('char_' + Date.now());
 
     const transaction = db.transaction(["characters"], "readwrite");
     const store = transaction.objectStore("characters");
-    store.put(charData);
+    
+    // 先获取旧数据（为了保留聊天记录 history 等）
+    const getReq = store.get(targetId);
+    
+    getReq.onsuccess = () => {
+        const oldChar = getReq.result || {}; // 如果是新建，oldChar 就是空对象
+        
+        const charData = {
+            ...oldChar, // 继承旧的 history, unreadCount, isPinned 等核心数据
+            id: targetId,
+            remark: document.getElementById('charRemark').value || '未命名角色',
+            name: document.getElementById('charName').value,
+            nickname: document.getElementById('charNickname').value,
+            age: document.getElementById('charAge').value,
+            mbti: document.getElementById('charMbti').value,
+            worldIds: JSON.parse(document.getElementById('charWorldIds').value || '[]'),
+            userBind: document.getElementById('charUser').value,
+            phone: document.getElementById('charPhone').value,
+            ins: document.getElementById('charIns').value,
+            email: document.getElementById('charEmail').value,
+            persona: document.getElementById('charPersona').value,
+            bgImage: bgUrl,
+            avatarImage: avatarUrl,
+            gender: charGenders[charGIdx].t,
+            timestamp: oldChar.timestamp || Date.now() // 保持列表原有排序
+        };
 
-    transaction.oncomplete = () => {
-        alert("角色已保存到微信列表！");
-        renderWxChatList(); // 刷新微信列表
-        closeCharAddScreen(); // 保存后自动关闭
+        store.put(charData).onsuccess = () => {
+            alert(editingCharId ? "角色人设已更新！AI将读取最新设定。" : "角色已保存到微信列表！");
+            editingCharId = null; // 重置编辑状态
+            
+            renderWxChatList(); // 刷新微信列表
+            
+            // 如果通讯录人设库开着，同步刷新它
+            const contactsScreen = document.getElementById('contactsScreen');
+            if (contactsScreen && contactsScreen.classList.contains('active')) {
+                loadCharData();
+            }
+            
+            closeCharAddScreen(); // 保存后自动关闭
+        };
     };
 }
+let editingCharId = null; // 全局变量，标记当前是否在编辑已有角色
 
+// 无弹窗重置表单 (用于新建角色)
+function resetCharFormWithoutConfirm() {
+    editingCharId = null;
+    document.querySelectorAll('.char-grid-input, .char-name-input, .char-fixed-textarea').forEach(el => el.value = '');
+    document.getElementById('charBgTarget').style.backgroundImage = '';
+    document.getElementById('charAvatarTarget').style.backgroundImage = '';
+    updateCharColor('--header-bg', '#f2f2f7'); document.getElementById('charColorHeader').value = '#f2f2f7';
+    updateCharColor('--url-bg', '#ffffff'); document.getElementById('charColorUrl').value = '#ffffff';
+    updateCharColor('--content-bg', '#ffffff'); document.getElementById('charColorBg').value = '#ffffff';
+    const wbIdsInput = document.getElementById('charWorldIds');
+    if(wbIdsInput) wbIdsInput.value = '[]';
+    const wbSelect = document.getElementById('charWorldSelect');
+    if(wbSelect) wbSelect.innerText = '未选择';
+}
+
+// 读取现有数据并填入编辑界面
+function editCharacter(charId) {
+    if (!db) return;
+    const tx = db.transaction(["characters"], "readonly");
+    const store = tx.objectStore("characters");
+    const req = store.get(charId);
+    
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char) {
+            editingCharId = char.id; // 标记当前正在编辑的 ID
+            
+            // 填充文本数据
+            document.getElementById('charRemark').value = char.remark || '';
+            document.getElementById('charName').value = char.name || '';
+            document.getElementById('charNickname').value = char.nickname || '';
+            document.getElementById('charAge').value = char.age || '';
+            document.getElementById('charMbti').value = char.mbti || '';
+            
+            // 填充世界书
+            document.getElementById('charWorldIds').value = JSON.stringify(char.worldIds || []);
+            const wbSelect = document.getElementById('charWorldSelect');
+            if (char.worldIds && char.worldIds.length > 0) {
+                wbSelect.innerText = `已选 ${char.worldIds.length} 个`;
+            } else {
+                wbSelect.innerText = '未选择';
+            }
+            
+            document.getElementById('charUser').value = char.userBind || 'default';
+            document.getElementById('charPhone').value = char.phone || '';
+            document.getElementById('charIns').value = char.ins || '';
+            document.getElementById('charEmail').value = char.email || '';
+            document.getElementById('charPersona').value = char.persona || '';
+            
+            // 填充图片
+            document.getElementById('charBgTarget').style.backgroundImage = char.bgImage ? `url(${char.bgImage})` : '';
+            document.getElementById('charAvatarTarget').style.backgroundImage = char.avatarImage ? `url(${char.avatarImage})` : '';
+            
+            // 填充性别
+            const genderTag = document.getElementById('charGenderTag');
+            const genderIndex = charGenders.findIndex(g => g.t === char.gender);
+            if (genderIndex !== -1) {
+                charGIdx = genderIndex;
+                genderTag.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">${charGenders[charGIdx].icon}</svg> ${charGenders[charGIdx].t}`;
+            }
+            
+            // 打开界面
+            openCharAddScreen();
+        }
+    };
+}
 // 6. 渲染微信列表 (支持置顶分离)
 function renderWxChatList() {
     if(!db) return;
@@ -1291,18 +1376,17 @@ function deleteCharacterAction() {
 // 7. 刷新/清空表单
 function resetCharForm() {
     if(confirm('确定要清空当前填写的内容吗？')) {
+        editingCharId = null; // 核心：退出编辑模式
         document.querySelectorAll('.char-grid-input, .char-name-input, .char-fixed-textarea').forEach(el => el.value = '');
         document.getElementById('charBgTarget').style.backgroundImage = '';
         document.getElementById('charAvatarTarget').style.backgroundImage = '';
-        // 恢复默认颜色
         updateCharColor('--header-bg', '#f2f2f7'); document.getElementById('charColorHeader').value = '#f2f2f7';
         updateCharColor('--url-bg', '#ffffff'); document.getElementById('charColorUrl').value = '#ffffff';
         updateCharColor('--content-bg', '#ffffff'); document.getElementById('charColorBg').value = '#ffffff';
-        // 👇 新增：清空世界书选择 UI 和数据
-const wbIdsInput = document.getElementById('charWorldIds');
-if(wbIdsInput) wbIdsInput.value = '[]';
-const wbSelect = document.getElementById('charWorldSelect');
-if(wbSelect) wbSelect.innerText = '未选择';
+        const wbIdsInput = document.getElementById('charWorldIds');
+        if(wbIdsInput) wbIdsInput.value = '[]';
+        const wbSelect = document.getElementById('charWorldSelect');
+        if(wbSelect) wbSelect.innerText = '未选择';
     }
 }
 // =========================================
@@ -4175,7 +4259,7 @@ function loadUserData() {
     updateContactUI();
 }
 
-// 渲染卡片 DOM
+/// 渲染卡片 DOM
 function renderContactCards() {
     const container = document.getElementById('contactCardContainer');
     container.innerHTML = '';
@@ -4183,13 +4267,21 @@ function renderContactCards() {
     contactList.forEach((item, index) => {
         const card = document.createElement('div');
         card.className = 'card';
-        // 如果有图显示图，没图显示默认灰
-        const bg = item.bgImage ? `url(${item.bgImage})` : 'linear-gradient(135deg, #e0e0e0, #cccccc)';
+        // 核心修改 1：这里改为读取 avatarImage (头像) 作为卡片背景
+        const bg = item.avatarImage ? `url(${item.avatarImage})` : 'linear-gradient(135deg, #e0e0e0, #cccccc)';
         card.style.backgroundImage = bg;
         
         card.onclick = () => {
             if (index === contactIndex) {
-                triggerContactUpload('card'); // 点击当前卡片换背景
+                // 核心修改 2：点击当前卡片，进入角色编辑界面
+                if (contactTab === 0 && item.id !== 'placeholder') {
+                    editCharacter(item.id);
+                } else if (contactTab === 0 && item.id === 'placeholder') {
+                    resetCharFormWithoutConfirm();
+                    openCharAddScreen();
+                } else {
+                    alert("User 人设编辑功能开发中...");
+                }
             } else {
                 contactIndex = index;
                 updateContactUI();
@@ -4354,3 +4446,51 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('contactsScreen').style.backgroundImage = `url(${savedBg})`;
     }
 });
+// =========================================
+// === 补充：通讯录删除与 User 初始化逻辑 ===
+// =========================================
+
+// 1. 删除当前卡片逻辑
+function deleteCurrentContactCard() {
+    const currentItem = contactList[contactIndex];
+    if (!currentItem || currentItem.id === 'placeholder') return;
+    
+    if (contactTab === 0) { // Char 模式
+        if (confirm(`确定要删除角色 "${currentItem.name || currentItem.remark}" 吗？\n此操作将同时删除该角色的所有聊天记录！`)) {
+            const tx = db.transaction(["characters"], "readwrite");
+            tx.objectStore("characters").delete(currentItem.id);
+            tx.oncomplete = () => {
+                showContactToast("角色已删除");
+                loadCharData(); // 刷新列表
+                // 同时刷新微信列表
+                renderWxChatList();
+            };
+        }
+    } else { // User 模式
+        if (confirm("确定删除此 User 人设吗？")) {
+            contactList.splice(contactIndex, 1);
+            localStorage.setItem('hajimi_user_personas', JSON.stringify(contactList));
+            loadUserData();
+            showContactToast("User 人设已删除");
+        }
+    }
+}
+
+// 2. 修正 User 加载逻辑 (去掉图片链接)
+function loadUserData() {
+    let users = JSON.parse(localStorage.getItem('hajimi_user_personas') || '[]');
+    
+    if (users.length === 0) {
+        // 初始化默认 User，不带 URL，保持纯净
+        users = [
+            { id: 'user_main', name: 'User', nickname: '主人设', bgImage: '', avatarImage: '' },
+            { id: 'user_2', name: 'User B', nickname: '第二人设', bgImage: '', avatarImage: '' }
+        ];
+        localStorage.setItem('hajimi_user_personas', JSON.stringify(users));
+    }
+    
+    contactList = users;
+    contactIndex = 0;
+    renderContactCards();
+    updateContactUI();
+}
