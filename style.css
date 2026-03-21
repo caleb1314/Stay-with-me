@@ -2127,3 +2127,78 @@ input:-webkit-autofill:active {
     font-size: 14px; font-weight: 600; color: #333; text-align: center; cursor: pointer; transition: background 0.2s;
 }
 .recall-close-btn:active { background: rgba(0,0,0,0.1); }
+/* ========================================= */
+/* === 世界书专属样式 === */
+/* ========================================= */
+:root {
+    --wb-glass-1: rgba(255, 255, 255, 0.15);
+    --wb-glass-2: rgba(255, 255, 255, 0.35);
+    --wb-glass-bubble: rgba(255, 255, 255, 0.45);
+    --wb-border: rgba(255, 255, 255, 0.5);
+    --wb-border-light: rgba(255, 255, 255, 0.3);
+    --wb-text-main: #1c1c1e;
+    --wb-text-sub: #555555;
+    --wb-text-placeholder: #8e8e93;
+    --particle-color: rgba(0, 0, 0, 0.25);
+}
+
+.wb-bg-blur {
+    position: absolute; top: 65%; left: 50%; transform: translate(-50%, -50%);
+    width: 120vw; height: 160vw; max-width: 600px; max-height: 800px;
+    background: radial-gradient(ellipse at center, rgba(30, 30, 35, 0.55) 0%, rgba(30, 30, 35, 0) 65%);
+    z-index: 0; pointer-events: none;
+}
+
+.wb-header { padding: 10px 24px 5px; display: flex; justify-content: center; align-items: center; position: relative; z-index: 10; }
+.wb-title { font-size: 22px; font-weight: 800; color: var(--wb-text-main); letter-spacing: 0.5px; text-transform: uppercase; }
+.wb-close-btn { position: absolute; left: 16px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: rgba(255,255,255,0.4); border-radius: 50%; backdrop-filter: blur(10px); }
+.wb-close-btn svg { width: 20px; height: 20px; stroke: #333; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+.wb-deco-line { display: flex; align-items: center; gap: 10px; padding: 5px 24px 15px; font-family: monospace; font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 1px; position: relative; z-index: 10; }
+.wb-deco-line .line { flex: 1; height: 1px; background: repeating-linear-gradient(to right, rgba(0,0,0,0.15) 0, rgba(0,0,0,0.15) 4px, transparent 4px, transparent 8px); }
+
+.wb-body { flex: 1; display: flex; overflow: hidden; padding-bottom: 20px; position: relative; z-index: 5; }
+.wb-sidebar { width: 70px; flex-shrink: 0; display: flex; flex-direction: column; padding: 0 0 20px 12px; z-index: 30; }
+.wb-sidebar-actions-wrap { background: var(--wb-glass-2); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); border-radius: 24px; padding: 8px 0; display: flex; flex-direction: column; gap: 6px; align-items: center; margin-top: 10px; margin-bottom: 16px; margin-right: 14px; border: 0.5px solid var(--wb-border); box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+.wb-side-btn { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.2s; }
+.wb-side-btn:active { transform: scale(0.9); background: rgba(0,0,0,0.05); }
+.wb-side-btn svg { width: 18px; height: 18px; stroke: #444; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.wb-side-btn.danger svg { stroke: #ff3b30; }
+
+.wb-tab-list { flex: 1; overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; gap: 16px; }
+.wb-tab-list::-webkit-scrollbar { display: none; }
+.wb-tab { padding: 24px 4px; background: var(--wb-glass-1); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); border-radius: 12px 0 0 12px; border: 0.5px solid var(--wb-border-light); border-right: none; cursor: pointer; position: relative; margin-right: -1px; display: flex; align-items: center; justify-content: center; transition: all 0.3s; writing-mode: vertical-lr; text-orientation: mixed; }
+.wb-tab-text { font-size: 12px; font-weight: 600; color: var(--wb-text-sub); letter-spacing: 2px; }
+.wb-tab.active { background: var(--wb-glass-2); backdrop-filter: blur(30px); padding: 30px 4px 30px 4px; box-shadow: -4px 4px 15px rgba(0,0,0,0.02); margin-right: -16px; border-color: var(--wb-border); }
+.wb-tab.active .wb-tab-text { color: var(--wb-text-main); font-weight: 800; font-size: 13px; }
+
+.wb-main-area { flex: 1; position: relative; margin-right: -1px; min-width: 0; z-index: 20; margin-left: 15px; }
+.wb-layer-2 { position: absolute; top: -14px; left: -14px; bottom: 0px; right: 12px; background: var(--wb-glass-1); border-radius: 28px 0 0 28px; backdrop-filter: blur(15px); border: 0.5px solid var(--wb-border-light); border-right: none; box-shadow: -2px -2px 15px rgba(0,0,0,0.02); z-index: 1; }
+.wb-content-wrapper { position: absolute; top: 0; bottom: 0; left: 0; right: 0; background: var(--wb-glass-2); backdrop-filter: blur(30px); border-radius: 28px 0 0 28px; border: 0.5px solid var(--wb-border); border-right: none; box-shadow: -8px 0 35px rgba(0,0,0,0.03); display: flex; flex-direction: column; z-index: 2; overflow: hidden; }
+
+.wb-toolbar { display: flex; align-items: center; gap: 8px; padding: 18px 20px; border-bottom: 0.5px solid rgba(255,255,255,0.2); flex-shrink: 0; }
+.wb-search-box { flex: 1; height: 38px; background: rgba(255,255,255,0.3); border-radius: 12px; display: flex; align-items: center; padding: 0 12px; border: 0.5px solid var(--wb-border-light); }
+.wb-search-input { flex: 1; border: none; background: transparent; font-size: 14px; color: var(--wb-text-main); font-weight: 600; outline: none; }
+.wb-tool-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: rgba(255,255,255,0.3); border-radius: 50%; border: 0.5px solid var(--wb-border-light); }
+.wb-tool-btn svg { width: 18px; height: 18px; stroke: #333; fill: none; stroke-width: 2; }
+
+.wb-list-container { flex: 1; overflow-y: auto; padding: 20px 0 20px 20px; display: flex; flex-direction: column; gap: 20px; scrollbar-width: none; position: relative; }
+.wb-list-container::-webkit-scrollbar { display: none; }
+.wb-particle-track { position: absolute; top: 20px; bottom: 20px; right: 20px; width: 1.5px; background: repeating-linear-gradient(to bottom, rgba(0,0,0,0.1) 0, rgba(0,0,0,0.1) 4px, transparent 4px, transparent 8px); z-index: 0; }
+
+.wb-item-row { display: flex; align-items: flex-start; position: relative; padding-right: 42px; }
+.wb-card { flex: 1; background: var(--wb-glass-bubble); backdrop-filter: blur(20px); border-radius: 18px; padding: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); border: 0.5px solid var(--wb-border); display: flex; flex-direction: column; gap: 10px; position: relative; z-index: 1; }
+.wb-card-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.wb-title-group { display: flex; align-items: center; gap: 8px; flex: 1; }
+.wb-title-bar { width: 3px; height: 14px; background: #444; border-radius: 2px; }
+.wb-card-title-input { font-size: 16px; font-weight: 700; color: #1c1c1e; border: none; background: transparent; width: 100%; outline: none; }
+.wb-card-del { width: 24px; height: 24px; border-radius: 50%; background: rgba(255,255,255,0.5); display: flex; align-items: center; justify-content: center; cursor: pointer; border: 0.5px solid rgba(255,255,255,0.6); }
+.wb-card-del svg { width: 10px; height: 10px; stroke: #555; stroke-width: 2.5; }
+.wb-textarea { width: 100%; min-height: 50px; background: transparent; border: none; padding: 0; font-size: 14px; line-height: 1.6; color: #333; resize: none; font-weight: 600; outline: none; }
+.wb-particle-node { position: absolute; right: 16px; top: 22px; width: 10px; height: 10px; background: var(--wb-glass-2); border: 2px solid var(--particle-color); border-radius: 2px; z-index: 1; transform: rotate(45deg); box-shadow: 0 0 0 3px rgba(255,255,255,0.5); }
+.wb-connect-line { position: absolute; right: 25px; top: 26px; width: 18px; height: 1.5px; background: var(--particle-color); z-index: 0; }
+
+/* 多选列表项 */
+.wb-select-item { display: flex; align-items: center; gap: 10px; padding: 10px; background: rgba(0,0,0,0.05); border-radius: 10px; cursor: pointer; }
+.wb-select-item.active { background: rgba(0,0,0,0.1); border: 1px solid rgba(0,0,0,0.2); }
+.wb-select-item span { font-size: 14px; font-weight: 600; color: #333; flex: 1; }
