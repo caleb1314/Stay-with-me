@@ -1984,7 +1984,7 @@ input:-webkit-autofill:active {
 }
 .ios-notification.active { transform: translateY(0); opacity: 1; }
 
-.notif-content { flex: 1; display: flex; align-items: center; padding: 8px 12px; gap: 12px; cursor: pointer; }
+.notif-content { flex: 1; display: flex; align-items: center; padding: 8px 12px; gap: 12px; cursor: pointer; min-width: 0; }
 .notif-content:active { background: rgba(0,0,0,0.03); }
 .notif-avatar { width: 42px; height: 42px; border-radius: 10px; background-size: cover; background-position: center; flex-shrink: 0; background-color: #d1d1d6; }
 .notif-text { 
