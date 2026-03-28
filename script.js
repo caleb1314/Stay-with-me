@@ -2709,7 +2709,7 @@ async function calculateRealStorage() {
 }
 
 // =========================================
-// === 导出全量数据 (ZIP) ===
+// === 导出全量数据 (ZIP) - 已修复世界书备份 ===
 // =========================================
 async function exportAllData() {
     if (typeof JSZip === 'undefined') {
@@ -2717,7 +2717,7 @@ async function exportAllData() {
         return;
     }
     
-    const btnText = document.querySelector('.dm-item-title');
+    const btnText = document.querySelector('.dm-item[onclick="exportAllData()"] .dm-item-title');
     const originalText = btnText.innerText;
     btnText.innerText = "正在打包，请稍候...";
 
@@ -2737,20 +2737,24 @@ async function exportAllData() {
             // 收集 characters
             const chars = await new Promise((resolve) => {
                 const tx = db.transaction(["characters"], "readonly");
-                const store = tx.objectStore("characters");
-                const req = store.getAll();
-                req.onsuccess = () => resolve(req.result);
+                tx.objectStore("characters").getAll().onsuccess = (e) => resolve(e.target.result);
             });
             zip.file("boluo_characters.json", JSON.stringify(chars));
 
             // 收集 images
             const imgs = await new Promise((resolve) => {
                 const tx = db.transaction(["images"], "readonly");
-                const store = tx.objectStore("images");
-                const req = store.getAll();
-                req.onsuccess = () => resolve(req.result);
+                tx.objectStore("images").getAll().onsuccess = (e) => resolve(e.target.result);
             });
             zip.file("boluo_images.json", JSON.stringify(imgs));
+            
+            // --- 新增：收集 worldBooks ---
+            const worldBooks = await new Promise((resolve) => {
+                const tx = db.transaction(["worldBooks"], "readonly");
+                tx.objectStore("worldBooks").getAll().onsuccess = (e) => resolve(e.target.result);
+            });
+            zip.file("boluo_worldbooks.json", JSON.stringify(worldBooks));
+            // --- 新增结束 ---
         }
 
         // 3. 生成 ZIP 并下载
@@ -2773,9 +2777,8 @@ async function exportAllData() {
 
     setTimeout(() => { btnText.innerText = originalText; }, 2000);
 }
-
 // =========================================
-// === 导入全量数据 (ZIP) ===
+// === 导入全量数据 (ZIP) - 已修复世界书恢复 ===
 // =========================================
 document.getElementById('importZipInput').addEventListener('change', async (e) => {
     const file = e.target.files[0];
@@ -2833,6 +2836,21 @@ document.getElementById('importZipInput').addEventListener('change', async (e) =
                     };
                 });
             }
+            
+            // --- 新增：恢复 worldBooks ---
+            const wbFile = zip.file("boluo_worldbooks.json");
+            if (wbFile) {
+                const worldBooks = JSON.parse(await wbFile.async("string"));
+                await new Promise((resolve) => {
+                    const tx = db.transaction(["worldBooks"], "readwrite");
+                    const store = tx.objectStore("worldBooks");
+                    store.clear().onsuccess = () => {
+                        worldBooks.forEach(wb => store.put(wb));
+                        tx.oncomplete = () => resolve();
+                    };
+                });
+            }
+            // --- 新增结束 ---
         }
 
         alert("数据恢复成功！系统即将重启。");
@@ -2844,7 +2862,6 @@ document.getElementById('importZipInput').addEventListener('change', async (e) =
     }
     e.target.value = ''; // 重置 input
 });
-
 // =========================================
 // === 恢复出厂设置 ===
 // =========================================
