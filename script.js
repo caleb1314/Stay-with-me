@@ -4581,8 +4581,8 @@ function startVideoCall(isIncoming) {
         if (!char) return;
 
         // 1. 填充UI数据
-        const name = char.remark || char.name || '宝宝';
-        const avatar = char.avatarImage || 'https://file.uhsea.com/2603/b5e1c21ceb4cbacec44c8b073a301b89FP.jpg';
+        const name = char.remark || char.name || '未知';
+        const avatar = char.avatarImage || ''; // 直接留空，不再使用默认图
         
         document.getElementById('vc-incoming-name').innerText = name;
         document.getElementById('vc-active-name').innerText = name;
