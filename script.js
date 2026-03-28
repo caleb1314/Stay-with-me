@@ -1675,6 +1675,10 @@ if (char.worldIds && char.worldIds.length > 0) {
 场景示例：
 1. 极度傲娇后悔："[撤回前一条消息] 哼，刚才的话当我没说"
 2. 发现自己严重失言："[撤回前一条消息] 抱歉，发错了"
+# 第七章：主动视频通话协议
+当user提出要进行视频通话，剧情需要，或者你想看看User时，你可以主动发起视频通话。
+【指令】：在回复中单独占一行包含标签 [发起视频通话]。
+注意：不要频繁使用，只有在剧情需要时才使用。
 
 # 最终校验协议
 发送前检查：有括号描写心理吗？有星号描写动作吗？有油腻禁词吗？是一大段话吗？如果有，立刻修正。
@@ -1737,6 +1741,15 @@ lines.forEach(line => {
         return;
     }
     
+    // 【新增】：解析视频通话标签
+    const videoMatch = line.match(/\[发起视频通话\]/);
+    if (videoMatch) {
+        parsedMessages.push({ type: 'video_call' });
+        const textPart = line.replace(videoMatch[0], '').trim();
+        if (textPart) parsedMessages.push({ type: 'text', content: textPart });
+        return;
+    }
+    
     const photoMatch = line.match(/\[发送照片:(.*?)\]/);
     const transferMatch = line.match(/\[发起转账:([\d\.]+):(.*?)\]/);
     if (photoMatch) {
@@ -1751,7 +1764,6 @@ lines.forEach(line => {
         parsedMessages.push({ type: 'text', content: line });
     }
 });
-
 if (parsedMessages.length === 0) parsedMessages.push({ type: 'text', content: "（已处理）" });
 
 // 核心分发逻辑
@@ -1786,11 +1798,12 @@ function distributeAIResponse(charId, parsedMessages, isFromFloat) {
         const char = req.result;
         if (!char) return;
 
-        /// 1. 存入历史记录
+        // 1. 存入历史记录
 parsedMessages.forEach(msg => {
     if (msg.type === 'text') char.history.push({ role: "assistant", content: msg.content });
     else if (msg.type === 'photo') char.history.push({ role: "assistant", content: [{ type: "text", text: `（发送照片：${msg.desc}）` }, { type: "image_url", image_url: { url: msg.url, detail: msg.desc } }] });
     else if (msg.type === 'transfer_out') char.history.push({ role: "assistant", type: "transfer", amount: msg.amount, note: msg.note, status: "pending", id: msg.id });
+    else if (msg.type === 'video_call') char.history.push({ role: "assistant", content: "（发起了视频通话）" }); // 【新增】：把视频通话存入历史记录
     else if (msg.type === 'recall') {
         // === 核心修复：在当前内存数组里找最后一条 AI 消息并标记撤回 ===
         let targetIndex = -1;
@@ -1887,6 +1900,10 @@ function renderMessagesWithDelay(parsedMessages, isFloat) {
         setTimeout(() => {
             if (isFloat) {
                 if (msg.type === 'text') appendFloatMsg(msg.content, false);
+                else if (msg.type === 'video_call') {
+                    appendFloatMsg("（对方发起了视频通话）", false);
+                    setTimeout(() => startVideoCall(true), 1000); // true代表是AI打过来的
+                }
                 else if (msg.type === 'photo') appendFloatMsg("[图片消息]", false);
                 else if (msg.type === 'transfer_out') appendFloatMsg("[收到转账]", false);
                 else if (msg.type === 'recall') {
@@ -1900,6 +1917,10 @@ function renderMessagesWithDelay(parsedMessages, isFloat) {
                 }
             } else {
                 if (msg.type === 'text') appendMessage(msg.content, false);
+                else if (msg.type === 'video_call') {
+                    appendMessage("（对方发起了视频通话）", false);
+                    setTimeout(() => startVideoCall(true), 1000); // true代表是AI打过来的
+                }
                 else if (msg.type === 'photo') appendFakePhotoUI(msg.url, msg.desc, false);
                 else if (msg.type === 'transfer_out') appendTransferUI(msg.amount, msg.note, 'pending', msg.id, false);
                 else if (msg.type === 'recall') {
@@ -2902,9 +2923,13 @@ function handleChatFuncAct(funcName) {
         const modal = document.getElementById('fakePhotoModal');
         modal.style.display = 'flex';
         setTimeout(() => modal.classList.add('active'), 10);
-         } else if (funcName === '转账') {
+    } else if (funcName === '转账') {
         closeChatFuncPanel();
         openTransferAmountModal(); // 触发转账弹窗
+    } else if (funcName === '视频通话') {
+        // 【新增】：触发视频通话
+        closeChatFuncPanel();
+        startVideoCall(false); // false代表是User主动打过去的
     } else {
         closeChatFuncPanel();
     }
@@ -4515,3 +4540,332 @@ function loadUserData() {
     renderContactCards();
     updateContactUI();
 }
+// =========================================
+// === 视频通话核心逻辑 (无缝接入全局API与记忆) ===
+// =========================================
+
+let vcSessionHistory = [];
+let vcCurrentSceneDesc = "";
+let vcIsCamOn = true;
+let vcFacingMode = "user";
+let vcTimerInterval;
+let vcSeconds = 0;
+const vcVideo = document.getElementById('vc-user-video');
+const vcCanvas = document.getElementById('vc-cap-canvas');
+
+// 启动视频通话 (isIncoming: true=AI打来, false=User打去)
+function startVideoCall(isIncoming) {
+    if (!currentChatCharId || !db) return alert("请先进入聊天界面");
+
+    const tx = db.transaction(["characters"], "readonly");
+    const store = tx.objectStore("characters");
+    store.get(currentChatCharId).onsuccess = (e) => {
+        const char = e.target.result;
+        if (!char) return;
+
+        // 1. 填充UI数据
+        const name = char.remark || char.name || '宝宝';
+        const avatar = char.avatarImage || 'https://file.uhsea.com/2603/b5e1c21ceb4cbacec44c8b073a301b89FP.jpg';
+        
+        document.getElementById('vc-incoming-name').innerText = name;
+        document.getElementById('vc-active-name').innerText = name;
+        document.getElementById('vc-incoming-avatar').style.backgroundImage = `url(${avatar})`;
+        document.getElementById('vc-incoming-bg').style.backgroundImage = `url(${avatar})`;
+        document.getElementById('vc-layer-char').style.backgroundImage = `url(${avatar})`;
+
+        // 2. 初始化状态
+        vcSessionHistory = [];
+        vcCurrentSceneDesc = "";
+        vcSeconds = 0;
+        document.getElementById('vc-timer').innerText = "00:00";
+        document.getElementById('vc-subtitle-el').innerText = "";
+        document.getElementById('vc-h-list').innerHTML = "";
+
+        const screen = document.getElementById('videoCallScreen');
+        screen.style.display = 'flex';
+        setTimeout(() => screen.classList.add('active'), 10);
+
+        // 3. 决定显示接听界面还是直接进入
+        if (isIncoming) {
+            document.getElementById('vc-incoming-call').style.display = 'flex';
+            document.getElementById('vc-incoming-call').style.opacity = '1';
+            document.getElementById('vc-call-container').style.display = 'none';
+        } else {
+            document.getElementById('vc-incoming-call').style.display = 'none';
+            document.getElementById('vc-call-container').style.display = 'block';
+            vcStartCamera();
+            vcStartTimer();
+        }
+    };
+}
+
+// 接听视频
+function acceptVideoCall() {
+    document.getElementById('vc-incoming-call').style.opacity = '0';
+    setTimeout(() => {
+        document.getElementById('vc-incoming-call').style.display = 'none';
+        document.getElementById('vc-call-container').style.display = 'block';
+    }, 600);
+    vcStartCamera();
+    vcStartTimer();
+}
+
+// 挂断视频并同步记忆
+function endVideoCall(wasConnected) {
+    // 1. 关闭摄像头
+    if (vcVideo.srcObject) {
+        vcVideo.srcObject.getTracks().forEach(t => t.stop());
+        vcVideo.srcObject = null;
+    }
+    clearInterval(vcTimerInterval);
+
+    // 2. 关闭UI
+    const screen = document.getElementById('videoCallScreen');
+    screen.classList.remove('active');
+    setTimeout(() => screen.style.display = 'none', 400);
+
+    // 3. 记忆同步 (如果接通了且有对话)
+    if (wasConnected && vcSessionHistory.length > 0) {
+        let summary = vcSessionHistory.map(m => `${m.role === 'user' ? '我' : 'Char'}: ${typeof m.content === 'string' ? m.content : '[发送了画面]'}`).join('\n');
+        
+        // 存入主聊天历史
+        chatHistory.push({ 
+            role: "user", 
+            content: `（系统提示：我们刚刚进行了一次视频通话，通话时长 ${document.getElementById('vc-timer').innerText}。以下是通话内容记录，请记住这些内容继续聊天：\n${summary}）` 
+        });
+        
+        // 在屏幕上显示一个提示气泡
+        appendMessage(`[视频通话已结束，时长 ${document.getElementById('vc-timer').innerText}]`, true);
+        saveChatHistoryToDB();
+    }
+}
+
+// 摄像头控制
+async function vcStartCamera() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: vcFacingMode }, audio: false });
+        vcVideo.srcObject = stream;
+        vcVideo.style.transform = (vcFacingMode === 'user') ? 'scaleX(-1)' : 'scaleX(1)';
+    } catch (e) { console.log("Camera failed"); }
+}
+
+function vcFlipCamera() {
+    vcFacingMode = (vcFacingMode === 'user') ? 'environment' : 'user';
+    vcStartCamera();
+}
+
+// 计时器
+function vcStartTimer() {
+    vcTimerInterval = setInterval(() => {
+        vcSeconds++;
+        let m = Math.floor(vcSeconds/60).toString().padStart(2,'0');
+        let s = (vcSeconds%60).toString().padStart(2,'0');
+        document.getElementById('vc-timer').innerText = `${m}:${s}`;
+    }, 1000);
+}
+
+// --- 视频通话中的 AI 交互 (调用全局API与人设) ---
+function vcHandleUserSend() {
+    const input = document.getElementById('vc-chat-input');
+    const text = input.value.trim();
+    if (!text) return;
+    vcSetSubtitle(text);
+    vcAddToLog('Me', text);
+    vcSessionHistory.push({ role: "user", content: text });
+    input.value = '';
+    input.focus();
+}
+
+async function vcHandleAIReply() {
+    if (!currentChatCharId || !db) return;
+    
+    // 读取全局API配置
+    const apiDataStr = localStorage.getItem('hajimi_api_context_main');
+    if (!apiDataStr) return alert("请先在主界面配置API！");
+    const apiData = JSON.parse(apiDataStr);
+
+    document.getElementById('vc-ai-ring').classList.add('active');
+
+    // 读取人设和世界书
+    const tx = db.transaction(["characters", "worldBooks"], "readonly");
+    const charStore = tx.objectStore("characters");
+    const wbStore = tx.objectStore("worldBooks");
+
+    charStore.get(currentChatCharId).onsuccess = async (e) => {
+        const char = e.target.result;
+        let worldBookText = "";
+        
+        if (char.worldIds && char.worldIds.length > 0) {
+            const allBooks = await new Promise(res => { wbStore.getAll().onsuccess = ev => res(ev.target.result); });
+            allBooks.forEach(book => {
+                if (char.worldIds.includes(book.id)) {
+                    worldBookText += `\n【世界书：${book.name}】\n`;
+                    book.items.forEach(item => { worldBookText += `- ${item.title}：${item.content}\n`; });
+                }
+            });
+        }
+
+        const systemPrompt = `你正在和User进行视频通话。
+【你的当前人设】：
+姓名：${char.name || char.remark}
+详细设定：${char.persona || '无'}
+${worldBookText}
+【视频通话规则】：
+1. 必须保持极度沉浸，回复要简短口语化，就像真人在视频聊天一样。
+2. 绝对不要使用星号*描写动作，绝对不要使用括号()描写心理。
+3. 结合User提供的画面描述或摄像头画面进行互动。`;
+
+        // 截取画面
+        let frame = "";
+        if (vcIsCamOn && vcVideo.srcObject) {
+            vcCanvas.width = vcVideo.videoWidth; vcCanvas.height = vcVideo.videoHeight;
+            const ctx = vcCanvas.getContext('2d');
+            if (vcFacingMode === 'user') { ctx.translate(vcCanvas.width, 0); ctx.scale(-1, 1); }
+            ctx.drawImage(vcVideo, 0, 0);
+            frame = vcCanvas.toDataURL('image/jpeg', 0.4).split(',')[1];
+        }
+
+        let userPrompt = "（正在和你视频通话中）";
+        if (vcCurrentSceneDesc) userPrompt += `\n（User 描述的当前画面：${vcCurrentSceneDesc}）`;
+        if (!vcIsCamOn) userPrompt += "\n（注意：User 目前关闭了摄像头，请参考文字描述）";
+        
+        let userContent = [{ type: "text", text: userPrompt }];
+        if (frame) userContent.push({ type: "image_url", image_url: { url: `data:image/jpeg;base64,${frame}` } });
+
+        // 拼接消息：System + 之前的聊天历史(作为背景) + 视频通话历史 + 当前画面
+        const messages = [
+            { role: "system", content: systemPrompt },
+            ...chatHistory.slice(-10).map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : '[图片]' })), // 带上最近10条聊天记录作为上下文
+            ...vcSessionHistory,
+            { role: "user", content: userContent }
+        ];
+
+        let fetchUrl = apiData.url;
+        if (!fetchUrl.endsWith('/chat/completions')) fetchUrl = fetchUrl.replace(/\/+$/, '') + '/chat/completions';
+
+        try {
+            const res = await fetch(fetchUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiData.key}` },
+                body: JSON.stringify({ model: apiData.model, messages: messages, temperature: 0.8 })
+            });
+            const data = await res.json();
+            const aiText = data.choices[0].message.content;
+            vcSetSubtitle(aiText);
+            vcAddToLog('Char', aiText);
+            vcSessionHistory.push({ role: "assistant", content: aiText });
+        } catch (err) {
+            vcSetSubtitle("网络连接中断...");
+        } finally {
+            document.getElementById('vc-ai-ring').classList.remove('active');
+        }
+    };
+}
+
+// --- 辅助 UI 逻辑 ---
+function vcSetSubtitle(t) {
+    const el = document.getElementById('vc-subtitle-el');
+    el.classList.remove('active');
+    setTimeout(() => { el.innerText = t; el.classList.add('active'); }, 200);
+}
+
+function vcAddToLog(r, t) {
+    const list = document.getElementById('vc-h-list');
+    list.insertAdjacentHTML('beforeend', `<div class="vc-h-item"><div class="vc-h-role">${r}</div>${t}</div>`);
+    list.scrollTop = list.scrollHeight;
+}
+
+function vcToggleMoreMenu() {
+    const m = document.getElementById('vc-more-menu');
+    m.style.display = (m.style.display === 'flex' ? 'none' : 'flex');
+}
+
+function vcHandleMoreAction(act) {
+    if (act === 'camera') {
+        vcIsCamOn = !vcIsCamOn;
+        if (vcVideo.srcObject) vcVideo.srcObject.getVideoTracks().forEach(track => track.enabled = vcIsCamOn);
+        vcVideo.style.opacity = vcIsCamOn ? "1" : "0";
+        document.getElementById('vc-cam-toggle-text').innerText = vcIsCamOn ? "开启摄像头" : "关闭摄像头";
+    }
+    document.getElementById('vc-more-menu').style.display = 'none';
+}
+
+function vcToggleDescribeModal(show) {
+    document.getElementById('vc-describe-modal').style.display = show ? 'flex' : 'none';
+    document.getElementById('vc-more-menu').style.display = 'none';
+}
+
+function vcSaveSceneDesc() {
+    vcCurrentSceneDesc = document.getElementById('vc-scene-desc-input').value.trim();
+    vcToggleDescribeModal(false);
+    if (vcCurrentSceneDesc) vcAddToLog('System', `已更新画面描述: ${vcCurrentSceneDesc}`);
+}
+
+function vcToggleHistory(show) {
+    document.getElementById('vc-history-overlay').classList.toggle('active', show);
+}
+
+// 修复：点击空白处关闭更多菜单
+document.addEventListener('click', (e) => {
+    const menu = document.getElementById('vc-more-menu');
+    const btn = document.getElementById('vc-more-btn');
+    if (menu && menu.style.display === 'flex' && !menu.contains(e.target) && !btn.contains(e.target)) {
+        menu.style.display = 'none';
+    }
+});
+
+// 拖拽与互换逻辑
+function vcSetupDragAndClick(elId) {
+    const el = document.getElementById(elId);
+    if(!el) return;
+    let startX, startY, initialLeft, initialTop, isDragging = false, isMoved = false;
+
+    el.addEventListener('touchstart', (e) => {
+        if (!el.classList.contains('vc-view-small')) return;
+        isDragging = true; isMoved = false;
+        startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+        const rect = el.getBoundingClientRect();
+        initialLeft = rect.left; initialTop = rect.top;
+        el.style.transition = 'none';
+    }, {passive: false});
+
+    el.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        const dx = e.touches[0].clientX - startX;
+        const dy = e.touches[0].clientY - startY;
+        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) isMoved = true;
+        if (isMoved) {
+            e.preventDefault();
+            let newLeft = initialLeft + dx; let newTop = initialTop + dy;
+            const maxLeft = window.innerWidth - el.offsetWidth;
+            const maxTop = window.innerHeight - el.offsetHeight;
+            el.style.left = Math.max(0, Math.min(newLeft, maxLeft)) + 'px';
+            el.style.top = Math.max(0, Math.min(newTop, maxTop)) + 'px';
+            el.style.right = 'auto';
+        }
+    }, {passive: false});
+
+    el.addEventListener('touchend', (e) => {
+        if (!isDragging) return;
+        isDragging = false;
+        el.style.transition = 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)';
+        if (!isMoved) vcSwapViews(el);
+    });
+}
+
+function vcSwapViews(clickedSmallEl) {
+    const largeEl = document.querySelector('.vc-view-large');
+    if (!largeEl) return;
+    largeEl.style.left = clickedSmallEl.style.left;
+    largeEl.style.top = clickedSmallEl.style.top;
+    largeEl.style.right = clickedSmallEl.style.right;
+    clickedSmallEl.style.left = ''; clickedSmallEl.style.top = ''; clickedSmallEl.style.right = '';
+    clickedSmallEl.classList.replace('vc-view-small', 'vc-view-large');
+    largeEl.classList.replace('vc-view-large', 'vc-view-small');
+}
+
+// 初始化拖拽
+document.addEventListener('DOMContentLoaded', () => {
+    vcSetupDragAndClick('vc-layer-user');
+    vcSetupDragAndClick('vc-layer-char');
+});
