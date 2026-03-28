@@ -1829,6 +1829,94 @@
         <button class="glass-transfer-btn active" style="margin: 0; padding: 10px;" onclick="confirmWorldBookSelection()">确定</button>
     </div>
 </div>
+<!-- ========================================= -->
+<!-- === 视频通话全屏界面 (Hajimi 专属隔离版) === -->
+<!-- ========================================= -->
+<div id="videoCallScreen" class="app-screen-overlay" style="z-index: 9999; background: #000;">
+    <!-- 1. 接听界面 -->
+    <div id="vc-incoming-call">
+        <div class="vc-bg-blur" id="vc-incoming-bg"></div>
+        <div style="text-align:center; position: relative; z-index: 10;">
+            <center><div class="vc-caller-avatar-wrap"><div class="vc-caller-avatar-img" id="vc-incoming-avatar"></div></div></center>
+            <div class="vc-caller-name-big" id="vc-incoming-name">宝宝</div>
+            <div class="vc-caller-status">邀请你进行视频通话...</div>
+        </div>
+        <div class="vc-call-btn-group" style="position: relative; z-index: 10;">
+            <div onclick="endVideoCall(false)">
+                <div class="vc-call-btn-circle vc-btn-decline">
+                    <svg viewBox="0 0 24 24"><path d="M6.62 10.79a15.05 15.05 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.17-.24c1.05.39 2.18.6 3.34.6a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.16.21 2.29.6 3.34a1 1 0 0 1-.24 1.17l-2.24 2.28z" transform="rotate(135 12 12)"/></svg>
+                </div>
+            </div>
+            <div onclick="acceptVideoCall()">
+                <div class="vc-call-btn-circle vc-btn-accept">
+                    <svg viewBox="0 0 24 24"><path d="M6.62 10.79a15.05 15.05 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.17-.24c1.05.39 2.18.6 3.34.6a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.16.21 2.29.6 3.34a1 1 0 0 1-.24 1.17l-2.24 2.28z"/></svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. 通话主视图 -->
+    <div id="vc-call-container">
+        <div id="vc-layer-char" class="vc-media-layer vc-view-large" style="background-size: cover; background-position: center;"></div>
+        <div id="vc-layer-user" class="vc-media-layer vc-view-small">
+            <video id="vc-user-video" autoplay playsinline style="transform: scaleX(-1);"></video>
+        </div>
+
+        <div class="vc-top-nav">
+            <div class="vc-nav-btn" onclick="vcToggleHistory(true)"><svg viewBox="0 0 24 24"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg></div>
+            <div class="vc-top-nav-text">
+                <div style="font-weight:600; font-size:16px;" id="vc-active-name">宝宝</div>
+                <div id="vc-timer" style="font-size:11px; opacity:0.8;">00:00</div>
+            </div>
+            <div class="vc-nav-btn" style="opacity: 0; pointer-events: none;"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/></svg></div>
+        </div>
+
+        <div class="vc-subtitle-area"><div class="vc-subtitle-text" id="vc-subtitle-el"></div></div>
+
+        <div class="vc-bottom-wrap">
+            <div id="vc-more-menu">
+                <div class="vc-menu-item" id="vc-cam-toggle-text" onclick="vcHandleMoreAction('camera')">关闭摄像头</div>
+                <div class="vc-menu-item" onclick="vcToggleDescribeModal(true)">描述当前画面</div>
+            </div>
+
+            <div class="vc-input-bar">
+                <div class="vc-input-btn" id="vc-more-btn" onclick="vcToggleMoreMenu()"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 6l-10 7L2 6"/></svg></div>
+                <input type="text" class="vc-chat-input" id="vc-chat-input" placeholder="输入消息..." autocomplete="off">
+                <div class="vc-input-btn" onclick="vcHandleAIReply()">
+                    <div class="vc-ai-ring" id="vc-ai-ring"></div>
+                    <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                </div>
+                <div class="vc-input-btn" style="background:#fff" onclick="vcHandleUserSend()"><svg viewBox="0 0 24 24" style="stroke:#000"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg></div>
+            </div>
+            
+            <div style="display:flex; gap:50px;">
+                <div class="vc-nav-btn" style="width:56px; height:56px;" onclick="vcFlipCamera()"><svg viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></div>
+                <div class="vc-nav-btn" style="width:56px; height:56px; background:rgba(255, 59, 48, 0.8); border:none;" onclick="endVideoCall(true)"><svg viewBox="0 0 24 24" style="stroke:none; fill:#fff"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div>
+                <div class="vc-nav-btn" style="width:56px; height:56px;" onclick="alert('已静音')"><svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18.5V22M8 22h8"/></svg></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 描述画面弹窗 -->
+    <div class="vc-modal-overlay" id="vc-describe-modal">
+        <div class="vc-glass-card">
+            <div class="vc-glass-title">Describe Scene</div>
+            <p style="font-size:12px; color:rgba(255,255,255,0.8); text-align:center;">告诉 Char 你现在正在做什么，或者你周围的环境。</p>
+            <textarea class="vc-glass-input" id="vc-scene-desc-input" style="height:100px;" placeholder="例如：我正躺在床上看着你，灯光很暗..."></textarea>
+            <button class="vc-glass-save-btn" onclick="vcSaveSceneDesc()">Confirm</button>
+        </div>
+    </div>
+
+    <!-- 历史记录 -->
+    <div id="vc-history-overlay" onclick="vcToggleHistory(false)">
+        <div class="vc-history-panel" onclick="event.stopPropagation()">
+            <div style="font-weight:900; font-size:10px; color:#888; letter-spacing:2px; margin-bottom:25px;">CALL LOG</div>
+            <div id="vc-h-list" style="overflow-y:auto; flex:1;"></div>
+        </div>
+    </div>
+
+    <canvas id="vc-cap-canvas" style="display:none"></canvas>
+</div>
     <script>
         // --- Wechat 界面控制逻辑 ---
         function openWechat() {
