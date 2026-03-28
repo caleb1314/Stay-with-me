@@ -7,17 +7,19 @@
     --time-offset-y: 0px;
 }
 
-/* 全局重置 */
+/* 全局重置 - 整合频闪修复 */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    -webkit-tap-highlight-color: transparent;
+    -webkit-tap-highlight-color: transparent !important; /* 彻底禁用系统高亮 */
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-    /* 彻底禁止长按弹出系统菜单和文字选中 */
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
+    /* 核心改进：解决轻量浏览器频闪 */
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
 }
 
 /* 恢复输入框和可编辑区域的正常选中与长按功能 */
@@ -1958,7 +1960,7 @@ input:-webkit-autofill:active {
 .action-btn.danger svg { stroke: #ff3b30; }
 .action-btn.danger span { color: #ff3b30; }
 /* ========================================= */
-/* === 消息通知与浮窗 (缝合版) === */
+/* === [哈基米核心修复] 消息通知与浮窗 === */
 /* ========================================= */
 
 /* 微信列表未读红点 */
@@ -1970,50 +1972,50 @@ input:-webkit-autofill:active {
     transform: scale(0); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 .wx-badge.show { transform: scale(1); }
-.wx-avatar-gray { position: relative; } /* 确保红点能定位在头像上 */
+.wx-avatar-gray { position: relative; } 
 
-/* 顶部通知横幅 */
+/* 顶部通知横幅 - 强制约束版 */
 .ios-notification {
     position: fixed; top: 52px; left: 12px; right: 12px; z-index: 9999;
+    height: 64px !important; /* 固定高度，绝不长高 */
     background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
     border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.12);
     border: 0.5px solid rgba(255, 255, 255, 0.6);
-    display: flex; align-items: stretch; overflow: hidden;
+    display: flex !important; align-items: center !important; overflow: hidden !important;
     transform: translateY(calc(-100% - 20px)); opacity: 0;
     transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    will-change: transform;
 }
 .ios-notification.active { transform: translateY(0); opacity: 1; }
 
-.notif-content { flex: 1; display: flex; align-items: center; padding: 8px 12px; gap: 12px; cursor: pointer; min-width: 0; }
-.notif-content:active { background: rgba(0,0,0,0.03); }
-.notif-avatar { width: 42px; height: 42px; border-radius: 10px; background-size: cover; background-position: center; flex-shrink: 0; background-color: #d1d1d6; }
-.notif-text { 
-    flex: 1; 
-    display: flex; 
-    flex-direction: column; 
-    justify-content: center; 
-    gap: 2px; 
-    overflow: hidden; 
-    min-width: 0; /* 关键：防止 flex 子项撑破父级 */
+.notif-content { 
+    flex: 1 !important; display: flex !important; align-items: center !important; 
+    padding: 0 12px !important; gap: 12px !important; min-width: 0 !important; /* 核心：允许文字缩略 */
+    cursor: pointer; height: 100%;
 }
-.notif-title { font-size: 14px; font-weight: 600; color: #000; }
+.notif-avatar { 
+    width: 42px !important; height: 42px !important; border-radius: 10px; 
+    background-size: cover; background-position: center; flex-shrink: 0 !important; /* 头像不许变扁 */
+    background-color: #d1d1d6; 
+}
+.notif-text { 
+    flex: 1 !important; display: flex !important; flex-direction: column !important; 
+    justify-content: center !important; gap: 2px !important; min-width: 0 !important; /* 核心：文字容器不撑开 */
+    overflow: hidden !important;
+}
+.notif-title { font-size: 14px; font-weight: 700; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .notif-desc { 
-    font-size: 13px; 
-    color: #444; 
-    white-space: nowrap; 
-    overflow: hidden; 
-    text-overflow: ellipsis; 
-    width: 100%; /* 关键：强制宽度受限，触发省略号 */
+    font-size: 13px; color: #444; width: 100% !important;
+    white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; /* 强制省略号 */
 }
 
 .notif-pin {
-    width: 44px; display: flex; align-items: center; justify-content: center;
+    width: 48px !important; height: 100% !important; display: flex !important; 
+    align-items: center !important; justify-content: center !important;
+    flex-shrink: 0 !important; /* 核心：右侧按键绝不被挤出 */
     cursor: pointer; transition: background 0.2s; border-left: 0.5px solid rgba(0,0,0,0.05);
 }
-.notif-pin:active { background: rgba(0,0,0,0.05); }
-.notif-pin svg { width: 20px; height: 20px; stroke: #555; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.2s; }
-.notif-pin:active svg { transform: scale(0.85) rotate(-15deg); }
-
+.notif-pin svg { width: 20px; height: 20px; stroke: #555; fill: none; stroke-width: 1.8; }
 /* 聊天浮窗 */
 .floating-chat-window {
     position: fixed; bottom: 30px; right: 16px; 
