@@ -4722,15 +4722,17 @@ async function vcHandleAIReply() {
             });
         }
 
-        const systemPrompt = `你正在和User进行视频通话。
+       // 在 vcHandleAIReply 函数中找到 systemPrompt
+const systemPrompt = `你正在和User进行视频通话。
 【你的当前人设】：
 姓名：${char.name || char.remark}
 详细设定：${char.persona || '无'}
 ${worldBookText}
 【视频通话规则】：
-1. 必须保持极度沉浸，回复要简短口语化，就像真人在视频聊天一样。
+1. 必须保持极度沉浸，回复要自然流畅，就像真人在视频聊天一样。
 2. 绝对不要使用星号*描写动作，绝对不要使用括号()描写心理。
-3. 结合User提供的画面描述或摄像头画面进行互动。`;
+3. 结合User提供的画面描述或摄像头画面进行互动。
+4. 你可以一次说多句话来表达完整的意思，但请用换行来模拟说话时的自然停顿。`;
 
         // 截取画面
         let frame = "";
