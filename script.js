@@ -3623,28 +3623,46 @@ let notifTimer = null;
 let currentNotifCharId = null;
 
 // 触发顶部通知
+// 找到这部分，完整替换
 function triggerNotification(charId, name, avatarUrl, text) {
     currentNotifCharId = charId;
-    document.getElementById('notifTitle').innerText = name || '通知';
-    document.getElementById('notifDesc').innerText = text;
+    
+    // 1. 设置标题
+    const titleEl = document.getElementById('notifTitle');
+    if (titleEl) titleEl.innerText = name || '通知';
+    
+    // 2. 关键修复：将多行文本转为单行空格，配合 CSS 实现省略号，防止挤爆布局
+    const descEl = document.getElementById('notifDesc');
+    if (descEl) {
+        const safeText = text.replace(/[\r\n]+/g, " "); 
+        descEl.innerText = safeText;
+    }
     
     const avatarEl = document.getElementById('notifAvatar');
-    if (avatarUrl) avatarEl.style.backgroundImage = `url(${avatarUrl})`;
-    else avatarEl.style.backgroundImage = '';
+    if (avatarEl) {
+        if (avatarUrl) avatarEl.style.backgroundImage = `url(${avatarUrl})`;
+        else avatarEl.style.backgroundImage = '';
+    }
 
     const banner = document.getElementById('notificationBanner');
+    if (!banner) return;
+
+    // 先移除 active 类，强行重置动画
     banner.classList.remove('active');
     clearTimeout(notifTimer);
     
-    // 强制重绘触发动画
+    // 触发重绘，保证动画在 Android 浏览器上顺滑
     void banner.offsetWidth; 
     banner.classList.add('active');
     
-    if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // 震动提示
+    // 轻量级震动
+    if (navigator.vibrate) navigator.vibrate(50);
     
-    notifTimer = setTimeout(() => { banner.classList.remove('active'); }, 4000);
+    // 增加显示时间到 4.0 秒，方便阅读
+    notifTimer = setTimeout(() => { 
+        banner.classList.remove('active'); 
+    }, 4000);
 }
-
 // 点击通知横幅主体 -> 打开全屏聊天
 function handleNotifClick() {
     clearTimeout(notifTimer);
