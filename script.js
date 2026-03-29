@@ -4558,7 +4558,7 @@ function loadUserData() {
     updateContactUI();
 }
 // =========================================
-// === 视频通话核心逻辑 (无缝接入全局API与记忆) ===
+// === 视频通话核心逻辑 (分条字幕 + 沉浸模式最终版) ===
 // =========================================
 
 let vcSessionHistory = [];
@@ -4580,9 +4580,8 @@ function startVideoCall(isIncoming) {
         const char = e.target.result;
         if (!char) return;
 
-        // 1. 填充UI数据
-        const name = char.remark || char.name || '未知';
-        const avatar = char.avatarImage || ''; // 直接留空，不再使用默认图
+        const name = char.remark || char.name || '宝宝';
+        const avatar = char.avatarImage || 'https://file.uhsea.com/2603/b5e1c21ceb4cbacec44c8b073a301b89FP.jpg';
         
         document.getElementById('vc-incoming-name').innerText = name;
         document.getElementById('vc-active-name').innerText = name;
@@ -4590,19 +4589,18 @@ function startVideoCall(isIncoming) {
         document.getElementById('vc-incoming-bg').style.backgroundImage = `url(${avatar})`;
         document.getElementById('vc-layer-char').style.backgroundImage = `url(${avatar})`;
 
-        // 2. 初始化状态
         vcSessionHistory = [];
         vcCurrentSceneDesc = "";
         vcSeconds = 0;
         document.getElementById('vc-timer').innerText = "00:00";
         document.getElementById('vc-subtitle-el').innerText = "";
         document.getElementById('vc-h-list').innerHTML = "";
+        document.getElementById('vc-call-container').classList.remove('controls-hidden');
 
         const screen = document.getElementById('videoCallScreen');
         screen.style.display = 'flex';
         setTimeout(() => screen.classList.add('active'), 10);
 
-        // 3. 决定显示接听界面还是直接进入
         if (isIncoming) {
             document.getElementById('vc-incoming-call').style.display = 'flex';
             document.getElementById('vc-incoming-call').style.opacity = '1';
@@ -4616,7 +4614,6 @@ function startVideoCall(isIncoming) {
     };
 }
 
-// 接听视频
 function acceptVideoCall() {
     document.getElementById('vc-incoming-call').style.opacity = '0';
     setTimeout(() => {
@@ -4627,37 +4624,28 @@ function acceptVideoCall() {
     vcStartTimer();
 }
 
-// 挂断视频并同步记忆
 function endVideoCall(wasConnected) {
-    // 1. 关闭摄像头
     if (vcVideo.srcObject) {
         vcVideo.srcObject.getTracks().forEach(t => t.stop());
         vcVideo.srcObject = null;
     }
     clearInterval(vcTimerInterval);
 
-    // 2. 关闭UI
     const screen = document.getElementById('videoCallScreen');
     screen.classList.remove('active');
     setTimeout(() => screen.style.display = 'none', 400);
 
-    // 3. 记忆同步 (如果接通了且有对话)
     if (wasConnected && vcSessionHistory.length > 0) {
         let summary = vcSessionHistory.map(m => `${m.role === 'user' ? '我' : 'Char'}: ${typeof m.content === 'string' ? m.content : '[发送了画面]'}`).join('\n');
-        
-        // 存入主聊天历史
         chatHistory.push({ 
             role: "user", 
             content: `（系统提示：我们刚刚进行了一次视频通话，通话时长 ${document.getElementById('vc-timer').innerText}。以下是通话内容记录，请记住这些内容继续聊天：\n${summary}）` 
         });
-        
-        // 在屏幕上显示一个提示气泡
         appendMessage(`[视频通话已结束，时长 ${document.getElementById('vc-timer').innerText}]`, true);
         saveChatHistoryToDB();
     }
 }
 
-// 摄像头控制
 async function vcStartCamera() {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: vcFacingMode }, audio: false });
@@ -4671,7 +4659,6 @@ function vcFlipCamera() {
     vcStartCamera();
 }
 
-// 计时器
 function vcStartTimer() {
     vcTimerInterval = setInterval(() => {
         vcSeconds++;
@@ -4681,7 +4668,6 @@ function vcStartTimer() {
     }, 1000);
 }
 
-// --- 视频通话中的 AI 交互 (调用全局API与人设) ---
 function vcHandleUserSend() {
     const input = document.getElementById('vc-chat-input');
     const text = input.value.trim();
@@ -4693,17 +4679,15 @@ function vcHandleUserSend() {
     input.focus();
 }
 
+// --- 核心修改：AI回复与字幕显示 ---
 async function vcHandleAIReply() {
     if (!currentChatCharId || !db) return;
-    
-    // 读取全局API配置
     const apiDataStr = localStorage.getItem('hajimi_api_context_main');
     if (!apiDataStr) return alert("请先在主界面配置API！");
     const apiData = JSON.parse(apiDataStr);
 
     document.getElementById('vc-ai-ring').classList.add('active');
 
-    // 读取人设和世界书
     const tx = db.transaction(["characters", "worldBooks"], "readonly");
     const charStore = tx.objectStore("characters");
     const wbStore = tx.objectStore("worldBooks");
@@ -4717,13 +4701,12 @@ async function vcHandleAIReply() {
             allBooks.forEach(book => {
                 if (char.worldIds.includes(book.id)) {
                     worldBookText += `\n【世界书：${book.name}】\n`;
-                    book.items.forEach(item => { worldBookText += `- ${item.title}：${item.content}\n`; });
+                    if(book.items) book.items.forEach(item => { worldBookText += `- ${item.title}：${item.content}\n`; });
                 }
             });
         }
 
-       // 在 vcHandleAIReply 函数中找到 systemPrompt
-const systemPrompt = `你正在和User进行视频通话。
+        const systemPrompt = `你正在和User进行视频通话。
 【你的当前人设】：
 姓名：${char.name || char.remark}
 详细设定：${char.persona || '无'}
@@ -4734,9 +4717,8 @@ ${worldBookText}
 3. 结合User提供的画面描述或摄像头画面进行互动。
 4. 你可以一次说多句话来表达完整的意思，但请用换行来模拟说话时的自然停顿。`;
 
-        // 截取画面
         let frame = "";
-        if (vcIsCamOn && vcVideo.srcObject) {
+        if (vcIsCamOn && vcVideo.srcObject && vcVideo.readyState >= 2) {
             vcCanvas.width = vcVideo.videoWidth; vcCanvas.height = vcVideo.videoHeight;
             const ctx = vcCanvas.getContext('2d');
             if (vcFacingMode === 'user') { ctx.translate(vcCanvas.width, 0); ctx.scale(-1, 1); }
@@ -4751,10 +4733,9 @@ ${worldBookText}
         let userContent = [{ type: "text", text: userPrompt }];
         if (frame) userContent.push({ type: "image_url", image_url: { url: `data:image/jpeg;base64,${frame}` } });
 
-        // 拼接消息：System + 之前的聊天历史(作为背景) + 视频通话历史 + 当前画面
         const messages = [
             { role: "system", content: systemPrompt },
-            ...chatHistory.slice(-10).map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : '[图片]' })), // 带上最近10条聊天记录作为上下文
+            ...chatHistory.slice(-10).map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : '[图片/特殊消息]' })),
             ...vcSessionHistory,
             { role: "user", content: userContent }
         ];
@@ -4770,8 +4751,12 @@ ${worldBookText}
             });
             const data = await res.json();
             const aiText = data.choices[0].message.content;
-            vcSetSubtitle(aiText);
-            vcAddToLog('Char', aiText);
+            
+            // --- 核心修改点 ---
+            const lines = aiText.split('\n').filter(line => line.trim() !== '');
+            vcShowSubtitlesSequentially(lines); // 调用分条显示函数
+            
+            vcAddToLog('Char', aiText); // 日志里仍然记录完整回复
             vcSessionHistory.push({ role: "assistant", content: aiText });
         } catch (err) {
             vcSetSubtitle("网络连接中断...");
@@ -4781,7 +4766,20 @@ ${worldBookText}
     };
 }
 
-// --- 辅助 UI 逻辑 ---
+// --- 新增：分条显示字幕函数 ---
+function vcShowSubtitlesSequentially(lines) {
+    let i = 0;
+    function showNext() {
+        if (i < lines.length) {
+            vcSetSubtitle(lines[i]);
+            const delay = 1200 + lines[i].length * 80; // 根据文字长度计算延迟
+            i++;
+            setTimeout(showNext, delay);
+        }
+    }
+    showNext();
+}
+
 function vcSetSubtitle(t) {
     const el = document.getElementById('vc-subtitle-el');
     el.classList.remove('active');
@@ -4804,7 +4802,7 @@ function vcHandleMoreAction(act) {
         vcIsCamOn = !vcIsCamOn;
         if (vcVideo.srcObject) vcVideo.srcObject.getVideoTracks().forEach(track => track.enabled = vcIsCamOn);
         vcVideo.style.opacity = vcIsCamOn ? "1" : "0";
-        document.getElementById('vc-cam-toggle-text').innerText = vcIsCamOn ? "开启摄像头" : "关闭摄像头";
+        document.getElementById('vc-cam-toggle-text').innerText = vcIsCamOn ? "关闭摄像头" : "开启摄像头";
     }
     document.getElementById('vc-more-menu').style.display = 'none';
 }
@@ -4824,16 +4822,26 @@ function vcToggleHistory(show) {
     document.getElementById('vc-history-overlay').classList.toggle('active', show);
 }
 
-// 修复：点击空白处关闭更多菜单
-document.addEventListener('click', (e) => {
-    const menu = document.getElementById('vc-more-menu');
-    const btn = document.getElementById('vc-more-btn');
-    if (menu && menu.style.display === 'flex' && !menu.contains(e.target) && !btn.contains(e.target)) {
-        menu.style.display = 'none';
+// --- 新增：点击屏幕空白处隐藏/显示UI ---
+document.getElementById('vc-call-container').addEventListener('click', (e) => {
+    // 检查点击的是否是背景本身，而不是任何按钮或输入框
+    if (e.target.id === 'vc-call-container' || e.target.id === 'vc-layer-char' || e.target.id === 'vc-layer-user' || e.target.id === 'vc-user-video') {
+        document.getElementById('vc-call-container').classList.toggle('controls-hidden');
+        // 如果“更多”菜单是打开的，顺便关掉它
+        const moreMenu = document.getElementById('vc-more-menu');
+        if (moreMenu.style.display === 'flex') {
+            moreMenu.style.display = 'none';
+        }
     }
 });
 
-// 拖拽与互换逻辑
+// --- 新增：阻止按钮事件冒泡 ---
+document.querySelectorAll('.vc-top-nav, .vc-bottom-wrap').forEach(el => {
+    el.addEventListener('click', e => e.stopPropagation());
+});
+
+
+// 拖拽与互换逻辑 (保持不变)
 function vcSetupDragAndClick(elId) {
     const el = document.getElementById(elId);
     if(!el) return;
@@ -4883,7 +4891,6 @@ function vcSwapViews(clickedSmallEl) {
     largeEl.classList.replace('vc-view-large', 'vc-view-small');
 }
 
-// 初始化拖拽
 document.addEventListener('DOMContentLoaded', () => {
     vcSetupDragAndClick('vc-layer-user');
     vcSetupDragAndClick('vc-layer-char');
