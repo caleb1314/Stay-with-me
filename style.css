@@ -2428,3 +2428,22 @@ input:-webkit-autofill:active {
 #vc-history-overlay.active .vc-history-panel { transform: translateX(0); }
 .vc-h-item { margin-bottom: 15px; font-size: 14px; color: #eee; line-height: 1.4; }
 .vc-h-role { font-size: 10px; font-weight: 800; color: #888; margin-bottom: 4px; text-transform: uppercase; }
+/* ========================================= */
+/* === 视频通话UI显隐动画 (新增) === */
+/* ========================================= */
+.vc-top-nav, .vc-bottom-wrap {
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    will-change: opacity, transform;
+}
+
+#vc-call-container.controls-hidden .vc-top-nav {
+    opacity: 0;
+    transform: translateY(-100%);
+    pointer-events: none;
+}
+
+#vc-call-container.controls-hidden .vc-bottom-wrap {
+    opacity: 0;
+    transform: translateY(100%);
+    pointer-events: none;
+}
