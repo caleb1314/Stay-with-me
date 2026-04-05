@@ -4581,7 +4581,7 @@ function startVideoCall(isIncoming) {
         if (!char) return;
 
         const name = char.remark || char.name || '宝宝';
-        const avatar = char.avatarImage || 'https://file.uhsea.com/2603/b5e1c21ceb4cbacec44c8b073a301b89FP.jpg';
+        const avatar = char.avatarImage || '';
         
         document.getElementById('vc-incoming-name').innerText = name;
         document.getElementById('vc-active-name').innerText = name;
