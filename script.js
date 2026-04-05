@@ -4648,10 +4648,27 @@ function endVideoCall(wasConnected) {
 
 async function vcStartCamera() {
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: vcFacingMode }, audio: false });
+        // 核心修复：必须先停止当前的摄像头轨道，否则手机无法切换前后置
+        if (vcVideo.srcObject) {
+            vcVideo.srcObject.getTracks().forEach(t => t.stop());
+            vcVideo.srcObject = null;
+        }
+        
+        let stream;
+        try {
+            // 优先尝试强制使用指定的前/后置摄像头
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: vcFacingMode } }, audio: false });
+        } catch(e) {
+            // 如果强制失败（比如电脑没有后置），则降级为普通请求
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: vcFacingMode }, audio: false });
+        }
+        
         vcVideo.srcObject = stream;
+        // 只有前置摄像头才需要镜像翻转，后置不需要
         vcVideo.style.transform = (vcFacingMode === 'user') ? 'scaleX(-1)' : 'scaleX(1)';
-    } catch (e) { console.log("Camera failed"); }
+    } catch (e) { 
+        console.log("Camera failed", e); 
+    }
 }
 
 function vcFlipCamera() {
@@ -4706,7 +4723,7 @@ async function vcHandleAIReply() {
             });
         }
 
-        const systemPrompt = `你正在和User进行视频通话。
+                const systemPrompt = `你正在和User进行视频通话。
 【你的当前人设】：
 姓名：${char.name || char.remark}
 详细设定：${char.persona || '无'}
@@ -4714,7 +4731,7 @@ ${worldBookText}
 【视频通话规则】：
 1. 必须保持极度沉浸，回复要自然流畅，就像真人在视频聊天一样。
 2. 绝对不要使用星号*描写动作，绝对不要使用括号()描写心理。
-3. 结合User提供的画面描述或摄像头画面进行互动。
+3. 如果提示词中给出了“你通过视频画面看到...”，请直接将其作为你亲眼看到的画面进行自然互动，绝对不要说“我看不到”、“你描述的”等破坏沉浸感的话。
 4. 你可以一次说多句话来表达完整的意思，但请用换行来模拟说话时的自然停顿。`;
 
         let frame = "";
@@ -4726,9 +4743,13 @@ ${worldBookText}
             frame = vcCanvas.toDataURL('image/jpeg', 0.4).split(',')[1];
         }
 
+        // 核心修复：优化画面描述的逻辑，让 AI 认为自己亲眼看到了
         let userPrompt = "（正在和你视频通话中）";
-        if (vcCurrentSceneDesc) userPrompt += `\n（User 描述的当前画面：${vcCurrentSceneDesc}）`;
-        if (!vcIsCamOn) userPrompt += "\n（注意：User 目前关闭了摄像头，请参考文字描述）";
+        if (vcCurrentSceneDesc) {
+            userPrompt += `\n（你通过视频画面看到：${vcCurrentSceneDesc}）`;
+        } else if (!vcIsCamOn) {
+            userPrompt += "\n（注意：User 目前关闭了摄像头）";
+        }
         
         let userContent = [{ type: "text", text: userPrompt }];
         if (frame) userContent.push({ type: "image_url", image_url: { url: `data:image/jpeg;base64,${frame}` } });
