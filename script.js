@@ -5089,22 +5089,20 @@ function openIMChat(charId) {
             if (char.avatarImage) avatarEl.style.backgroundImage = `url(${char.avatarImage})`;
             else avatarEl.style.backgroundImage = 'none';
 
-            // 【这里就是第四步新增的代码：读取并设置专属聊天背景】
             const imScreen = document.getElementById('imScreen');
             if (char.imBgImage) {
                 imScreen.style.backgroundImage = `url(${char.imBgImage})`;
                 imScreen.style.backgroundSize = 'cover';
                 imScreen.style.backgroundPosition = 'center';
             } else {
-                imScreen.style.backgroundImage = 'none'; // 没有设置就恢复默认白底
+                imScreen.style.backgroundImage = 'none';
             }
 
             const chatArea = document.getElementById('imChatArea');
             chatArea.innerHTML = '<div class="im-time-stamp">刚刚</div>';
 
             if (char.history) {
-                chatHistory = char.history; // 载入完整历史
-                // 仅渲染属于 imessage 的消息
+                chatHistory = char.history; 
                 const imHistory = char.history.filter(m => m.app === 'imessage');
                 imHistory.forEach(msg => {
                     if (msg.role === 'user' || msg.role === 'assistant') {
@@ -5127,7 +5125,7 @@ function closeIMChat() {
     window.isIMScreenOpen = false;
     currentIMCharId = null;
     document.getElementById('imScreen').classList.remove('active');
-    renderIMList(); // 退出时刷新列表预览
+    renderIMList(); 
 }
 
 // 动态添加气泡并处理小尾巴 (已加入长按菜单绑定)
@@ -5206,9 +5204,8 @@ imInputEl.addEventListener('input', updateIMBtnState);
 imInputEl.addEventListener('focus', updateIMBtnState);
 imInputEl.addEventListener('blur', () => {
     updateIMBtnState();
-    // 【修复 Bug】键盘收起时，强制页面回弹并让聊天区域滚到底部
     setTimeout(() => {
-        window.scrollTo(0, 0); // 修复 iOS 键盘收起后整个页面被顶上去的 Bug
+        window.scrollTo(0, 0); 
         const chatArea = document.getElementById('imChatArea');
         if (chatArea) {
             chatArea.scrollTo({ top: chatArea.scrollHeight, behavior: 'smooth' });
@@ -5216,7 +5213,6 @@ imInputEl.addEventListener('blur', () => {
     }, 100);
 });
 
-// 【修复 Bug】监听窗口大小变化（安卓键盘收起时会触发 resize），自动滚到底部
 window.addEventListener('resize', () => {
     if (window.isIMScreenOpen) {
         const chatArea = document.getElementById('imChatArea');
@@ -5225,6 +5221,7 @@ window.addEventListener('resize', () => {
         }
     }
 });
+
 imInputEl.addEventListener('keydown', (e) => {
     if (e.isComposing) return;
     if (e.key === 'Enter') {
@@ -5235,17 +5232,14 @@ imInputEl.addEventListener('keydown', (e) => {
 
 // 发送点击逻辑
 function handleIMSendClick() {
-    // 删除了对 state-voice 的拦截，允许点击语音键触发 AI
     const text = imInputEl.value.trim();
     if (text) {
-        // 有字：发送用户消息并打上 imessage 标签
         appendIMMessage(text, true);
         chatHistory.push({ role: "user", content: text, app: 'imessage' });
         
         imInputEl.value = '';
         updateIMBtnState();
         
-        // 保存到数据库
         const tx = db.transaction(["characters"], "readwrite");
         const store = tx.objectStore("characters");
         store.get(currentIMCharId).onsuccess = (e) => {
@@ -5256,23 +5250,10 @@ function handleIMSendClick() {
 
         setTimeout(() => imInputEl.focus(), 10);
     } else {
-        // 没字：请求 AI 回复 (传入 sourceApp = 'imessage')
         fetchAIResponse(currentIMCharId, false, 'imessage');
     }
 }
-// --- 信息(iMessage) 下拉菜单控制 ---
-function toggleMsgMenu() {
-    const overlay = document.getElementById('msgDropdownOverlay');
-    if (overlay.classList.contains('active')) {
-        closeMsgMenu();
-    } else {
-        overlay.classList.add('active');
-    }
-}
 
-function closeMsgMenu() {
-    document.getElementById('msgDropdownOverlay').classList.remove('active');
-}
 // 渲染 iMessage 正在输入动画
 function appendIMTypingIndicator(id) {
     const chatArea = document.getElementById('imChatArea');
@@ -5294,11 +5275,11 @@ function appendIMTypingIndicator(id) {
     chatArea.scrollTo({ top: chatArea.scrollHeight, behavior: 'smooth' });
 }
 
-// 移除 iMessage 正在输入动画
 function removeIMTypingIndicator() {
     const els = document.querySelectorAll('#imChatArea .im-typing-row');
     els.forEach(el => el.remove());
 }
+
 // --- iMessage 更换聊天背景逻辑 ---
 function triggerIMBgUpload() {
     if (!currentIMCharId) {
@@ -5316,26 +5297,25 @@ document.getElementById('imBgUploadInput').addEventListener('change', function(e
     reader.onload = function(event) {
         const base64Data = event.target.result;
         
-        // 1. 立即应用到当前界面
         const imScreen = document.getElementById('imScreen');
         imScreen.style.backgroundImage = `url(${base64Data})`;
         imScreen.style.backgroundSize = 'cover';
         imScreen.style.backgroundPosition = 'center';
         
-        // 2. 保存到 IndexedDB 当前角色数据中
         const tx = db.transaction(["characters"], "readwrite");
         const store = tx.objectStore("characters");
         store.get(currentIMCharId).onsuccess = (e) => {
             const char = e.target.result;
             if (char) {
-                char.imBgImage = base64Data; // 新增一个字段存背景
+                char.imBgImage = base64Data; 
                 store.put(char);
             }
         };
     };
     reader.readAsDataURL(file);
-    e.target.value = ''; // 清空 input，保证下次选同一张图也能触发
+    e.target.value = ''; 
 });
+
 // =========================================
 // === iMessage 长按菜单、表情与撤回逻辑 ===
 // =========================================
@@ -5351,7 +5331,6 @@ const imTailLarge = document.getElementById('imTailLarge');
 const imTailSmall = document.getElementById('imTailSmall');
 const imEmojiPicker = document.getElementById('imEmojiPicker');
 
-// 点击遮罩关闭菜单
 if (imOverlay) {
     imOverlay.addEventListener('touchstart', hideIMContextMenu, { passive: true });
     imOverlay.addEventListener('mousedown', hideIMContextMenu);
@@ -5366,7 +5345,6 @@ function showIMContextMenu(bubble) {
     const rect = bubble.getBoundingClientRect();
     const isRight = bubble.closest('.im-msg-row').classList.contains('right');
     
-    // 定位表情栏
     imReactionBar.style.top = (rect.top - 55) + 'px';
     if (isRight) {
         imReactionBar.style.right = '16px'; imReactionBar.style.left = 'auto';
@@ -5380,7 +5358,6 @@ function showIMContextMenu(bubble) {
         imTailSmall.style.left = '18px'; imTailSmall.style.right = 'auto'; imTailSmall.style.bottom = '-12px';
     }
 
-    // 定位操作列表
     imActionList.style.top = (rect.bottom + 10) + 'px';
     if (isRight) {
         imActionList.style.right = '16px'; imActionList.style.left = 'auto';
@@ -5405,7 +5382,6 @@ function hideIMContextMenu() {
     }
 }
 
-// 添加回应 (支持 SVG 和 Emoji 文本)
 function addIMReaction(type, content, isEmoji = false) {
     if (!imActiveBubble) return;
     
@@ -5423,7 +5399,6 @@ function addIMReaction(type, content, isEmoji = false) {
 
     let finalContent = content;
     if (!isEmoji) {
-        // SVG 颜色自适应
         if (isRight) finalContent = finalContent.replace(/currentColor/g, '#555555');
         else finalContent = finalContent.replace(/currentColor/g, '#ffffff');
         finalContent = `<svg viewBox="0 0 24 24">${finalContent}</svg>`;
@@ -5474,17 +5449,14 @@ function handleIMAction(action) {
         navigator.clipboard.writeText(text).then(() => alert('已拷贝'));
     } else if (action === '撤回') {
         if (confirm('确定要撤回这条消息吗？')) {
-            // 1. 找到该消息在 DOM 中的索引
             const allRows = Array.from(document.querySelectorAll('#imChatArea .im-msg-row'));
             const domIndex = allRows.indexOf(row);
             
             if (domIndex !== -1 && currentIMCharId && db) {
-                // 2. 映射到 chatHistory 中属于 imessage 的消息
                 let imMsgs = chatHistory.filter(m => m.app === 'imessage');
                 if (imMsgs[domIndex]) {
                     let realIndex = chatHistory.indexOf(imMsgs[domIndex]);
                     if (realIndex !== -1) {
-                        // 3. 修改数据库状态
                         chatHistory[realIndex] = { 
                             role: chatHistory[realIndex].role, 
                             type: 'recalled', 
@@ -5498,14 +5470,13 @@ function handleIMAction(action) {
                             const char = e.target.result;
                             char.history = chatHistory;
                             store.put(char).onsuccess = () => {
-                                renderIMList(); // 刷新外层列表
+                                renderIMList(); 
                             };
                         };
                     }
                 }
             }
 
-            // 4. UI 动画替换为撤回提示
             row.style.opacity = '0';
             row.style.transform = 'scale(0.9)';
             row.style.transition = 'all 0.2s';
