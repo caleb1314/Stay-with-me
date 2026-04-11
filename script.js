@@ -1581,18 +1581,20 @@ async function fetchAIResponse(targetCharId = currentChatCharId, isFromFloat = f
     if (!targetCharId) return;
     
     // 防止重复请求
-    if (isFromFloat) {
-        if (window.isFetchingAIFloat) return;
-        window.isFetchingAIFloat = true;
-        appendFloatTypingIndicator('float-typing-' + Date.now());
-    } else if (sourceApp === 'imessage') {
-        if (window.isFetchingAIIM) return;
-        window.isFetchingAIIM = true;
-    } else {
-        if (window.isFetchingAI) return;
-        window.isFetchingAI = true;
-        appendTypingIndicator('typing-' + Date.now());
-    }
+if (isFromFloat) {
+    if (window.isFetchingAIFloat) return;
+    window.isFetchingAIFloat = true;
+    appendFloatTypingIndicator('float-typing-' + Date.now());
+} else if (sourceApp === 'imessage') {
+    if (window.isFetchingAIIM) return;
+    window.isFetchingAIIM = true;
+    // 【新增】调用 iMessage 的正在输入动画
+    appendIMTypingIndicator('im-typing-' + Date.now());
+} else {
+    if (window.isFetchingAI) return;
+    window.isFetchingAI = true;
+    appendTypingIndicator('typing-' + Date.now());
+}
 
     const apiDataStr = localStorage.getItem('hajimi_api_context_main');
     if (!apiDataStr) {
@@ -1797,6 +1799,8 @@ function handleAIFinish(charId, isFromFloat, errorMsg, sourceApp = 'wechat') {
         if (errorMsg) distributeAIResponse(charId, [{type: 'text', content: errorMsg}], true, sourceApp);
     } else if (sourceApp === 'imessage') {
         window.isFetchingAIIM = false;
+        // 【新增】移除 iMessage 的正在输入动画
+        removeIMTypingIndicator();
         if (errorMsg) distributeAIResponse(charId, [{type: 'text', content: errorMsg}], false, sourceApp);
     } else {
         window.isFetchingAI = false;
@@ -1804,7 +1808,6 @@ function handleAIFinish(charId, isFromFloat, errorMsg, sourceApp = 'wechat') {
         if (errorMsg) distributeAIResponse(charId, [{type: 'text', content: errorMsg}], false, sourceApp);
     }
 }
-
 // 消息分发中心：存入数据库，并决定渲染到哪里
 function distributeAIResponse(charId, parsedMessages, isFromFloat, sourceApp = window.isIMScreenOpen ? 'imessage' : 'wechat') {
     const transaction = db.transaction(["characters"], "readwrite");
@@ -5176,8 +5179,27 @@ function updateIMBtnState() {
 
 imInputEl.addEventListener('input', updateIMBtnState);
 imInputEl.addEventListener('focus', updateIMBtnState);
-imInputEl.addEventListener('blur', updateIMBtnState);
+imInputEl.addEventListener('blur', () => {
+    updateIMBtnState();
+    // 【修复 Bug】键盘收起时，强制页面回弹并让聊天区域滚到底部
+    setTimeout(() => {
+        window.scrollTo(0, 0); // 修复 iOS 键盘收起后整个页面被顶上去的 Bug
+        const chatArea = document.getElementById('imChatArea');
+        if (chatArea) {
+            chatArea.scrollTo({ top: chatArea.scrollHeight, behavior: 'smooth' });
+        }
+    }, 100);
+});
 
+// 【修复 Bug】监听窗口大小变化（安卓键盘收起时会触发 resize），自动滚到底部
+window.addEventListener('resize', () => {
+    if (window.isIMScreenOpen) {
+        const chatArea = document.getElementById('imChatArea');
+        if (chatArea) {
+            chatArea.scrollTo({ top: chatArea.scrollHeight, behavior: 'instant' });
+        }
+    }
+});
 imInputEl.addEventListener('keydown', (e) => {
     if (e.isComposing) return;
     if (e.key === 'Enter') {
