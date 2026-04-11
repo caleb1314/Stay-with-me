@@ -2739,3 +2739,25 @@ input:-webkit-autofill:active {
     position: relative;
     z-index: 5502 !important;
 }
+/* ========================================= */
+/* === 修复 3：彻底禁用长按保存图片提示 === */
+/* ========================================= */
+
+/* 1. 禁用小尾巴的长按和点击事件 */
+.im-tail {
+    pointer-events: none !important;
+    -webkit-touch-callout: none !important;
+}
+
+/* 2. 禁用整个气泡的系统长按菜单 */
+.im-bubble {
+    -webkit-touch-callout: none !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+}
+
+/* 3. 如果气泡里有图片，也禁用图片的系统长按保存 */
+.im-bubble img {
+    pointer-events: none !important;
+    -webkit-touch-callout: none !important;
+}
