@@ -2580,3 +2580,40 @@ input:-webkit-autofill:active {
     stroke-linejoin: round;
     flex-shrink: 0;
 }
+/* ========================================= */
+/* === iMessage 正在输入气泡动画 === */
+/* ========================================= */
+.im-typing-row {
+    margin-bottom: 10px;
+}
+.im-typing-bubble {
+    width: 64px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    background-color: #F2F2F2; border-radius: 18px;
+    position: relative; margin-top: 2px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.im-typing-dots { 
+    display: flex; gap: 4px; align-items: center; justify-content: center; 
+}
+.im-dot {
+    width: 6px; height: 6px; background-color: #8E8E93; border-radius: 50%;
+    animation: imTypingPulse 1.4s infinite ease-in-out both;
+}
+.im-dot:nth-child(1) { animation-delay: -0.32s; }
+.im-dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes imTypingPulse {
+    0%, 80%, 100% { transform: scale(0.8); opacity: 0.4; }
+    40% { transform: scale(1.2); opacity: 1; }
+}
+
+/* 正在输入的小尾巴 (圆角拼接风) */
+.im-typing-tail-large {
+    position: absolute; bottom: 0px; left: -4px; width: 16px; height: 16px;
+    background-color: #F2F2F2; border-radius: 50%; z-index: -1;
+}
+.im-typing-tail-small {
+    position: absolute; bottom: -5px; left: -9px; width: 8px; height: 8px;
+    background-color: #F2F2F2; border-radius: 50%; z-index: -1;
+}
