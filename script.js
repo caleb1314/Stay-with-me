@@ -1234,14 +1234,18 @@ function renderWxChatList() {
 function generateChatRowHTML(char) {
     const avatarStyle = char.avatarImage ? `background-image: url(${char.avatarImage});` : '';
     let lastMsg = "点击进入聊天...";
-if (char.history && char.history.length > 0) {
-    const lastObj = char.history[char.history.length - 1];
-    // 👇 新增撤回状态的判断 👇
-    if (lastObj.type === 'recalled') lastMsg = '[撤回了一条消息]';
-    else if (typeof lastObj.content === 'string') lastMsg = lastObj.content;
-    else if (lastObj.type === 'transfer') lastMsg = '[转账]';
-    else lastMsg = '[图片]';
-}
+    
+    if (char.history && char.history.length > 0) {
+        // 🌟 核心修复：微信列表预览只读取微信的消息
+        const wechatHistory = char.history.filter(m => !m.app || m.app === 'wechat');
+        if (wechatHistory.length > 0) {
+            const lastObj = wechatHistory[wechatHistory.length - 1];
+            if (lastObj.type === 'recalled') lastMsg = '[撤回了一条消息]';
+            else if (typeof lastObj.content === 'string') lastMsg = lastObj.content;
+            else if (lastObj.type === 'transfer') lastMsg = '[转账]';
+            else lastMsg = '[图片]';
+        }
+    }
     
     // 处理未读数
     const unreadCount = char.unreadCount || 0;
@@ -1428,14 +1432,16 @@ function openChatScreen(charId) {
 
             if (char.history && char.history.length > 0) {
                 chatHistory = char.history;
-                chatHistory.forEach(msg => {
+                // 🌟 核心修复：微信界面只渲染微信的消息
+                const wechatHistory = chatHistory.filter(m => !m.app || m.app === 'wechat');
+                
+                wechatHistory.forEach(msg => {
                     const isRight = msg.role === 'user';
-                     if (msg.type === 'recalled') {
-    appendRecallUI(msg.originalContent, isRight);
-} 
-    else if (msg.type === 'transfer') {
-        appendTransferUI(msg.amount, msg.note, msg.status, msg.id, isRight);
-    } else if (msg.role === 'user' || msg.role === 'assistant') {
+                    if (msg.type === 'recalled') {
+                        appendRecallUI(msg.originalContent, isRight);
+                    } else if (msg.type === 'transfer') {
+                        appendTransferUI(msg.amount, msg.note, msg.status, msg.id, isRight);
+                    } else if (msg.role === 'user' || msg.role === 'assistant') {
                         if (typeof msg.content === 'string') {
                             if (!isRight) {
                                 const lines = msg.content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
@@ -1540,7 +1546,9 @@ function sendUserMessageOnly() {
 
     // 1. 用户消息上屏
     appendMessage(text, true);
-    chatHistory.push({ role: "user", content: text });
+    
+    // 🌟 核心修复：打上 wechat 标签
+    chatHistory.push({ role: "user", content: text, app: 'wechat' });
 
     chatInput.value = '';
     
@@ -1552,7 +1560,6 @@ function sendUserMessageOnly() {
     // 2. 保存到数据库
     saveChatHistoryToDB();
 }
-
 // 正在输入动画
 function appendTypingIndicator(id) {
     const msgRow = document.createElement('div');
@@ -1569,8 +1576,8 @@ function removeTypingIndicator() {
     els.forEach(el => el.remove());
 } 
 
-// 请求 AI 回复 (支持全屏、浮窗、后台通知分发)
-async function fetchAIResponse(targetCharId = currentChatCharId, isFromFloat = false) {
+// 请求 AI 回复 (支持全屏、浮窗、后台通知分发、以及 iMessage 隔离)
+async function fetchAIResponse(targetCharId = currentChatCharId, isFromFloat = false, sourceApp = window.isIMScreenOpen ? 'imessage' : 'wechat') {
     if (!targetCharId) return;
     
     // 防止重复请求
@@ -1578,6 +1585,9 @@ async function fetchAIResponse(targetCharId = currentChatCharId, isFromFloat = f
         if (window.isFetchingAIFloat) return;
         window.isFetchingAIFloat = true;
         appendFloatTypingIndicator('float-typing-' + Date.now());
+    } else if (sourceApp === 'imessage') {
+        if (window.isFetchingAIIM) return;
+        window.isFetchingAIIM = true;
     } else {
         if (window.isFetchingAI) return;
         window.isFetchingAI = true;
@@ -1586,7 +1596,7 @@ async function fetchAIResponse(targetCharId = currentChatCharId, isFromFloat = f
 
     const apiDataStr = localStorage.getItem('hajimi_api_context_main');
     if (!apiDataStr) {
-        handleAIFinish(targetCharId, isFromFloat, "系统提示：请先配置 API");
+        handleAIFinish(targetCharId, isFromFloat, "系统提示：请先配置 API", sourceApp);
         return;
     }
     const apiData = JSON.parse(apiDataStr);
@@ -1597,32 +1607,37 @@ async function fetchAIResponse(targetCharId = currentChatCharId, isFromFloat = f
 
     req.onsuccess = async () => {
         const char = req.result;
-        if (!char) { handleAIFinish(targetCharId, isFromFloat, null); return; }
+        if (!char) { handleAIFinish(targetCharId, isFromFloat, null, sourceApp); return; }
 
         // 获取该角色最新的历史记录用于请求
         const historyToUse = char.history || [];
         // --- 读取绑定的世界书内容 ---
-let worldBookText = "";
-if (char.worldIds && char.worldIds.length > 0) {
-    const wbTx = db.transaction(["worldBooks"], "readonly");
-    const wbStore = wbTx.objectStore("worldBooks");
-    const allBooks = await new Promise(res => {
-        wbStore.getAll().onsuccess = e => res(e.target.result);
-    });
-    
-    allBooks.forEach(book => {
-        if (char.worldIds.includes(book.id)) {
-            worldBookText += `\n【世界书设定：${book.name}】\n`;
-            if(book.items) {
-                book.items.forEach(item => {
-                    if(item.title || item.content) {
-                        worldBookText += `- ${item.title}：${item.content}\n`;
+        let worldBookText = "";
+        if (char.worldIds && char.worldIds.length > 0) {
+            const wbTx = db.transaction(["worldBooks"], "readonly");
+            const wbStore = wbTx.objectStore("worldBooks");
+            const allBooks = await new Promise(res => {
+                wbStore.getAll().onsuccess = e => res(e.target.result);
+            });
+            
+            allBooks.forEach(book => {
+                if (char.worldIds.includes(book.id)) {
+                    worldBookText += `\n【世界书设定：${book.name}】\n`;
+                    if(book.items) {
+                        book.items.forEach(item => {
+                            if(item.title || item.content) {
+                                worldBookText += `- ${item.title}：${item.content}\n`;
+                            }
+                        });
                     }
-                });
-            }
+                }
+            });
         }
-    });
-}
+
+        // 动态添加当前软件提示，让 AI 知道自己在哪个软件聊天
+        const appHint = sourceApp === 'imessage' 
+            ? "【系统提示：当前你们正在使用苹果自带的『信息(iMessage)』软件进行短信聊天。请注意符合短信聊天的语境。】" 
+            : "【系统提示：当前你们正在使用『微信』进行聊天。】";
 
         // ⚠️ 完整的提示词在这里！
         const systemPrompt = `[SYSTEM OVERRIDE PROTOCOL: OMEGA-LEVEL IMMERSION]
@@ -1692,6 +1707,7 @@ MBTI：${char.mbti || ''}
 详细设定：
 ${char.persona || '无详细设定'}
 ${worldBookText ? '\n# 附加世界观设定（你必须遵循以下世界规则）：' + worldBookText : ''}
+${appHint}
 `;
 
         const apiMessages = historyToUse.map(msg => {
@@ -1724,72 +1740,73 @@ ${worldBookText ? '\n# 附加世界观设定（你必须遵循以下世界规则
             if (data.choices && data.choices.length > 0) {
                 let aiText = data.choices[0].message.content || "";
 
-// 处理转账逻辑 (简化版)
-if (aiText.includes('[收取转账]')) aiText = aiText.replace(/\[收取转账\]/g, '');
-if (aiText.includes('[退回转账]')) aiText = aiText.replace(/\[退回转账\]/g, '');
+                // 处理转账逻辑 (简化版)
+                if (aiText.includes('[收取转账]')) aiText = aiText.replace(/\[收取转账\]/g, '');
+                if (aiText.includes('[退回转账]')) aiText = aiText.replace(/\[退回转账\]/g, '');
 
-const lines = aiText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-let parsedMessages = [];
+                const lines = aiText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                let parsedMessages = [];
 
-lines.forEach(line => {
-    // === 核心修复：按顺序把撤回动作加入队列，而不是立刻执行 ===
-    if (line.includes('[撤回前一条消息]')) {
-        parsedMessages.push({ type: 'recall' });
-        // 如果同一行还有其他文字，剥离标签后继续显示
-        const textPart = line.replace(/\[撤回前一条消息\]/g, '').trim();
-        if (textPart) parsedMessages.push({ type: 'text', content: textPart });
-        return;
-    }
-    
-    // 【新增】：解析视频通话标签
-    const videoMatch = line.match(/\[发起视频通话\]/);
-    if (videoMatch) {
-        parsedMessages.push({ type: 'video_call' });
-        const textPart = line.replace(videoMatch[0], '').trim();
-        if (textPart) parsedMessages.push({ type: 'text', content: textPart });
-        return;
-    }
-    
-    const photoMatch = line.match(/\[发送照片:(.*?)\]/);
-    const transferMatch = line.match(/\[发起转账:([\d\.]+):(.*?)\]/);
-    if (photoMatch) {
-        parsedMessages.push({ type: 'photo', desc: photoMatch[1], url: 'https://file.uhsea.com/2603/afb7609d925c45a3d931579af60565c3G7.jpg' });
-        const textPart = line.replace(photoMatch[0], '').trim();
-        if (textPart) parsedMessages.push({ type: 'text', content: textPart });
-    } else if (transferMatch) {
-        parsedMessages.push({ type: 'transfer_out', amount: transferMatch[1], note: transferMatch[2], id: 'transfer_' + Date.now() });
-        const textPart = line.replace(transferMatch[0], '').trim();
-        if (textPart) parsedMessages.push({ type: 'text', content: textPart });
-    } else {
-        parsedMessages.push({ type: 'text', content: line });
-    }
-});
-if (parsedMessages.length === 0) parsedMessages.push({ type: 'text', content: "（已处理）" });
+                lines.forEach(line => {
+                    if (line.includes('[撤回前一条消息]')) {
+                        parsedMessages.push({ type: 'recall' });
+                        const textPart = line.replace(/\[撤回前一条消息\]/g, '').trim();
+                        if (textPart) parsedMessages.push({ type: 'text', content: textPart });
+                        return;
+                    }
+                    
+                    const videoMatch = line.match(/\[发起视频通话\]/);
+                    if (videoMatch) {
+                        parsedMessages.push({ type: 'video_call' });
+                        const textPart = line.replace(videoMatch[0], '').trim();
+                        if (textPart) parsedMessages.push({ type: 'text', content: textPart });
+                        return;
+                    }
+                    
+                    const photoMatch = line.match(/\[发送照片:(.*?)\]/);
+                    const transferMatch = line.match(/\[发起转账:([\d\.]+):(.*?)\]/);
+                    if (photoMatch) {
+                        parsedMessages.push({ type: 'photo', desc: photoMatch[1], url: 'https://file.uhsea.com/2603/afb7609d925c45a3d931579af60565c3G7.jpg' });
+                        const textPart = line.replace(photoMatch[0], '').trim();
+                        if (textPart) parsedMessages.push({ type: 'text', content: textPart });
+                    } else if (transferMatch) {
+                        parsedMessages.push({ type: 'transfer_out', amount: transferMatch[1], note: transferMatch[2], id: 'transfer_' + Date.now() });
+                        const textPart = line.replace(transferMatch[0], '').trim();
+                        if (textPart) parsedMessages.push({ type: 'text', content: textPart });
+                    } else {
+                        parsedMessages.push({ type: 'text', content: line });
+                    }
+                });
+                if (parsedMessages.length === 0) parsedMessages.push({ type: 'text', content: "（已处理）" });
 
-// 核心分发逻辑
-distributeAIResponse(targetCharId, parsedMessages, isFromFloat);
+                // 核心分发逻辑
+                distributeAIResponse(targetCharId, parsedMessages, isFromFloat, sourceApp);
             }
-            handleAIFinish(targetCharId, isFromFloat, null);
+            handleAIFinish(targetCharId, isFromFloat, null, sourceApp);
         } catch (error) {
             console.error("AI Reply Error:", error);
-            handleAIFinish(targetCharId, isFromFloat, "网络请求失败");
+            handleAIFinish(targetCharId, isFromFloat, "网络请求失败", sourceApp);
         }
     };
 }
-function handleAIFinish(charId, isFromFloat, errorMsg) {
+
+function handleAIFinish(charId, isFromFloat, errorMsg, sourceApp = 'wechat') {
     if (isFromFloat) {
         window.isFetchingAIFloat = false;
         removeFloatTypingIndicator();
-        if (errorMsg) distributeAIResponse(charId, [{type: 'text', content: errorMsg}], true);
+        if (errorMsg) distributeAIResponse(charId, [{type: 'text', content: errorMsg}], true, sourceApp);
+    } else if (sourceApp === 'imessage') {
+        window.isFetchingAIIM = false;
+        if (errorMsg) distributeAIResponse(charId, [{type: 'text', content: errorMsg}], false, sourceApp);
     } else {
         window.isFetchingAI = false;
         removeTypingIndicator();
-        if (errorMsg) distributeAIResponse(charId, [{type: 'text', content: errorMsg}], false);
+        if (errorMsg) distributeAIResponse(charId, [{type: 'text', content: errorMsg}], false, sourceApp);
     }
 }
 
 // 消息分发中心：存入数据库，并决定渲染到哪里
-function distributeAIResponse(charId, parsedMessages, isFromFloat) {
+function distributeAIResponse(charId, parsedMessages, isFromFloat, sourceApp = window.isIMScreenOpen ? 'imessage' : 'wechat') {
     const transaction = db.transaction(["characters"], "readwrite");
     const store = transaction.objectStore("characters");
     const req = store.get(charId);
@@ -1798,70 +1815,85 @@ function distributeAIResponse(charId, parsedMessages, isFromFloat) {
         const char = req.result;
         if (!char) return;
 
-        // 1. 存入历史记录
-parsedMessages.forEach(msg => {
-    if (msg.type === 'text') char.history.push({ role: "assistant", content: msg.content });
-    else if (msg.type === 'photo') char.history.push({ role: "assistant", content: [{ type: "text", text: `（发送照片：${msg.desc}）` }, { type: "image_url", image_url: { url: msg.url, detail: msg.desc } }] });
-    else if (msg.type === 'transfer_out') char.history.push({ role: "assistant", type: "transfer", amount: msg.amount, note: msg.note, status: "pending", id: msg.id });
-    else if (msg.type === 'video_call') char.history.push({ role: "assistant", content: "（发起了视频通话）" }); // 【新增】：把视频通话存入历史记录
-    else if (msg.type === 'recall') {
-        // === 核心修复：在当前内存数组里找最后一条 AI 消息并标记撤回 ===
-        let targetIndex = -1;
-        for (let i = char.history.length - 1; i >= 0; i--) {
-            const m = char.history[i];
-            if (m.role === 'assistant' && m.type !== 'recalled') {
-                targetIndex = i;
-                break;
+        // 1. 存入历史记录 (带上 app 标签)
+        parsedMessages.forEach(msg => {
+            if (msg.type === 'text') char.history.push({ role: "assistant", content: msg.content, app: sourceApp });
+            else if (msg.type === 'photo') char.history.push({ role: "assistant", content: [{ type: "text", text: `（发送照片：${msg.desc}）` }, { type: "image_url", image_url: { url: msg.url, detail: msg.desc } }], app: sourceApp });
+            else if (msg.type === 'transfer_out') char.history.push({ role: "assistant", type: "transfer", amount: msg.amount, note: msg.note, status: "pending", id: msg.id, app: sourceApp });
+            else if (msg.type === 'video_call') char.history.push({ role: "assistant", content: "（发起了视频通话）", app: sourceApp });
+            else if (msg.type === 'recall') {
+                let targetIndex = -1;
+                for (let i = char.history.length - 1; i >= 0; i--) {
+                    const m = char.history[i];
+                    if (m.role === 'assistant' && m.type !== 'recalled') {
+                        targetIndex = i;
+                        break;
+                    }
+                }
+                if (targetIndex !== -1) {
+                    let originalContent = "不支持查看的内容";
+                    const targetMsg = char.history[targetIndex];
+                    if (typeof targetMsg.content === 'string') {
+                        originalContent = targetMsg.content;
+                    } else if (Array.isArray(targetMsg.content)) {
+                        const textObj = targetMsg.content.find(c => c.type === 'text');
+                        if (textObj && textObj.text) originalContent = textObj.text.replace('（发送照片：', '').replace('）', '');
+                        else originalContent = "[图片]";
+                    } else if (targetMsg.type === 'transfer') {
+                        originalContent = "[转账]";
+                    }
+                    
+                    char.history[targetIndex] = {
+                        role: 'assistant',
+                        type: 'recalled',
+                        originalContent: originalContent,
+                        app: sourceApp
+                    };
+                }
             }
-        }
-        if (targetIndex !== -1) {
-            let originalContent = "不支持查看的内容";
-            const targetMsg = char.history[targetIndex];
-            if (typeof targetMsg.content === 'string') {
-                originalContent = targetMsg.content;
-            } else if (Array.isArray(targetMsg.content)) {
-                const textObj = targetMsg.content.find(c => c.type === 'text');
-                if (textObj && textObj.text) originalContent = textObj.text.replace('（发送照片：', '').replace('）', '');
-                else originalContent = "[图片]";
-            } else if (targetMsg.type === 'transfer') {
-                originalContent = "[转账]";
-            }
-            
-            char.history[targetIndex] = {
-                role: 'assistant',
-                type: 'recalled',
-                originalContent: originalContent
-            };
-        }
-    }
-});
+        });
 
         // 2. 判断当前用户在哪里，决定渲染方式
         const isFullScreenActive = (window.isChatScreenOpen && currentChatCharId === charId);
         const isFloatScreenActive = (window.isFloatChatOpen && floatChatCharId === charId);
+        const isIMScreenActive = (window.isIMScreenOpen && currentIMCharId === charId);
 
-        if (isFullScreenActive) {
-            // 在全屏聊天界面，直接渲染
+        if (isIMScreenActive) {
+            // 在信息(iMessage)界面，直接渲染
+            chatHistory = char.history; 
+            let delay = 0;
+            parsedMessages.forEach(msg => {
+                setTimeout(() => {
+                    if (msg.type === 'text') appendIMMessage(msg.content, false);
+                }, delay);
+                delay += 600 + ((msg.content || "").length * 40);
+            });
+            store.put(char); 
+            if (typeof renderIMList === 'function') renderIMList(); 
+            renderWxChatList(); 
+        } else if (isFullScreenActive) {
+            // 在微信全屏聊天界面，直接渲染
             chatHistory = char.history; 
             renderMessagesWithDelay(parsedMessages, false); 
             store.put(char); 
             renderWxChatList(); 
+            if (typeof renderIMList === 'function') renderIMList(); 
         } else if (isFloatScreenActive) {
             // 在浮窗界面，直接渲染
             floatChatHistory = char.history; 
             renderMessagesWithDelay(parsedMessages, true); 
             store.put(char); 
             renderWxChatList(); 
+            if (typeof renderIMList === 'function') renderIMList(); 
         } else {
-            // 都不在，触发后台通知，模拟真实一条一条发送
-            // 注意：先保存历史记录，但不加未读数
+            // 都不在，触发后台通知
             store.put(char);
             renderWxChatList(); 
+            if (typeof renderIMList === 'function') renderIMList(); 
 
             let delay = 0;
             parsedMessages.forEach((msg) => {
                 setTimeout(() => {
-                    // 重新开启安全事务更新未读数
                     const tx = db.transaction(["characters"], "readwrite");
                     const charStore = tx.objectStore("characters");
                     const getReq = charStore.get(charId);
@@ -1872,22 +1904,20 @@ parsedMessages.forEach(msg => {
                             latestChar.unreadCount = (latestChar.unreadCount || 0) + 1;
                             charStore.put(latestChar);
                             tx.oncomplete = () => {
-                                renderWxChatList(); // 实时刷新微信列表红点
+                                renderWxChatList(); 
+                                if (typeof renderIMList === 'function') renderIMList(); 
                             };
                         }
                     };
 
-                    // 提取当前这条消息的文本
                     let notifText = "收到新消息";
                     if (msg.type === 'text') notifText = msg.content;
                     else if (msg.type === 'photo') notifText = "[图片]";
                     else if (msg.type === 'transfer_out') notifText = "[转账]";
 
-                    // 触发顶部弹窗
                     triggerNotification(charId, char.remark, char.avatarImage, notifText);
                 }, delay);
                 
-                // 动态计算下一条的延迟时间 (基础延迟 1.5秒 + 字数读取时间)
                 delay += 1500 + ((msg.content || msg.desc || msg.note || "").length * 50);
             });
         }
@@ -4916,3 +4946,284 @@ document.addEventListener('DOMContentLoaded', () => {
     vcSetupDragAndClick('vc-layer-user');
     vcSetupDragAndClick('vc-layer-char');
 });
+// =========================================
+// === 信息 (iMessage) 核心逻辑 ===
+// =========================================
+
+// --- 1. 手机号拦截与弹窗逻辑 ---
+function attemptSaveCharacter() {
+    const phone = document.getElementById('charPhone').value.trim();
+    if (!phone) {
+        document.getElementById('phoneWarningModal').classList.add('active');
+    } else {
+        forceSaveCharacter();
+    }
+}
+
+function focusPhoneInput() {
+    document.getElementById('phoneWarningModal').classList.remove('active');
+    document.getElementById('charPhone').focus();
+}
+
+function generateRandomPhone() {
+    const prefix = ['138', '139', '150', '151', '152', '157', '158', '159', '182', '183', '187', '188', '130', '131', '132', '155', '156', '185', '186', '133', '153', '180', '181', '189'];
+    const randomPrefix = prefix[Math.floor(Math.random() * prefix.length)];
+    const randomSuffix = Math.floor(Math.random() * 100000000).toString().padStart(8, '0');
+    document.getElementById('charPhone').value = randomPrefix + randomSuffix;
+    document.getElementById('phoneWarningModal').classList.remove('active');
+    forceSaveCharacter();
+}
+
+// 原来的 saveCharacter 逻辑改名并被调用
+function forceSaveCharacter() {
+    document.getElementById('phoneWarningModal').classList.remove('active');
+    saveCharacter(); // 调用你原有的保存逻辑
+}
+
+
+// --- 2. 界面开关与列表渲染 ---
+window.isIMScreenOpen = false;
+let currentIMCharId = null;
+
+function openIMMain() {
+    document.getElementById('imMainScreen').classList.add('active');
+    renderIMList();
+}
+
+function closeIMMain() {
+    document.getElementById('imMainScreen').classList.remove('active');
+}
+
+function promptAddIMContact() {
+    const phoneToSearch = prompt("请输入要发信息的手机号码：");
+    if (!phoneToSearch) return;
+
+    const tx = db.transaction(["characters"], "readwrite");
+    const store = tx.objectStore("characters");
+    const req = store.getAll();
+
+    req.onsuccess = () => {
+        const chars = req.result;
+        const targetChar = chars.find(c => c.phone === phoneToSearch.trim());
+        
+        if (targetChar) {
+            targetChar.inIMessage = true; // 标记已添加到信息列表
+            store.put(targetChar);
+            renderIMList();
+            openIMChat(targetChar.id); // 直接打开聊天
+        } else {
+            alert("未找到该手机号对应的角色，请先在通讯录中添加并绑定手机号。");
+        }
+    };
+}
+
+function renderIMList() {
+    if (!db) return;
+    const container = document.getElementById('imListContainer');
+    container.innerHTML = '';
+
+    const tx = db.transaction(["characters"], "readonly");
+    const store = tx.objectStore("characters");
+    const req = store.getAll();
+
+    req.onsuccess = () => {
+        // 只筛选出被添加到 iMessage 的角色
+        const chars = req.result.filter(c => c.inIMessage).sort((a, b) => b.timestamp - a.timestamp);
+
+        if (chars.length === 0) {
+            container.innerHTML = '<div style="text-align:center; padding: 40px; color:#8e8e93; font-size:14px;">暂无信息，点击右上角新建</div>';
+            return;
+        }
+
+        chars.forEach(char => {
+            const avatarStyle = char.avatarImage ? `background-image: url(${char.avatarImage});` : '';
+            
+            // 提取最后一条属于 imessage 的消息作为预览
+            let lastMsg = "点击进入聊天...";
+            if (char.history) {
+                const imHistory = char.history.filter(m => m.app === 'imessage');
+                if (imHistory.length > 0) {
+                    const lastObj = imHistory[imHistory.length - 1];
+                    if (typeof lastObj.content === 'string') lastMsg = lastObj.content;
+                    else lastMsg = '[图片/特殊消息]';
+                }
+            }
+
+            const html = `
+                <div class="chat-item" onclick="openIMChat('${char.id}')">
+                    <div class="im-list-avatar" style="${avatarStyle}"></div>
+                    <div class="chat-info">
+                        <div class="chat-top">
+                            <span class="im-list-name">${char.remark || char.name || '未命名'}</span>
+                            <span class="im-list-time">刚刚</span>
+                        </div>
+                        <div class="chat-bottom">
+                            <span class="im-list-preview">${escapeHTML(lastMsg)}</span>
+                            <svg class="arrow-right" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', html);
+        });
+    };
+}
+
+
+// --- 3. 聊天界面逻辑 ---
+function openIMChat(charId) {
+    if (!db) return;
+    currentIMCharId = charId;
+    window.isIMScreenOpen = true;
+    chatHistory = []; // 重置当前内存数组
+
+    const tx = db.transaction(["characters"], "readonly");
+    const store = tx.objectStore("characters");
+    const req = store.get(charId);
+
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char) {
+            document.getElementById('imHeaderName').innerText = char.remark || char.name || '未命名';
+            const avatarEl = document.getElementById('imHeaderAvatar');
+            if (char.avatarImage) avatarEl.style.backgroundImage = `url(${char.avatarImage})`;
+            else avatarEl.style.backgroundImage = 'none';
+
+            const chatArea = document.getElementById('imChatArea');
+            chatArea.innerHTML = '<div class="im-time-stamp">刚刚</div>';
+
+            if (char.history) {
+                chatHistory = char.history; // 载入完整历史
+                // 仅渲染属于 imessage 的消息
+                const imHistory = char.history.filter(m => m.app === 'imessage');
+                imHistory.forEach(msg => {
+                    if (msg.role === 'user' || msg.role === 'assistant') {
+                        if (typeof msg.content === 'string') {
+                            appendIMMessage(msg.content, msg.role === 'user');
+                        }
+                    }
+                });
+            }
+
+            document.getElementById('imScreen').classList.add('active');
+            setTimeout(() => {
+                chatArea.scrollTo({ top: chatArea.scrollHeight, behavior: 'instant' });
+            }, 50);
+        }
+    };
+}
+
+function closeIMChat() {
+    window.isIMScreenOpen = false;
+    currentIMCharId = null;
+    document.getElementById('imScreen').classList.remove('active');
+    renderIMList(); // 退出时刷新列表预览
+}
+
+// 动态添加气泡并处理小尾巴
+function appendIMMessage(text, isRight) {
+    const chatArea = document.getElementById('imChatArea');
+    const sideClass = isRight ? 'right' : 'left';
+    
+    // 查找上一条，如果是同方向，移除旧尾巴和时间
+    const lastRow = chatArea.lastElementChild;
+    if (lastRow && lastRow.classList.contains(sideClass)) {
+        const oldTail = lastRow.querySelector('.im-tail');
+        if (oldTail) oldTail.remove();
+        const oldStatus = lastRow.querySelector('.im-msg-status');
+        if (oldStatus) oldStatus.remove();
+    }
+
+    const row = document.createElement('div');
+    row.className = `im-msg-row ${sideClass}`;
+    
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const statusText = isRight ? `已读 ${timeStr}` : timeStr;
+
+    row.innerHTML = `
+        <div class="im-msg-group">
+            <div class="im-bubble">
+                ${escapeHTML(text)}
+                <div class="im-tail"></div>
+            </div>
+            <div class="im-msg-status">${statusText}</div>
+        </div>
+    `;
+    
+    chatArea.appendChild(row);
+    chatArea.scrollTo({ top: chatArea.scrollHeight, behavior: 'smooth' });
+}
+
+// 输入框状态机
+const imInputEl = document.getElementById('imInput');
+const imSendBtn = document.getElementById('imSendBtn');
+
+function updateIMBtnState() {
+    const hasText = imInputEl.value.trim().length > 0;
+    const isFocused = document.activeElement === imInputEl;
+
+    imSendBtn.classList.remove('state-voice', 'state-empty', 'state-active');
+
+    if (hasText) {
+        imSendBtn.classList.add('state-active');
+    } else if (isFocused) {
+        imSendBtn.classList.add('state-empty');
+    } else {
+        imSendBtn.classList.add('state-voice');
+    }
+}
+
+imInputEl.addEventListener('input', updateIMBtnState);
+imInputEl.addEventListener('focus', updateIMBtnState);
+imInputEl.addEventListener('blur', updateIMBtnState);
+
+imInputEl.addEventListener('keydown', (e) => {
+    if (e.isComposing) return;
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        handleIMSendClick();
+    }
+});
+
+// 发送点击逻辑
+function handleIMSendClick() {
+    if (imSendBtn.classList.contains('state-voice')) return;
+
+    const text = imInputEl.value.trim();
+    if (text) {
+        // 有字：发送用户消息并打上 imessage 标签
+        appendIMMessage(text, true);
+        chatHistory.push({ role: "user", content: text, app: 'imessage' });
+        
+        imInputEl.value = '';
+        updateIMBtnState();
+        
+        // 保存到数据库
+        const tx = db.transaction(["characters"], "readwrite");
+        const store = tx.objectStore("characters");
+        store.get(currentIMCharId).onsuccess = (e) => {
+            const char = e.target.result;
+            char.history = chatHistory;
+            store.put(char);
+        };
+
+        setTimeout(() => imInputEl.focus(), 10);
+    } else {
+        // 没字：请求 AI 回复 (传入 sourceApp = 'imessage')
+        fetchAIResponse(currentIMCharId, false, 'imessage');
+    }
+}
+// --- 信息(iMessage) 下拉菜单控制 ---
+function toggleMsgMenu() {
+    const overlay = document.getElementById('msgDropdownOverlay');
+    if (overlay.classList.contains('active')) {
+        closeMsgMenu();
+    } else {
+        overlay.classList.add('active');
+    }
+}
+
+function closeMsgMenu() {
+    document.getElementById('msgDropdownOverlay').classList.remove('active');
+}
