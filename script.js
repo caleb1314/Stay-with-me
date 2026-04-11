@@ -5130,14 +5130,13 @@ function closeIMChat() {
     renderIMList(); // 退出时刷新列表预览
 }
 
-// 动态添加气泡并处理小尾巴
+// 动态添加气泡并处理小尾巴 (已加入长按菜单绑定)
 function appendIMMessage(text, isRight) {
     const chatArea = document.getElementById('imChatArea');
     const sideClass = isRight ? 'right' : 'left';
     
-    // 查找上一条，如果是同方向，移除旧尾巴和时间
     const lastRow = chatArea.lastElementChild;
-    if (lastRow && lastRow.classList.contains(sideClass)) {
+    if (lastRow && lastRow.classList.contains(sideClass) && !lastRow.classList.contains('im-recall-tip')) {
         const oldTail = lastRow.querySelector('.im-tail');
         if (oldTail) oldTail.remove();
         const oldStatus = lastRow.querySelector('.im-msg-status');
@@ -5163,6 +5162,25 @@ function appendIMMessage(text, isRight) {
     
     chatArea.appendChild(row);
     chatArea.scrollTo({ top: chatArea.scrollHeight, behavior: 'smooth' });
+
+    // === 绑定长按事件 ===
+    const bubble = row.querySelector('.im-bubble');
+    if (bubble) {
+        bubble.addEventListener('touchstart', (e) => {
+            imIsPressing = true;
+            bubble.classList.add('pressing');
+            imPressTimer = setTimeout(() => {
+                if (imIsPressing) {
+                    bubble.classList.remove('pressing');
+                    showIMContextMenu(bubble);
+                }
+            }, 400);
+        }, { passive: true });
+
+        bubble.addEventListener('touchmove', () => { imIsPressing = false; clearTimeout(imPressTimer); bubble.classList.remove('pressing'); }, { passive: true });
+        bubble.addEventListener('touchend', () => { imIsPressing = false; clearTimeout(imPressTimer); bubble.classList.remove('pressing'); });
+        bubble.addEventListener('contextmenu', (e) => { e.preventDefault(); showIMContextMenu(bubble); });
+    }
 }
 
 // 输入框状态机
@@ -5318,3 +5336,187 @@ document.getElementById('imBgUploadInput').addEventListener('change', function(e
     reader.readAsDataURL(file);
     e.target.value = ''; // 清空 input，保证下次选同一张图也能触发
 });
+// =========================================
+// === iMessage 长按菜单、表情与撤回逻辑 ===
+// =========================================
+
+let imPressTimer;
+let imIsPressing = false;
+let imActiveBubble = null;
+
+const imOverlay = document.getElementById('imOverlay');
+const imReactionBar = document.getElementById('imReactionBar');
+const imActionList = document.getElementById('imActionList');
+const imTailLarge = document.getElementById('imTailLarge');
+const imTailSmall = document.getElementById('imTailSmall');
+const imEmojiPicker = document.getElementById('imEmojiPicker');
+
+// 点击遮罩关闭菜单
+if (imOverlay) {
+    imOverlay.addEventListener('touchstart', hideIMContextMenu, { passive: true });
+    imOverlay.addEventListener('mousedown', hideIMContextMenu);
+}
+
+function showIMContextMenu(bubble) {
+    if (navigator.vibrate) navigator.vibrate(50);
+    imActiveBubble = bubble;
+    imActiveBubble.classList.add('highlight');
+    imOverlay.classList.add('active');
+    
+    const rect = bubble.getBoundingClientRect();
+    const isRight = bubble.closest('.im-msg-row').classList.contains('right');
+    
+    // 定位表情栏
+    imReactionBar.style.top = (rect.top - 55) + 'px';
+    if (isRight) {
+        imReactionBar.style.right = '16px'; imReactionBar.style.left = 'auto';
+        imReactionBar.style.transformOrigin = 'bottom right';
+        imTailLarge.style.right = '24px'; imTailLarge.style.left = 'auto'; imTailLarge.style.bottom = '-6px';
+        imTailSmall.style.right = '18px'; imTailSmall.style.left = 'auto'; imTailSmall.style.bottom = '-12px';
+    } else {
+        imReactionBar.style.left = '16px'; imReactionBar.style.right = 'auto';
+        imReactionBar.style.transformOrigin = 'bottom left';
+        imTailLarge.style.left = '24px'; imTailLarge.style.right = 'auto'; imTailLarge.style.bottom = '-6px';
+        imTailSmall.style.left = '18px'; imTailSmall.style.right = 'auto'; imTailSmall.style.bottom = '-12px';
+    }
+
+    // 定位操作列表
+    imActionList.style.top = (rect.bottom + 10) + 'px';
+    if (isRight) {
+        imActionList.style.right = '16px'; imActionList.style.left = 'auto';
+        imActionList.style.transformOrigin = 'top right';
+    } else {
+        imActionList.style.left = '16px'; imActionList.style.right = 'auto';
+        imActionList.style.transformOrigin = 'top left';
+    }
+    
+    imReactionBar.classList.add('active');
+    imActionList.classList.add('active');
+}
+
+function hideIMContextMenu() {
+    imReactionBar.classList.remove('active');
+    imActionList.classList.remove('active');
+    imOverlay.classList.remove('active');
+    closeIMEmojiPicker();
+    if (imActiveBubble) {
+        imActiveBubble.classList.remove('highlight');
+        imActiveBubble = null;
+    }
+}
+
+// 添加回应 (支持 SVG 和 Emoji 文本)
+function addIMReaction(type, content, isEmoji = false) {
+    if (!imActiveBubble) return;
+    
+    const isRight = imActiveBubble.closest('.im-msg-row').classList.contains('right');
+    const oldBadge = imActiveBubble.querySelector('.im-reaction-badge');
+
+    if (oldBadge) {
+        const oldType = oldBadge.getAttribute('data-reaction-type');
+        oldBadge.remove();
+        if (oldType === type) {
+            hideIMContextMenu();
+            return;
+        }
+    }
+
+    let finalContent = content;
+    if (!isEmoji) {
+        // SVG 颜色自适应
+        if (isRight) finalContent = finalContent.replace(/currentColor/g, '#555555');
+        else finalContent = finalContent.replace(/currentColor/g, '#ffffff');
+        finalContent = `<svg viewBox="0 0 24 24">${finalContent}</svg>`;
+    }
+
+    const badge = document.createElement('div');
+    badge.className = 'im-reaction-badge';
+    badge.setAttribute('data-reaction-type', type);
+    badge.innerHTML = finalContent;
+
+    imActiveBubble.appendChild(badge);
+    hideIMContextMenu();
+}
+
+// --- Emoji 面板逻辑 ---
+const commonEmojis = ['😂','😭','🥺','🤣','❤️','✨','🔥','👍','🙏','🥰','😊','😎','🤔','🙄','🤐','😴','🤤','🤮','🤧','😵'];
+
+function openIMEmojiPicker() {
+    imReactionBar.classList.remove('active');
+    imActionList.classList.remove('active');
+    
+    const grid = document.getElementById('imEmojiGrid');
+    if (grid.innerHTML === '') {
+        commonEmojis.forEach(emoji => {
+            const cell = document.createElement('div');
+            cell.className = 'im-emoji-cell';
+            cell.innerText = emoji;
+            cell.onclick = () => addIMReaction('emoji_' + emoji, emoji, true);
+            grid.appendChild(cell);
+        });
+    }
+    imEmojiPicker.classList.add('active');
+}
+
+function closeIMEmojiPicker() {
+    imEmojiPicker.classList.remove('active');
+}
+
+// --- iMessage 菜单操作与真实撤回 ---
+function handleIMAction(action) {
+    if (!imActiveBubble) return;
+    const text = imActiveBubble.innerText.trim();
+    const row = imActiveBubble.closest('.im-msg-row');
+
+    hideIMContextMenu();
+
+    if (action === '拷贝') {
+        navigator.clipboard.writeText(text).then(() => alert('已拷贝'));
+    } else if (action === '撤回') {
+        if (confirm('确定要撤回这条消息吗？')) {
+            // 1. 找到该消息在 DOM 中的索引
+            const allRows = Array.from(document.querySelectorAll('#imChatArea .im-msg-row'));
+            const domIndex = allRows.indexOf(row);
+            
+            if (domIndex !== -1 && currentIMCharId && db) {
+                // 2. 映射到 chatHistory 中属于 imessage 的消息
+                let imMsgs = chatHistory.filter(m => m.app === 'imessage');
+                if (imMsgs[domIndex]) {
+                    let realIndex = chatHistory.indexOf(imMsgs[domIndex]);
+                    if (realIndex !== -1) {
+                        // 3. 修改数据库状态
+                        chatHistory[realIndex] = { 
+                            role: chatHistory[realIndex].role, 
+                            type: 'recalled', 
+                            originalContent: text, 
+                            app: 'imessage' 
+                        };
+                        
+                        const tx = db.transaction(["characters"], "readwrite");
+                        const store = tx.objectStore("characters");
+                        store.get(currentIMCharId).onsuccess = (e) => {
+                            const char = e.target.result;
+                            char.history = chatHistory;
+                            store.put(char).onsuccess = () => {
+                                renderIMList(); // 刷新外层列表
+                            };
+                        };
+                    }
+                }
+            }
+
+            // 4. UI 动画替换为撤回提示
+            row.style.opacity = '0';
+            row.style.transform = 'scale(0.9)';
+            row.style.transition = 'all 0.2s';
+            
+            setTimeout(() => {
+                const isRight = row.classList.contains('right');
+                const tipText = isRight ? "你撤回了一条消息" : "对方撤回了一条消息";
+                row.outerHTML = `<div class="im-recall-tip">${tipText}</div>`;
+            }, 200);
+        }
+    } else {
+        alert(`点击了：${action}`);
+    }
+}
