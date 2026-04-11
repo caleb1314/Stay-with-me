@@ -5086,13 +5086,24 @@ function openIMChat(charId) {
 
     req.onsuccess = () => {
         const char = req.result;
-        if (char) {
-            document.getElementById('imHeaderName').innerText = char.remark || char.name || '未命名';
-            const avatarEl = document.getElementById('imHeaderAvatar');
-            if (char.avatarImage) avatarEl.style.backgroundImage = `url(${char.avatarImage})`;
-            else avatarEl.style.backgroundImage = 'none';
+    if (char) {
+        document.getElementById('imHeaderName').innerText = char.remark || char.name || '未命名';
+        const avatarEl = document.getElementById('imHeaderAvatar');
+        if (char.avatarImage) avatarEl.style.backgroundImage = `url(${char.avatarImage})`;
+        else avatarEl.style.backgroundImage = 'none';
 
-            const chatArea = document.getElementById('imChatArea');
+        // === 新增：读取并设置 iMessage 专属背景 ===
+        const imScreen = document.getElementById('imScreen');
+        if (char.imBgImage) {
+            imScreen.style.backgroundImage = `url(${char.imBgImage})`;
+            imScreen.style.backgroundSize = 'cover';
+            imScreen.style.backgroundPosition = 'center';
+        } else {
+            imScreen.style.backgroundImage = 'none';
+        }
+        // =====================================
+
+        const chatArea = document.getElementById('imChatArea');
             chatArea.innerHTML = '<div class="im-time-stamp">刚刚</div>';
 
             if (char.history) {
@@ -5274,3 +5285,39 @@ function removeIMTypingIndicator() {
     const els = document.querySelectorAll('#imChatArea .im-typing-row');
     els.forEach(el => el.remove());
 }
+// =========================================
+// === iMessage 更换背景逻辑 ===
+// =========================================
+function triggerIMBgUpload() {
+    document.getElementById('imBgUploadInput').click();
+}
+
+document.getElementById('imBgUploadInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file || !currentIMCharId || !db) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        const base64 = event.target.result;
+        
+        const tx = db.transaction(["characters"], "readwrite");
+        const store = tx.objectStore("characters");
+        const req = store.get(currentIMCharId);
+        
+        req.onsuccess = () => {
+            const char = req.result;
+            if (char) {
+                char.imBgImage = base64; // 保存到该角色的专属字段
+                store.put(char);
+                
+                // 立即更新 UI
+                const imScreen = document.getElementById('imScreen');
+                imScreen.style.backgroundImage = `url(${base64})`;
+                imScreen.style.backgroundSize = 'cover';
+                imScreen.style.backgroundPosition = 'center';
+            }
+        };
+    };
+    reader.readAsDataURL(file);
+    e.target.value = ''; // 清空 input 保证下次能重复选同一张图
+});
