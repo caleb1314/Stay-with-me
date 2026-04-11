@@ -2545,8 +2545,8 @@ input:-webkit-autofill:active {
 .im-msg-row.right .im-bubble { background-color: #555555; color: #FFFFFF; }
 
 .im-tail { position: absolute; width: 120px; height: 85px; z-index: -1; background-size: contain; background-repeat: no-repeat; }
-.im-msg-row.right .im-tail { bottom: -36px; right: 1px; background-position: bottom right; background-image: url('https://file.uhsea.com/2604/52c07f64d1298c1af02a139de1618a195O.png'); }
-.im-msg-row.left .im-tail { bottom: -36px; left: 1px; background-position: bottom right; transform: scaleX(-1); background-image: url('https://file.uhsea.com/2604/7161272a3b5eb65765260f4d68da35b74K.png'); }
+.im-msg-row.right .im-tail { bottom: -36px; right: 0px; background-position: bottom right; background-image: url('https://file.uhsea.com/2604/52c07f64d1298c1af02a139de1618a195O.png'); }
+.im-msg-row.left .im-tail { bottom: -36px; left: 0px; background-position: bottom right; transform: scaleX(-1); background-image: url('https://file.uhsea.com/2604/7161272a3b5eb65765260f4d68da35b74K.png'); }
 
 .im-msg-status { font-size: 11px; font-weight: 600; color: rgba(0,0,0,0.3); margin-top: 4px; position: relative; z-index: 2; animation: fadeIn 0.3s ease 0.2s both; }
 .im-msg-row.right .im-msg-status { margin-right: 20px; }
