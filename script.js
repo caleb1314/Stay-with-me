@@ -1,2028 +1,1645 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#e8e9eb">
-    <title>iOS Minimalist Home - Hajimi Edition</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="https://file.uhsea.com/2602/70da4faf682de2817a4b430809e0bce3NN.jpg">
-    
-    <!-- 微信界面专属 CSS (直接内嵌) -->
-    <style>
-        /* ... (保留你原有的微信 CSS，此处省略以节省篇幅，请保持原样) ... */
-        /* 请确保保留原文件中 <style> 标签内的所有内容 */
-        /* ========================================= */
-        /* === Wechat 界面样式 (独立命名空间 wx-) === */
-        /* ========================================= */
+// --- 音乐播放器 JS ---
+const METING_API = 'https://api.i-meto.com/meting/api';
+const audioPlayer = document.getElementById('audioPlayer');
+let currentPlaylist = [];
+let currentIndex = -1;
+let isMusicPlaying = false;
+let playMode = 'list'; 
+let currentLyrics = [];
 
-        .app-screen-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: #f2f2f7;
-            background-image: linear-gradient(180deg, #eef1f5 0%, #e6e9ef 100%);
-            z-index: 5000; /* 保证在主页之上 */
-            display: flex; flex-direction: column;
-            transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+function openMusicPlayer() { document.getElementById('music-player-overlay').classList.add('open'); }
+function closeMusicPlayer() { document.getElementById('music-player-overlay').classList.remove('open'); }
+function openMusicSearch() { const keyword = prompt("搜索歌曲或歌手:"); if (keyword && keyword.trim() !== "") searchMusic(keyword.trim()); }
+function closeMusicSearch() { document.getElementById('music-search-overlay').classList.remove('open'); }
+
+async function searchMusic(keyword) {
+    const overlay = document.getElementById('music-search-overlay');
+    const resultsContainer = document.getElementById('music-search-results');
+    overlay.classList.add('open');
+    resultsContainer.innerHTML = '<div style="color:#fff; text-align:center;">搜索中...</div>';
+    try {
+        const url = `${METING_API}?server=netease&type=search&id=${encodeURIComponent(keyword)}&r=${Math.random()}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        if (Array.isArray(data) && data.length > 0) {
+            currentPlaylist = data;
+            renderSearchResults(data);
+        } else {
+            resultsContainer.innerHTML = '<div style="color:#fff; text-align:center;">未找到结果</div>';
         }
-        .app-screen-overlay.active { transform: translateY(0); }
-
-        /* 头部区域 */
-        .wx-header-area {
-            padding: 55px 16px 0; /* 避开状态栏 */
-            display: flex; flex-direction: column; gap: 10px;
-            background: transparent;
-        }
-
-        .wx-nav-bar { display: flex; justify-content: space-between; align-items: center; height: 44px; }
-
-        .wx-star-btn {
-            width: 36px; height: 36px; border-radius: 50%;
-            background: rgba(255, 255, 255, 0.6);
-            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-            display: flex; justify-content: center; align-items: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            border: 0.5px solid rgba(255,255,255,0.8);
-            transition: transform 0.2s; cursor: pointer;
-        }
-        .wx-star-btn:active { transform: scale(0.9); }
-        .wx-star-btn svg { width: 18px; height: 18px; fill: #333; }
-
-        .wx-page-title { font-size: 17px; font-weight: 600; color: #000; }
-
-        /* 搜索栏 */
-        .wx-search-container { margin-top: 5px; }
-        .wx-search-input {
-            width: 100%; height: 36px;
-            background: rgba(118, 118, 128, 0.12);
-            border-radius: 10px;
-            display: flex; align-items: center; justify-content: center; gap: 6px;
-        }
-        .wx-search-input svg { width: 16px; height: 16px; fill: #8e8e93; }
-        .wx-search-input span { font-size: 17px; color: #8e8e93; }
-
-        /* 分组 Tab */
-        .wx-tab-row {
-            display: flex; align-items: center; gap: 24px;
-            padding: 15px 4px 10px; margin-bottom: 5px;
-            overflow-x: auto; scrollbar-width: none;
-        }
-        .wx-tab-row::-webkit-scrollbar { display: none; }
-
-        .wx-text-tab {
-            font-size: 15px; font-weight: 600; color: #8e8e93;
-            position: relative; transition: color 0.3s; white-space: nowrap; cursor: pointer;
-        }
-        .wx-text-tab.active { color: #000; font-size: 16px; font-weight: 700; }
-        .wx-text-tab.active::after {
-            content: ''; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%);
-            width: 16px; height: 3px; background: #007aff; border-radius: 2px;
-        }
-
-        /* 滚动内容区 */
-        .wx-scroll-content {
-            flex: 1; overflow-y: auto; padding-bottom: 120px;
-            -webkit-overflow-scrolling: touch; scrollbar-width: none;
-        }
-        .wx-scroll-content::-webkit-scrollbar { display: none; }
-
-        /* 电脑登录提示 */
-        .wx-mac-login-bar {
-            margin: 0 16px 15px 16px; padding: 12px 16px;
-            background: rgba(255, 255, 255, 0.6);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border-radius: 14px; display: flex; align-items: center; gap: 12px;
-            border: 0.5px solid rgba(255, 255, 255, 0.8);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-        }
-        .wx-mac-login-bar svg { width: 20px; height: 20px; fill: #555; }
-        .wx-mac-login-bar span { font-size: 13px; color: #444; font-weight: 500; }
-
-        /* 列表区块 */
-        .wx-group-block {
-            margin: 0 16px 20px 16px;
-            background: rgba(255, 255, 255, 0.75);
-            backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
-            border-radius: 18px; overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-            border: 0.5px solid rgba(255,255,255,0.4);
-        }
-
-        .wx-chat-row {
-            display: flex; align-items: center; padding: 12px 16px; gap: 12px; position: relative; cursor: pointer;
-        }
-        .wx-chat-row:active { background: rgba(0,0,0,0.05); }
-        .wx-chat-row:not(:last-child)::after {
-            content: ''; position: absolute; bottom: 0; right: 0; left: 76px;
-            height: 0.5px; background-color: rgba(60, 60, 67, 0.15);
-        }
-
-        .wx-avatar-gray { width: 48px; height: 48px; border-radius: 8px; background-color: #d1d1d6; flex-shrink: 0; background-size: cover; background-position: center; }
-        .wx-chat-content { flex: 1; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
-        .wx-row-top { display: flex; justify-content: space-between; align-items: baseline; }
-        .wx-chat-title { font-size: 16px; font-weight: 600; color: #000; }
-        .wx-chat-date { font-size: 11px; color: #8e8e93; font-weight: 400; }
-        .wx-row-bottom { display: flex; justify-content: space-between; align-items: center; }
-        .wx-chat-preview { font-size: 14px; color: #8e8e93; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90%; }
-        .wx-badge-dot { width: 10px; height: 10px; background: #ff3b30; border-radius: 50%; }
-
-        /* 底部悬浮胶囊栏 */
-        .wx-capsule-dock-container {
-            position: fixed; bottom: 30px; left: 0; width: 100%;
-            display: flex; justify-content: center; z-index: 5001; pointer-events: none;
-        }
-
-        .wx-capsule-dock {
-            pointer-events: auto;
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
-            padding: 12px 25px; border-radius: 50px;
-            display: flex; gap: 35px; align-items: center;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.12), 0 5px 10px rgba(0,0,0,0.05);
-            border: 0.5px solid rgba(255,255,255,0.6);
-        }
-
-        .wx-dock-item {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            opacity: 0.6; transition: all 0.2s ease; cursor: pointer;
-        }
-        .wx-dock-item.active { opacity: 1; }
-
-        .wx-dock-icon-img {
-            object-fit: contain;
-            filter: drop-shadow(0.3px 0 0 #000) drop-shadow(-0.3px 0 0 #000) drop-shadow(0 0.3px 0 #000) drop-shadow(0 -0.3px 0 #000);
-            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-
-        .wx-dock-item:nth-child(1) .wx-dock-icon-img { width: 34px; height: 34px; }
-        .wx-dock-item:nth-child(2) .wx-dock-icon-img { width: 29px; height: 29px; }
-        .wx-dock-item:nth-child(3) .wx-dock-icon-img { width: 31px; height: 31px; transform: translateY(1px); }
-        .wx-dock-item:nth-child(4) .wx-dock-icon-img { width: 24px; height: 24px; opacity: 0.85; }
-
-        .wx-dock-item:active .wx-dock-icon-img { transform: scale(0.9) translateY(0); }
-        .wx-dock-item:nth-child(3):active .wx-dock-icon-img { transform: scale(0.9) translateY(1px); }
-        /* === 微信长按菜单样式 === */
-.wx-context-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.05); 
-    z-index: 9999;
-    display: flex; align-items: center; justify-content: center;
-    opacity: 0; pointer-events: none;
-    transition: opacity 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+    } catch (error) {
+        resultsContainer.innerHTML = '<div style="color:#fff; text-align:center;">搜索失败</div>';
+    }
 }
-.wx-context-overlay.active { opacity: 1; pointer-events: auto; }
 
-.wx-context-menu {
-    width: 250px; background: rgba(255, 255, 255, 0.85); 
-    backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
-    border-radius: 14px; display: flex; flex-direction: column;
-    transform: scale(0.9); opacity: 0;
-    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+function renderSearchResults(data) {
+    const container = document.getElementById('music-search-results');
+    container.innerHTML = '';
+    data.forEach((song, index) => {
+        const item = document.createElement('div');
+        item.className = 'search-item';
+        item.onclick = () => { playSongByIndex(index); closeMusicSearch(); };
+        item.innerHTML = `<div class="search-cover" style="background-image: url('${song.pic.replace(/^http:/i, 'https:')}')"></div><div class="search-info"><div class="search-title">${song.title}</div><div class="search-artist">${song.author}</div></div>`;
+        container.appendChild(item);
+    });
 }
-.wx-context-overlay.active .wx-context-menu { transform: scale(1); opacity: 1; }
 
-.wx-ctx-item {
-    height: 44px; display: flex; align-items: center; justify-content: space-between;
-    padding: 0 16px; font-size: 15px; color: #000; font-weight: 500; 
-    position: relative; cursor: pointer;
+async function playSongByIndex(index) {
+    if (index < 0 || index >= currentPlaylist.length) return;
+    currentIndex = index;
+    const song = currentPlaylist[index];
+    let secureUrl = song.url.replace(/^http:/i, 'https://');
+    if (secureUrl.includes('sycdn.kuwo.cn')) secureUrl = secureUrl.replace(/^https?:\/\/([^.]+)\.sycdn\.kuwo\.cn\//, 'https://$1-sycdn.kuwo.cn/');
+    audioPlayer.src = secureUrl;
+    audioPlayer.play().then(() => setMusicPlayState(true)).catch(e => setMusicPlayState(false));
+    updatePlayerUI(song);
+    loadLyrics(song.lrc);
+    saveMusicState();
 }
-.wx-ctx-item:active { background: rgba(0,0,0,0.08); }
-.wx-ctx-item:first-child { border-radius: 14px 14px 0 0; }
-.wx-ctx-item:last-child { border-radius: 0 0 14px 14px; }
-.wx-ctx-item:not(:last-child)::after {
-    content: ''; position: absolute; bottom: 0; right: 0; left: 0;
-    height: 0.5px; background: rgba(0, 0, 0, 0.08); 
+
+function updatePlayerUI(song) {
+    const securePic = song.pic.replace(/^http:/i, 'https:');
+    document.getElementById('playerAlbumArt').style.backgroundImage = `url(${securePic})`;
+    document.getElementById('player-bg').style.backgroundImage = `url(${securePic})`;
+    document.getElementById('player-track-title').textContent = song.title;
+    document.getElementById('player-track-artist').textContent = song.author;
 }
-.wx-ctx-icon {
-    width: 18px; height: 18px; fill: none; stroke: #000; stroke-width: 1.5; 
-    stroke-linecap: round; stroke-linejoin: round;
+
+function setMusicPlayState(isPlaying) {
+    isMusicPlaying = isPlaying;
+    document.getElementById('playerPlayIcon').style.display = isPlaying ? 'none' : 'block';
+    document.getElementById('playerPauseIcon').style.display = isPlaying ? 'block' : 'none';
+    document.getElementById('playerAlbumArt').classList.toggle('paused', !isPlaying);
 }
-.wx-ctx-item.danger { color: #ff3b30; }
-.wx-ctx-item.danger .wx-ctx-icon { stroke: #ff3b30; }
 
-.wx-chat-row { transition: transform 0.2s, background-color 0.2s; }
-.wx-chat-row.pressing { transform: scale(0.98); background: rgba(0,0,0,0.05); }
-    </style>
-</head>
-<body>
+function togglePlay() {
+    if (currentIndex === -1) {
+        if (currentPlaylist.length > 0) playSongByIndex(0);
+        else openMusicSearch();
+        return;
+    }
+    if (audioPlayer.paused) { audioPlayer.play(); setMusicPlayState(true); } 
+    else { audioPlayer.pause(); setMusicPlayState(false); }
+}
 
-    <!-- 状态栏 (全局保留) -->
-    <div class="status-bar">
-        <div class="time-container">
-            <div class="time" id="currentTime">16:17</div>
-            <div class="time-decorator" id="timeDecorator"></div>
-        </div>
-        <div class="status-icons">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="#333"><rect x="0" y="12" width="4.5" height="6" rx="1.5"/><rect x="6.5" y="9" width="4.5" height="9" rx="1.5"/><rect x="13" y="6" width="4.5" height="12" rx="1.5"/><rect x="19.5" y="4" width="4.5" height="14" rx="1.5"/><rect x="0" y="20" width="4.5" height="4" rx="1.5"/><rect x="6.5" y="20" width="4.5" height="4" rx="1.5"/><rect x="13" y="20" width="4.5" height="4" rx="1.5"/><rect x="19.5" y="20" width="4.5" height="4" rx="1.5"/></svg>
-            <svg width="20" height="16" viewBox="0 0 24 20" fill="#333"><path d="M12 3c4.6 0 8.8 1.8 12 4.7l-1.5 1.8C19.8 7 16.1 5.3 12 5.3s-7.8 1.7-10.5 4.2L0 7.7C3.2 4.8 7.4 3 12 3z" stroke="#333" stroke-width="0.5"/><path d="M12 9.5c2.8 0 5.4 1.1 7.3 2.9l-1.5 1.8C16.5 13 14.4 12.2 12 12.2s-4.5.8-5.8 2L4.7 12.4c1.9-1.8 4.5-2.9 7.3-2.9z" stroke="#333" stroke-width="0.5"/><path d="M12 15.8c1.1 0 2.1.4 2.8 1.1l-2.8 3.4-2.8-3.4c.7-.7 1.7-1.1 2.8-1.1z" stroke="#333" stroke-width="0.5"/></svg>
-            <svg width="32" height="14" viewBox="0 0 32 14"><defs><mask id="battery-mask"><rect width="32" height="14" fill="white" /><text x="13.5" y="11.5" font-size="12" font-weight="900" fill="black" text-anchor="middle" letter-spacing="-0.5" id="batteryText">77</text></mask></defs><rect x="0" y="0" width="27" height="14" rx="4.5" fill="#333" mask="url(#battery-mask)" /><path d="M28 4.5 v5 a2 2 0 0 0 0 -5 z" fill="#333" /></svg>
-        </div>
-    </div>
+function playNext() { let nextIndex = currentIndex + 1; if (nextIndex >= currentPlaylist.length) nextIndex = 0; playSongByIndex(nextIndex); }
+function playPrev() { let prevIndex = currentIndex - 1; if (prevIndex < 0) prevIndex = currentPlaylist.length - 1; playSongByIndex(prevIndex); }
 
-    <div class="pages-container" id="mainPages">
-        <!-- 第一页 -->
-        <div class="page">
-            <div class="top-widget-container">
-                <svg class="connecting-lines" viewBox="-50 0 400 250">
-                    <defs><linearGradient id="fade-grad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#888;stop-opacity:1" /><stop offset="85%" style="stop-color:#888;stop-opacity:0" /></linearGradient></defs>
-                    <circle cx="35" cy="78" r="4" fill="#888" /><circle cx="265" cy="78" r="4" fill="#888" />
-                    <path d="M 35 78 Q -50 110, 105 200" fill="none" stroke="url(#fade-grad)" stroke-width="1.3" stroke-linecap="round"/>
-                    <path d="M 265 78 Q 350 110, 195 200" fill="none" stroke="url(#fade-grad)" stroke-width="1.3" stroke-linecap="round"/>
-                </svg>
-                <div class="avatars-wrapper">
-                    <div class="avatar-group"><div class="speech-bubble" contenteditable="true" data-save="p1-bubble-l">你在左边</div><div class="avatar-circle img-upload-target" data-img-id="p1-avatar-l"></div></div>
-                    <div class="avatar-group"><div class="speech-bubble" contenteditable="true" data-save="p1-bubble-r">我紧靠右</div><div class="avatar-circle img-upload-target" data-img-id="p1-avatar-r"></div></div>
-                </div>
-                <div class="center-text">Twenty four seven with us</div>
-                <div class="music-player-v2">
-                    <div class="music-title">Pink Lavender</div>
-                    <div class="music-subtitle" contenteditable="true" data-save="p1-music-sub">· ⁺ ⋆ ‿ ıllıllı ‿ ⋆ ⁺ ·</div>
-                    <div class="progress-container">
-                        <div class="time-label">1:26</div>
-                        <div class="progress-bar"><div class="progress-fill"></div></div>
-                        <div class="time-label">3:48</div>
-                    </div>
-                    <div class="controls-row">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="#666"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                        <div class="main-controls">
-                            <svg width="24" height="24" viewBox="0 0 24 24"><path d="M11 18V6l-8.5 6z" fill="#333" stroke="#333" stroke-width="3" stroke-linejoin="round"/><path d="M22 18V6l-8.5 6z" fill="#333" stroke="#333" stroke-width="3" stroke-linejoin="round"/></svg>
-                            <svg width="32" height="32" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="2" fill="#333"/><rect x="14" y="5" width="4" height="14" rx="2" fill="#333"/></svg>
-                            <svg width="24" height="24" viewBox="0 0 24 24"><path d="M2 6v12l8.5-6z" fill="#333" stroke="#333" stroke-width="3" stroke-linejoin="round"/><path d="M13 6v12l8.5-6z" fill="#333" stroke="#333" stroke-width="3" stroke-linejoin="round"/></svg>
-                        </div>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2"><path d="M9.52 14.47 A 3.5 3.5 0 1 1 14.48 14.47"/><path d="M7.05 16.95 A 7 7 0 1 1 16.95 16.95"/><path d="M4.58 19.42 A 10.5 10.5 0 1 1 19.42 19.42"/><path d="M12 15.5L16.5 21H7.5L12 15.5Z" fill="#333"/></svg>
-                    </div>
-                </div>
-            </div>
-            <div class="centered-label">Colorful Widget</div>
-            <div class="middle-section">
-                <div class="left-apps">
-                    <div class="app-item" data-app-id="p1-app-wechat" onclick="openWechat()">
-                        <div class="app-icon gray-1"></div><span class="app-name">Wechat</span>
-                    </div>
-                    <div class="app-item" data-app-id="p1-app-files"><div class="app-icon gray-2"></div><span class="app-name">文件</span></div>
-                    <div class="app-item" data-app-id="p1-app-world" onclick="openWorldBookScreen()">
-    <div class="app-icon gray-3"></div><span class="app-name">世界</span>
-</div>
-                    <div class="app-item" data-app-id="p1-app-contacts" onclick="openContactsScreen()">
-    <div class="app-icon gray-4"></div><span class="app-name">通讯录</span>
-</div>
-                </div>
-                <div class="right-widget-wrap">
-                    <div class="large-widget img-upload-target" data-img-id="p1-large-widget"></div>
-                    <div class="sub-label">Colorful Widget</div>
-                </div>
-            </div>
-        </div>
+function formatTime(s) {
+    if (isNaN(s)) return "0:00";
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, '0')}`;
+}
 
-        <!-- 第二页 -->
-        <div class="page">
-            <div class="large-rect-widget">
-                <div class="widget-top-row">
-                    <div class="rect-avatar img-upload-target" data-img-id="p2-rect-avatar"></div>
-                    <div class="text-content">
-                        <div class="info-line"><span contenteditable="true" data-save="p2-today">Today is...</span> <svg viewBox="0 0 24 24"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg> <span contenteditable="true" data-save="p2-num">3."</span></div>
-                        <div class="info-line"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> <span contenteditable="true" data-save="p2-love">Love is more than that.</span></div>
-                    </div>
-                </div>
-                <div class="widget-bottom-row">
-                    <div class="mini-square img-upload-target" data-img-id="p2-sq-1"></div>
-                    <div class="mini-square img-upload-target" data-img-id="p2-sq-2"></div>
-                    <div class="mini-square img-upload-target" data-img-id="p2-sq-3"></div>
-                    <div class="mini-square img-upload-target" data-img-id="p2-sq-4"></div>
-                </div>
-            </div>
-            <div class="centered-label">Colorful Widget</div>
-            <div class="middle-section">
-                <div class="profile-widget">
-                    <div class="profile-circle img-upload-target" data-img-id="p2-profile-main"></div>
-                    <div class="profile-name" contenteditable="true" data-save="p2-name">小猫爱你</div>
-                    <div class="status-pill">
-                        <div class="pill-icon-circle"><svg viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18" stroke-linecap="round"/></svg></div>
-                        <span contenteditable="true" data-save="p2-status">我做了一个很长的梦</span>
-                    </div>
-                </div>
-                <div class="right-apps">
-                    <div class="app-item" data-app-id="p2-app-photos"><div class="app-icon gray-1"></div><span class="app-name">照片</span></div>
-                    <div class="app-item" data-app-id="p2-app-weather"><div class="app-icon gray-2"></div><span class="app-name">天气</span></div>
-                    <div class="app-item" data-app-id="p2-app-memories"><div class="app-icon gray-3"></div><span class="app-name">回忆</span></div>
-                    <div class="app-item" data-app-id="p2-app-games"><div class="app-icon gray-4"></div><span class="app-name">游戏</span></div>
-                </div>
-            </div>
-            <div class="bottom-wide-widget img-upload-target" data-img-id="p2-bottom-wide"></div>
-        </div>
+audioPlayer.addEventListener('timeupdate', () => {
+    const { currentTime, duration } = audioPlayer;
+    if (isNaN(duration)) return;
+    const percent = (currentTime / duration) * 100;
+    document.getElementById('player-progress-fill').style.width = `${percent}%`;
+    document.getElementById('player-current-time').textContent = formatTime(currentTime);
+    document.getElementById('player-total-time').textContent = `-${formatTime(duration - currentTime)}`;
+    updateLyrics(currentTime);
+    saveMusicProgress(currentTime);
+});
 
-        <!-- 第三页 -->
-        <div class="page">
-            <div class="p3-top-widget">
-                <div class="p3-main-row">
-                    <div class="p3-side-column">
-                        <div class="p3-text-bar"><span contenteditable="true" data-save="p3-t1">Selcouth</span></div>
-                        <div class="p3-text-bar"><span contenteditable="true" data-save="p3-t2">Sonorous</span></div>
-                    </div>
-                    <div class="p3-center-avatar img-upload-target" data-img-id="p3-center-avatar"></div>
-                    <div class="p3-side-column">
-                        <div class="p3-text-bar"><span contenteditable="true" data-save="p3-t3">Syzygy</span></div>
-                        <div class="p3-text-bar"><span contenteditable="true" data-save="p3-t4">Palimpsest</span></div>
-                    </div>
-                </div>
-                <div class="p3-sub-text" contenteditable="true" data-save="p3-sub">† ☆ ⁺ † ☆ ⁺ ☆ †</div>
-            </div>
-            <div class="centered-label">Colorful Widget</div>
-            <div class="middle-section">
-                <div class="chat-widget">
-                    <div class="chat-header" contenteditable="true" data-save="p3-chat-h">✩* iwish..★</div>
-                    <div class="chat-bubble">
-                        <div class="mini-avatar img-upload-target" data-img-id="p3-chat-av-1"></div>
-                        <span class="chat-text" contenteditable="true" data-save="p3-chat-b1">★˚₊내 생각 하나:♬</span>
-                    </div>
-                    <div class="chat-bubble right">
-                        <div class="mini-avatar img-upload-target" data-img-id="p3-chat-av-2"></div>
-                        <span class="chat-text" contenteditable="true" data-save="p3-chat-b2">♡고목에서봉이올때▹</span>
-                    </div>
-                </div>
-                <div class="right-apps">
-                    <div class="app-item" data-app-id="p3-app-messages" onclick="openIMMain()"><div class="app-icon gray-1"></div><span class="app-name">信息</span></div>
-                    <div class="app-item" data-app-id="p3-app-phone"><div class="app-icon gray-2"></div><span class="app-name">电话</span></div>
-                    <div class="app-item" data-app-id="p3-app-mail"><div class="app-icon gray-3"></div><span class="app-name">邮件</span></div>
-                    <div class="app-item" data-app-id="p3-app-store"><div class="app-icon gray-4"></div><span class="app-name">商城</span></div>
-                </div>
-            </div>
-            <div class="full-width-apps">
-                <div class="app-item" data-app-id="p3-app-weather2"><div class="app-icon gray-4"></div><span class="app-name">天气</span></div>
-                <div class="app-item" data-app-id="p3-app-books"><div class="app-icon gray-3"></div><span class="app-name">图书</span></div>
-                <div class="app-item" data-app-id="p3-app-forum"><div class="app-icon gray-2"></div><span class="app-name">论坛</span></div>
-                <div class="app-item" data-app-id="p3-app-more"><div class="app-icon gray-1"></div><span class="app-name">更多</span></div>
-            </div>
-        </div>
-    </div>
+audioPlayer.addEventListener('ended', () => {
+    if (playMode === 'single') playSongByIndex(currentIndex);
+    else if (playMode === 'random') {
+        let nextIndex = currentIndex;
+        if (currentPlaylist.length > 1) while (nextIndex === currentIndex) nextIndex = Math.floor(Math.random() * currentPlaylist.length);
+        playSongByIndex(nextIndex);
+    } else playNext();
+});
 
-    <!-- 底部固定区 -->
-    <div class="bottom-section">
-        <div class="search-pill">
-            <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-            <span>搜索</span>
-        </div>
-        <div class="dock">
-            <div class="app-icon gray-1 dock-text-icon" data-app-id="dock-music" onclick="openMusicPlayer()"><span class="app-name">音乐</span></div>
-            <div class="app-icon gray-2 dock-text-icon" data-app-id="dock-ins"><span class="app-name">ins</span></div>
-            <div class="app-icon gray-3 dock-text-icon" data-app-id="dock-settings" onclick="openSettings()"><span class="app-name">设置</span></div>
-            <div class="app-icon gray-4 dock-text-icon" data-app-id="dock-check"><span class="app-name">查手机</span></div>
-        </div>
-    </div>
+document.getElementById('player-progress-container').addEventListener('click', function(e) {
+    const rect = this.getBoundingClientRect();
+    const percent = (e.clientX - rect.left) / rect.width;
+    if (audioPlayer.duration) audioPlayer.currentTime = percent * audioPlayer.duration;
+});
 
-    <!-- iOS 设置界面 (主) -->
-    <div id="settingsScreen" class="settings-base-screen">
-        <div class="settings-scroll-area">
-            <div class="settings-header">
-                <div class="settings-title">设置</div>
-            </div>
-            
-            <div class="settings-search">
-                <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-                <span>搜索</span>
-            </div>
+document.getElementById('player-volume-container').addEventListener('click', function(e) {
+    const rect = this.getBoundingClientRect();
+    const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    audioPlayer.volume = percent;
+    document.getElementById('player-volume-fill').style.width = `${percent * 100}%`;
+});
 
-            <div class="settings-group">
-                <div class="settings-item account-item">
-                    <div class="account-avatar img-upload-target" data-img-id="settings-avatar"></div>
-                    <div class="account-info">
-                        <div class="account-name" contenteditable="true" data-save="set-name">小猫</div>
-                        <div class="account-sub">Apple账户、iCloud等</div>
-                    </div>
-                    <svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
-                </div>
-            </div>
+async function loadLyrics(lrcUrl) {
+    const container = document.getElementById('player-lyrics-display');
+    container.innerHTML = '<div class="lyric-line" style="margin-top: 45%">Loading...</div>';
+    currentLyrics = [];
+    if (!lrcUrl) { container.innerHTML = '<div class="lyric-line" style="margin-top: 45%">无歌词</div>'; return; }
+    try {
+        let text = '';
+        try { text = await (await fetch(lrcUrl)).text(); } catch (e) { text = await (await fetch(`https://corsproxy.io/?${encodeURIComponent(lrcUrl)}`)).text(); }
+        parseLyrics(text);
+    } catch (e) { container.innerHTML = '<div class="lyric-line" style="margin-top: 45%">歌词加载失败</div>'; }
+}
 
-            <div class="settings-group">
-                <div class="settings-item"><img src="https://file.uhsea.com/2602/538354eb085d84606da233325e040f6aJ0.png" class="item-icon-img"><div class="item-label">飞行模式</div><div class="ios-switch" onclick="this.classList.toggle('on')"></div></div>
-                <div class="settings-item"><img src="https://file.uhsea.com/2602/84babb981b033253a802941af1fb4405GV.png" class="item-icon-img"><div class="item-label">无线局域网</div><div class="item-value">Love_5G</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-                <div class="settings-item"><img src="https://file.uhsea.com/2602/68787c10639ebfce28afd3807f15f703BU.png" class="item-icon-img"><div class="item-label">蓝牙</div><div class="item-value">开启</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-                <div class="settings-item"><img src="https://file.uhsea.com/2602/3a891228cd11d1a3242d71ab61549496VF.png" class="item-icon-img"><div class="item-label">蜂窝网络</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-                <div class="settings-item"><img src="https://file.uhsea.com/2602/9bcb5c152ff545099c3f5b52c65af212IX.png" class="item-icon-img"><div class="item-label">个人热点</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-                <div class="settings-item"><img src="https://file.uhsea.com/2602/2fadc0e168eb400d4f0c811d690b0619FP.png" class="item-icon-img"><div class="item-label">电池</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-                <div class="settings-item"><img src="https://file.uhsea.com/2602/ef476cdfec0034da3ffe5c89182c552d1T.png" class="item-icon-img"><div class="item-label">VPN</div><div class="ios-switch" onclick="this.classList.toggle('on')"></div></div>
-            </div>
+function parseLyrics(text) {
+    const container = document.getElementById('player-lyrics-display');
+    container.innerHTML = '';
+    currentLyrics = [];
+    const lines = text.split('\n');
+    lines.forEach(line => {
+        const match = line.match(/\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)/);
+        if (match) {
+            const time = parseInt(match[1]) * 60 + parseInt(match[2]) + parseInt(match[3]) / 1000;
+            const text = match[4].trim();
+            if (text) {
+                currentLyrics.push({ time, text });
+                const div = document.createElement('div');
+                div.className = 'lyric-line';
+                div.textContent = text;
+                div.onclick = () => { audioPlayer.currentTime = time; audioPlayer.play(); };
+                container.appendChild(div);
+            }
+        }
+    });
+    if (currentLyrics.length > 0) {
+        const spacerTop = document.createElement('div'); spacerTop.style.height = '45%';
+        const spacerBottom = document.createElement('div'); spacerBottom.style.height = '45%';
+        container.prepend(spacerTop); container.appendChild(spacerBottom);
+    } else { container.innerHTML = '<div class="lyric-line" style="margin-top: 45%">纯音乐 / 无歌词</div>'; }
+}
 
-            <div class="settings-group">
-                <!-- 修改：点击通用进入新的通用设置界面 -->
-                <div class="settings-item" onclick="openGeneralSettings()"><img src="https://file.uhsea.com/2602/52ee4e85a9e9bfdb727d6a5b16acdcd95R.png" class="item-icon-img"><div class="item-label">通用</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-                <div class="settings-item" onclick="openWallpaperScreen()"><img src="https://file.uhsea.com/2602/8a8ec510263c8e749a82f1d95192b1adIS.png" class="item-icon-img"><div class="item-label">壁纸</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-                <div class="settings-item" onclick="openBeautifyScreen()"><img src="https://file.uhsea.com/2602/fa1efacb329f8483d028876802d860892A.png" class="item-icon-img"><div class="item-label">主界面美化</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-                <div class="settings-item"><img src="https://file.uhsea.com/2602/557e1bdcb9ad2b8b0a0adb1d4741e5c1SJ.png" class="item-icon-img"><div class="item-label">通知</div><svg class="chevron" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-            </div>
-        </div>
-        <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeSettings()"></div></div>
-    </div>
+function updateLyrics(currentTime) {
+    if (currentLyrics.length === 0) return;
+    let activeIndex = -1;
+    for (let i = 0; i < currentLyrics.length; i++) {
+        if (currentLyrics[i].time <= currentTime + 0.5) activeIndex = i; else break;
+    }
+    if (activeIndex !== -1) {
+        const lines = document.querySelectorAll('#player-lyrics-display .lyric-line');
+        lines.forEach((line, i) => {
+            if (i === activeIndex) {
+                if (!line.classList.contains('active')) { line.classList.add('active'); line.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+            } else { line.classList.remove('active'); }
+        });
+    }
+}
 
-<!-- ========================================= -->
-<!-- === 通用设置界面 (一级菜单) === -->
-<!-- ========================================= -->
-<div id="generalSettingsScreen" class="settings-base-screen sub-screen">
-    <!-- 顶部全屏雪景图 -->
-    <div class="top-bg-header"></div>
+function toggleLyrics() {
+    document.getElementById('btn-lyrics').classList.toggle('active');
+    document.getElementById('player-album-section').classList.toggle('lyrics-mode');
+    document.getElementById('player-lyrics-display').classList.toggle('visible');
+}
 
-    <div class="nav-header">
-        <!-- 左侧返回按钮已移除 -->
-        <div class="nav-title">通用设置</div>
-    </div>
-    
-    <div class="screen-content">
-        <!-- 交接处文字 -->
-        <div class="transition-text">₊⁺₊ ❅ 𝑻𝒉𝒐𝒖𝒈𝒉𝒕𝒔 𝒊𝒏 𝑾𝒊𝒏𝒕𝒆𝒓 ❅ ₊⁺₊</div>
+function openMoreMenu() { const modal = document.getElementById('music-more-modal'); modal.style.display = 'flex'; setTimeout(() => modal.classList.add('active'), 10); }
+function closeMoreMenu() { const modal = document.getElementById('music-more-modal'); modal.classList.remove('active'); setTimeout(() => modal.style.display = 'none', 300); }
+function startListenTogether() { alert("正在邀请好友一起听..."); closeMoreMenu(); }
+function openChat() { alert("打开聊天窗口..."); closeMoreMenu(); }
+
+function togglePlayMode() {
+    const modes = ['list', 'single', 'random'];
+    playMode = modes[(modes.indexOf(playMode) + 1) % modes.length];
+    const btn = document.getElementById('play-mode-btn');
+    if (playMode === 'list') btn.textContent = '列表循环';
+    else if (playMode === 'single') btn.textContent = '单曲循环';
+    else btn.textContent = '随机播放';
+    saveMusicState();
+}
+
+function saveMusicState() { localStorage.setItem('music_state', JSON.stringify({ playlist: currentPlaylist, index: currentIndex, mode: playMode })); }
+function saveMusicProgress(time) { localStorage.setItem('music_currentTime', time); }
+
+function restoreMusicState() {
+    const savedState = localStorage.getItem('music_state');
+    const savedTime = localStorage.getItem('music_currentTime');
+    if (savedState) {
+        try {
+            const state = JSON.parse(savedState);
+            if (state.playlist && state.playlist.length > 0) {
+                currentPlaylist = state.playlist; currentIndex = state.index; playMode = state.mode || 'list';
+                if (currentIndex >= 0 && currentIndex < currentPlaylist.length) {
+                    const song = currentPlaylist[currentIndex];
+                    let secureUrl = song.url.replace(/^http:/i, 'https://');
+                    if (secureUrl.includes('sycdn.kuwo.cn')) secureUrl = secureUrl.replace(/^https?:\/\/([^.]+)\.sycdn\.kuwo\.cn\//, 'https://$1-sycdn.kuwo.cn/');
+                    audioPlayer.src = secureUrl;
+                    updatePlayerUI(song); loadLyrics(song.lrc);
+                    if (savedTime) audioPlayer.currentTime = parseFloat(savedTime);
+                }
+            }
+        } catch (e) { console.error("Failed to restore music state", e); }
+    }
+}
+
+// --- 状态栏更新 ---
+function updateStatus() {
+    const now = new Date();
+    document.getElementById('currentTime').innerText = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    if (navigator.getBattery) navigator.getBattery().then(battery => document.getElementById('batteryText').textContent = Math.floor(battery.level * 100));
+}
+setInterval(updateStatus, 1000); updateStatus();
+
+// --- 设置界面控制 ---
+function openSettings() { const screen = document.getElementById('settingsScreen'); screen.style.display = 'flex'; setTimeout(() => screen.classList.add('active'), 10); }
+function closeSettings() { const screen = document.getElementById('settingsScreen'); screen.classList.remove('active'); setTimeout(() => screen.style.display = 'none', 400); }
+
+// --- IndexedDB 核心逻辑 (异步封装) ---
+const dbName = "HajimiStorage";
+const storeName = "images";
+let db;
+
+const request = indexedDB.open(dbName, 3); // 🌟 这里必须改成 3
+request.onupgradeneeded = (e) => {
+    db = e.target.result;
+    if (!db.objectStoreNames.contains(storeName)) db.createObjectStore(storeName, { keyPath: "id" });
+    if (!db.objectStoreNames.contains("characters")) db.createObjectStore("characters", { keyPath: "id" });
+    // 🌟 新增：世界书数据库
+    if (!db.objectStoreNames.contains("worldBooks")) db.createObjectStore("worldBooks", { keyPath: "id" });
+};
+request.onsuccess = (e) => {
+    db = e.target.result;
+    loadAllImages();
+    renderWxChatList(); // 初始化时渲染微信列表
+};
+
+function saveImageToDB(id, data) {
+    const transaction = db.transaction([storeName], "readwrite");
+    const store = transaction.objectStore(storeName);
+    store.put({ id, data });
+}
+
+function saveImageToDBAsync(id, data) {
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([storeName], "readwrite");
+        const store = transaction.objectStore(storeName);
+        const req = store.put({ id, data });
+        req.onsuccess = () => resolve();
+        req.onerror = (e) => reject(e);
+    });
+}
+
+function deleteImageFromDBAsync(id) {
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([storeName], "readwrite");
+        const store = transaction.objectStore(storeName);
+        const req = store.delete(id);
+        req.onsuccess = () => resolve();
+        req.onerror = (e) => reject(e);
+    });
+}
+
+function loadAllImages() {
+    const transaction = db.transaction([storeName], "readonly");
+    const store = transaction.objectStore(storeName);
+    const req = store.getAll();
+    req.onsuccess = () => {
+        req.result.forEach(item => {
+            if (item.id.startsWith('icon-')) {
+                const appId = item.id.replace('icon-', '');
+                const appEl = document.querySelector(`[data-app-id="${appId}"]`);
+                if (appEl) {
+                    const iconEl = appEl.classList.contains('dock-text-icon') ? appEl : appEl.querySelector('.app-icon');
+                    if (iconEl) {
+                        iconEl.style.backgroundImage = `url(${item.data})`;
+                        if (appEl.classList.contains('dock-text-icon')) appEl.classList.add('has-custom-icon');
+                    }
+                }
+            } else if (item.id === 'time-decorator') {
+                const el = document.getElementById('timeDecorator');
+                if (el) el.style.backgroundImage = `url(${item.data})`;
+                // 确保设置界面的文字提示正确，不显示图片
+                const labelEl = document.getElementById('time-decorator-label');
+                if (labelEl) labelEl.innerText = "时间栏装饰 (已自定义)";
+            } else if (item.id.startsWith('wallpaper-')) {
+                // 壁纸数据由壁纸逻辑单独处理
+            } else {
+                const el = document.querySelector(`[data-img-id="${item.id}"]`);
+                if (el) el.style.backgroundImage = `url(${item.data})`;
+            }
+        });
+        loadCurrentWallpaper(); // 确保壁纸被加载
+    };
+}
+
+// --- 弹窗与上传逻辑 ---
+let currentTargetId = null;
+const modal = document.getElementById('uploadModal');
+const fileInput = document.getElementById('fileInput');
+const urlWrap = document.getElementById('urlInputWrap');
+
+document.addEventListener('click', (e) => {
+    const target = e.target.closest('.img-upload-target');
+    if (target) { currentTargetId = target.getAttribute('data-img-id'); openModal(); }
+});
+
+function openModal() { modal.style.display = 'flex'; setTimeout(() => modal.classList.add('active'), 10); }
+function closeModal() { modal.classList.remove('active'); setTimeout(() => { modal.style.display = 'none'; urlWrap.classList.remove('active'); document.getElementById('imageUrlInput').value = ''; }, 300); }
+function triggerFileSelect() { fileInput.click(); }
+
+fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => applyImage(event.target.result);
+        reader.readAsDataURL(file);
+    }
+});
+
+function toggleUrlInput() { urlWrap.classList.toggle('active'); }
+function saveUrlImage() { const url = document.getElementById('imageUrlInput').value; if (url) applyImage(url); }
+
+function applyImage(data) {
+    // 在美化页面修改图标，仅更新预览和标记，不直接存 DB
+    if (currentTargetId && currentTargetId.startsWith('beautify-app-icon-')) {
+        const el = document.querySelector(`[data-img-id="${currentTargetId}"]`);
+        if (el) {
+            el.style.backgroundImage = `url(${data})`;
+            el.dataset.modified = "true";
+            el.dataset.newImageData = data;
+        }
+        closeModal();
+        return;
+    }
+    // 时间栏装饰特殊处理：不显示图片背景，只改文字提示，并实时预览到顶部
+    if (currentTargetId === 'time-decorator') {
+        const el = document.getElementById('time-decorator-label');
+        if(el) {
+            el.innerText = "时间栏装饰 (已选择新图片)";
+            el.dataset.modified = "true";
+            el.dataset.newImageData = data;
+            document.getElementById('timeDecorator').style.backgroundImage = `url(${data})`;
+        }
+        closeModal();
+        return;
+    }
+    // 普通组件直接应用并存 DB
+    const el = document.querySelector(`[data-img-id="${currentTargetId}"]`);
+    if (el) {
+        el.style.backgroundImage = `url(${data})`;
+        saveImageToDB(currentTargetId, data);
+        const appEl = el.closest('.dock-text-icon');
+        if (appEl) appEl.classList.add('has-custom-icon');
+        closeModal();
+    }
+}
+
+// --- 字体与 CSS 预设逻辑 ---
+function previewFont() { 
+    const url = document.getElementById('custom-font-url').value;
+    applyFontToPage(url); 
+    const previewBox = document.getElementById('font-preview-box');
+    if (url) previewBox.style.fontFamily = 'HajimiCustomFont';
+    else previewBox.style.fontFamily = '';
+}
+function applyFontToPage(url) {
+    let styleEl = document.getElementById('custom-font-style');
+    if (!styleEl) { styleEl = document.createElement('style'); styleEl.id = 'custom-font-style'; document.head.appendChild(styleEl); }
+    if (url) styleEl.innerHTML = `@font-face { font-family: 'HajimiCustomFont'; src: url('${url}'); } * { font-family: 'HajimiCustomFont', -apple-system, BlinkMacSystemFont, sans-serif !important; }`;
+    else styleEl.innerHTML = '';
+}
+function saveFontPreset() {
+    const url = document.getElementById('custom-font-url').value;
+    if (!url) return alert('请输入字体链接');
+    const name = prompt('请输入字体预设名称：');
+    if (!name) return;
+    let presets = JSON.parse(localStorage.getItem('hajimi_font_presets') || '[]');
+    presets.push({ name, url });
+    localStorage.setItem('hajimi_font_presets', JSON.stringify(presets));
+    loadFontPresets(); alert('保存成功');
+}
+function loadFontPresets() {
+    const select = document.getElementById('font-preset-select');
+    select.innerHTML = '<option value="">选择预设...</option>';
+    let presets = JSON.parse(localStorage.getItem('hajimi_font_presets') || '[]');
+    presets.forEach((p, index) => select.innerHTML += `<option value="${index}">${p.name}</option>`);
+}
+function applyFontPreset() {
+    const select = document.getElementById('font-preset-select');
+    if (select.value === "") return;
+    const preset = JSON.parse(localStorage.getItem('hajimi_font_presets') || '[]')[select.value];
+    if (preset) { document.getElementById('custom-font-url').value = preset.url; previewFont(); }
+}
+
+function previewCSS() { applyCSSToPage(document.getElementById('custom-css-input').value); }
+function applyCSSToPage(css) {
+    let styleEl = document.getElementById('custom-css-style');
+    if (!styleEl) { styleEl = document.createElement('style'); styleEl.id = 'custom-css-style'; document.head.appendChild(styleEl); }
+    styleEl.innerHTML = css || '';
+}
+function saveCSSPreset() {
+    const css = document.getElementById('custom-css-input').value;
+    if (!css) return alert('请输入 CSS 代码');
+    const name = prompt('请输入 CSS 预设名称：');
+    if (!name) return;
+    let presets = JSON.parse(localStorage.getItem('hajimi_css_presets') || '[]');
+    presets.push({ name, css });
+    localStorage.setItem('hajimi_css_presets', JSON.stringify(presets));
+    loadCSSPresets(); alert('保存成功');
+}
+function loadCSSPresets() {
+    const select = document.getElementById('css-preset-select');
+    select.innerHTML = '<option value="">选择预设...</option>';
+    let presets = JSON.parse(localStorage.getItem('hajimi_css_presets') || '[]');
+    presets.forEach((p, index) => select.innerHTML += `<option value="${index}">${p.name}</option>`);
+}
+function applyCSSPreset() {
+    const select = document.getElementById('css-preset-select');
+    if (select.value === "") return;
+    const preset = JSON.parse(localStorage.getItem('hajimi_css_presets') || '[]')[select.value];
+    if (preset) { document.getElementById('custom-css-input').value = preset.css; previewCSS(); }
+}
+
+// --- 滑动条实时预览逻辑 ---
+function updateFontSizePreview() {
+    const val = document.getElementById('font-size-slider').value;
+    document.documentElement.style.setProperty('--font-scale', val);
+}
+function updateTimeDecPreview() {
+    const val = document.getElementById('time-dec-slider').value;
+    document.documentElement.style.setProperty('--time-dec-size', val + 'px');
+}
+function resetSlider(type) {
+    if (type === 'font-size') {
+        document.getElementById('font-size-slider').value = 1;
+        updateFontSizePreview();
+    } else if (type === 'time-dec') {
+        document.getElementById('time-dec-slider').value = 18;
+        updateTimeDecPreview();
+    }
+}
+// --- 时间样式实时预览 ---
+function updateTimeStylePreview() {
+    const size = document.getElementById('time-size-input').value || 17;
+    const x = document.getElementById('time-x-input').value || 0;
+    const y = document.getElementById('time-y-input').value || 0;
+
+    document.documentElement.style.setProperty('--time-font-size', size + 'px');
+    document.documentElement.style.setProperty('--time-offset-x', x + 'px');
+    document.documentElement.style.setProperty('--time-offset-y', y + 'px');
+}
+// --- 时间字体跟随开关实时预览 ---
+function updateTimeFontPreview() {
+    const isCustom = document.getElementById('beautify-toggle-time-font').classList.contains('on');
+    const statusBar = document.querySelector('.status-bar');
+    if (isCustom) {
+        statusBar.classList.remove('force-system-font');
+    } else {
+        statusBar.classList.add('force-system-font');
+    }
+}
+// --- 壁纸功能逻辑 ---
+const wallpaperScreen = document.getElementById('wallpaperScreen');
+let wallpapers = JSON.parse(localStorage.getItem('hajimi_wallpapers') || '[]');
+let currentWallpaperId = localStorage.getItem('hajimi_current_wallpaper') || null;
+
+function openWallpaperScreen() {
+    renderWallpaperList();
+    updateWallpaperPreview();
+    wallpaperScreen.style.display = 'flex';
+    setTimeout(() => wallpaperScreen.classList.add('active'), 10);
+}
+function closeWallpaperScreen() {
+    wallpaperScreen.classList.remove('active');
+    setTimeout(() => wallpaperScreen.style.display = 'none', 400);
+}
+
+function updateWallpaperPreview() {
+    const previewEl = document.getElementById('current-wallpaper-preview');
+    if (currentWallpaperId) {
+        getWallpaperFromDB(currentWallpaperId, (data) => {
+            if(data) previewEl.style.backgroundImage = `url(${data})`;
+            else previewEl.style.backgroundImage = '';
+        });
+    } else {
+        previewEl.style.backgroundImage = '';
+    }
+}
+
+function renderWallpaperList() {
+    const container = document.getElementById('wallpaper-list-container');
+    container.innerHTML = '';
+    wallpapers.forEach(id => {
+        const item = document.createElement('div');
+        item.className = `wallpaper-item ${id === currentWallpaperId ? 'active' : ''}`;
+        item.onclick = () => applyWallpaper(id);
         
-        <!-- iOS 连体卡片组 -->
-        <div class="ios-list-group">
-            <!-- 列表项 1：API 配置 -->
-            <div class="ios-list-item" onclick="openApiSettings()">
-                <div class="icon-wrap">
-                    <svg viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 2.5v19M3.77 7.25l16.46 9.5M3.77 16.75l16.46-9.5"/>
-                        <path d="M12 2.5l-2 2M12 2.5l2 2M12 21.5l-2-2M12 21.5l2-2"/>
-                        <path d="M3.77 7.25l2.5 1.5M3.77 7.25l0.5 2.8"/>
-                        <path d="M20.23 16.75l-2.5-1.5M20.23 16.75l-0.5-2.8"/>
-                        <path d="M3.77 16.75l2.5-1.5M3.77 16.75l0.5-2.8"/>
-                        <path d="M20.23 7.25l-2.5 1.5M20.23 7.25l-0.5 2.8"/>
-                    </svg>
-                </div>
-                <div class="ios-list-text">API 配置</div>
-                <svg class="ios-list-arrow" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
-            </div>
-
-            <!-- 列表项 2：提示词设置 (图标已换成雪花) -->
-            <div class="ios-list-item">
-                <div class="icon-wrap">
-                    <svg viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 2.5v19M3.77 7.25l16.46 9.5M3.77 16.75l16.46-9.5"/>
-                        <path d="M12 2.5l-2 2M12 2.5l2 2M12 21.5l-2-2M12 21.5l2-2"/>
-                        <path d="M3.77 7.25l2.5 1.5M3.77 7.25l0.5 2.8"/>
-                        <path d="M20.23 16.75l-2.5-1.5M20.23 16.75l-0.5-2.8"/>
-                        <path d="M3.77 16.75l2.5-1.5M3.77 16.75l0.5-2.8"/>
-                        <path d="M20.23 7.25l-2.5 1.5M20.23 7.25l-0.5 2.8"/>
-                    </svg>
-                </div>
-                <div class="ios-list-text">提示词设置</div>
-                <svg class="ios-list-arrow" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
-            </div>
-
- <!-- 列表项 3：数据管理 (已添加 onclick 事件) -->
-            <div class="ios-list-item" onclick="openDataModal()">
-                <div class="icon-wrap">
-                    <svg viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 2.5v19M3.77 7.25l16.46 9.5M3.77 16.75l16.46-9.5"/>
-                        <path d="M12 2.5l-2 2M12 2.5l2 2M12 21.5l-2-2M12 21.5l2-2"/>
-                        <path d="M3.77 7.25l2.5 1.5M3.77 7.25l0.5 2.8"/>
-                        <path d="M20.23 16.75l-2.5-1.5M20.23 16.75l-0.5-2.8"/>
-                        <path d="M3.77 16.75l2.5-1.5M3.77 16.75l0.5-2.8"/>
-                        <path d="M20.23 7.25l-2.5 1.5M20.23 7.25l-0.5 2.8"/>
-                    </svg>
-                </div>
-                <div class="ios-list-text">数据管理</div>
-                <svg class="ios-list-arrow" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
-            </div>
-        </div>
-    </div>
-    <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeGeneralSettings()"></div></div>
-</div>
-
-  <!-- ========================================= -->
-<!-- === 新增：API 配置界面 (二级菜单) === -->
-<!-- ========================================= -->
-<div id="apiSettingsScreen" class="settings-base-screen sub-screen">
-    <div class="nav-header">
-        <div class="nav-text-btn left" onclick="closeApiSettings()">Done</div>
-        <div class="nav-title">API Configuration</div>
-        <div class="nav-text-btn right" onclick="manualSave()" id="apiSaveBtn">Save</div>
-    </div>
-    
-    <div class="screen-content">
-        <!-- 1. API 配置 -->
-        <div class="section-title">
-            <div class="section-title-line"></div>
-            <div class="section-title-text">API</div>
-        </div>
-        <!-- 【修改点 1】这里改成了 api-glass-card -->
-        <div class="api-glass-card">
-            <div class="input-stack">
-                <div class="label-row">
-                    <div class="row-icon"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>
-                    <div class="row-label">URL</div>
-                </div>
-                <input type="text" class="row-input" id="apiUrl" placeholder="https://api.openai.com/v1" onchange="saveCurrentContext()">
-            </div>
-            
-            <div class="input-stack">
-                <div class="label-row">
-                    <div class="row-icon"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>
-                    <div class="row-label">API Key</div>
-                </div>
-                <input type="password" class="row-input" id="apiKey" placeholder="sk-..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" onchange="saveCurrentContext()">
-            </div>
-        </div>
-
-        <!-- 2. Model 配置 -->
-        <div class="section-title">
-            <div class="section-title-line"></div>
-            <div class="section-title-text">Model</div>
-        </div>
-        <!-- 【修改点 2】这里改成了 api-glass-card -->
-        <div class="api-glass-card">
-            <div class="input-stack">
-                <div class="label-row">
-                    <div class="row-icon"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>
-                    <div class="row-label">Model Selection</div>
-                </div>
-                <select class="row-input" id="modelSelect" onchange="saveCurrentContext()">
-                    <option value="">请先拉取模型...</option>
-                </select>
-            </div>
-            <div class="tag-btn-group">
-                <div class="tag-btn" onclick="fetchModels()"><span>#</span>拉取模型</div>
-            </div>
-        </div>
-
-        <!-- 3. 预设 (Presets) -->
-        <div class="section-title">
-            <div class="section-title-line"></div>
-            <div class="section-title-text">Presets</div>
-        </div>
-        <!-- 【修改点 3】这里改成了 api-glass-card -->
-        <div class="api-glass-card">
-            <div class="segment-wrapper">
-                <div class="ios-segment" id="contextSegment" data-active="0">
-                    <div class="segment-slider"></div>
-                    <div class="segment-tab active" onclick="switchContext(0)">主 API</div>
-                    <div class="segment-tab" onclick="switchContext(1)">副 API</div>
-                </div>
-            </div>
-
-            <div class="tag-btn-group" style="padding-top: 0;">
-                <div class="tag-btn" onclick="saveNewPreset()"><span>#</span>保存预设</div>
-                <div class="tag-btn" onclick="loadSelectedPreset()"><span>#</span>加载</div>
-                <div class="tag-btn" onclick="deleteSelectedPreset()"><span>#</span>删除</div>
-            </div>
-
-            <div id="presetList" class="preset-list"></div>
-        </div>
-
-        <!-- 4. 模型调节 (Parameters) -->
-        <div class="section-title">
-            <div class="section-title-line"></div>
-            <div class="section-title-text">Parameters</div>
-        </div>
-        <!-- 【修改点 4】这里改成了 api-glass-card -->
-        <div class="api-glass-card">
-            <div class="slider-stack">
-                <div class="slider-header">
-                    <span class="slider-label">Temperature</span>
-                    <span class="slider-value" id="val-temp">1.0</span>
-                </div>
-                <input type="range" class="ios-range" id="slider-temp" min="0" max="2" step="0.1" value="1.0" oninput="updateSlider('temp'); saveCurrentContext()">
-            </div>
-            <div class="slider-stack">
-                <div class="slider-header">
-                    <span class="slider-label">Top-P</span>
-                    <span class="slider-value" id="val-topp">1.0</span>
-                </div>
-                <input type="range" class="ios-range" id="slider-topp" min="0" max="1" step="0.05" value="1.0" oninput="updateSlider('topp'); saveCurrentContext()">
-            </div>
-            <div class="slider-stack">
-                <div class="slider-header">
-                    <span class="slider-label">Top-K</span>
-                    <span class="slider-value" id="val-topk">40</span>
-                </div>
-                <input type="range" class="ios-range" id="slider-topk" min="0" max="100" step="1" value="40" oninput="updateSlider('topk'); saveCurrentContext()">
-            </div>
-        </div>
-    </div>
-    <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeApiSettings()"></div></div>
-</div>
-    <!-- 壁纸界面 -->
-    <div id="wallpaperScreen" class="settings-base-screen">
-        <div class="settings-nav-bar">
-            <div class="nav-btn back-btn" onclick="closeWallpaperScreen()" style="display: flex; align-items: center; margin-left: -8px;">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-            </div>
-            <div class="nav-title">壁纸</div>
-            <div class="nav-btn"></div>
-        </div>
-        <div class="settings-scroll-area">
-            <div class="wallpaper-preview-container">
-                <div class="wallpaper-preview-card" id="current-wallpaper-preview"></div>
-            </div>
-            <div class="settings-group">
-                <div class="settings-item beautify-action-btn" onclick="triggerWallpaperUpload()">
-                    <div class="item-label">添加新壁纸</div>
-                </div>
-            </div>
-            <div class="group-title">我的壁纸</div>
-            <div class="wallpaper-grid" id="wallpaper-list-container">
-                <!-- 壁纸项动态生成 -->
-            </div>
-        </div>
-        <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeWallpaperScreen()"></div></div>
-    </div>
-
-    <!-- 主界面美化页面 -->
-    <div id="beautifyScreen" class="settings-base-screen">
-        <div class="settings-nav-bar">
-            <div class="nav-btn back-btn" onclick="saveBeautification()" style="font-size: 17px; color: #8e8e93; font-weight: 600; display: flex; align-items: center;">Save</div>
-            <div class="nav-title">主界面美化</div>
-            <div class="nav-btn save-btn" onclick="closeBeautifyScreen()" style="font-size: 17px; color: #8e8e93; font-weight: 600;">Done</div>
-        </div>
-        <div class="settings-scroll-area">
-            <div class="group-title">顶栏ovo</div>
-            <div class="settings-group">
-                <div class="settings-item">
-                    <div class="item-label">顶栏显示</div>
-                    <div class="ios-switch on" id="beautify-toggle-topbar" onclick="this.classList.toggle('on')"></div>
-                </div>
-                <div class="settings-item">
-                    <div class="item-label img-upload-target" data-img-id="time-decorator" id="time-decorator-label" style="flex:1;">时间栏装饰 (点击更改)</div>
-                    <div class="reset-btn" onclick="resetBeautifyItem('time-decorator')">
-                        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                    </div>
-                </div>
-                <div class="settings-item">
-                    <div class="item-label">装饰大小</div>
-                    <input type="range" class="ios-slider" id="time-dec-slider" min="10" max="40" step="1" value="18" oninput="updateTimeDecPreview()">
-                    <div class="reset-btn" onclick="resetSlider('time-dec')">
-                        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                    </div>
-                </div>
-                <div class="settings-item">
-                    <div class="item-label">时间跟随全局字体</div>
-                    <div class="ios-switch on" id="beautify-toggle-time-font" onclick="this.classList.toggle('on'); updateTimeFontPreview();"></div>
-                </div>
-                <div class="settings-item">
-                    <div class="item-label">时间大小 (px)</div>
-                    <input type="number" id="time-size-input" class="beautify-app-name-input" style="text-align: right; width: 60px;" value="17" oninput="updateTimeStylePreview()" autocomplete="off">
-                </div>
-                <div class="settings-item">
-                    <div class="item-label">时间位置 X (px)</div>
-                    <input type="number" id="time-x-input" class="beautify-app-name-input" style="text-align: right; width: 60px;" value="0" placeholder="0" oninput="updateTimeStylePreview()" autocomplete="off">
-                </div>
-                <div class="settings-item">
-                    <div class="item-label">时间位置 Y (px)</div>
-                    <input type="number" id="time-y-input" class="beautify-app-name-input" style="text-align: right; width: 60px;" value="0" placeholder="0" oninput="updateTimeStylePreview()" autocomplete="off">
-                </div>
-            </div>
-            
-            <div class="group-title">图标TvT</div>
-            <div class="settings-group" id="beautify-app-list">
-                <!-- App list will be dynamically generated here -->
-            </div>
-            
-            <div class="group-title">字体设置QAQ</div>
-            <div class="settings-group">
-                <div class="settings-item">
-                    <input type="text" id="custom-font-url" class="beautify-app-name-input" placeholder="输入 TTF/OTF 字体直链..." onchange="previewFont()" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="hajimi-font-url-random">
-                    <div class="reset-btn" onclick="resetBeautifyItem('font')">
-                        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                    </div>
-                </div>
-                <div class="settings-item">
-                    <div class="item-label">字体大小</div>
-                    <input type="range" class="ios-slider" id="font-size-slider" min="0.8" max="1.5" step="0.05" value="1" oninput="updateFontSizePreview()">
-                    <div class="reset-btn" onclick="resetSlider('font-size')">
-                        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                    </div>
-                </div>
-                <div class="settings-item">
-                    <div class="item-label">字体预设</div>
-                    <select id="font-preset-select" class="beautify-app-name-input" style="text-align: right; direction: rtl;" onchange="applyFontPreset()">
-                        <option value="">选择预设...</option>
-                    </select>
-                </div>
-                <div class="settings-item beautify-action-btn" onclick="saveFontPreset()">
-                    <div class="item-label">保存为新字体预设</div>
-                </div>
-                <div class="settings-item" style="flex-direction: column; align-items: stretch; padding: 16px;">
-                    <div class="font-preview-box" id="font-preview-box">小猫正在偷吃！</div>
-                </div>
-            </div>
-
-            <div class="group-title">全局美化代码TwT</div>
-            <div class="settings-group">
-                <div class="settings-item" style="padding: 0; position: relative;">
-                    <textarea id="custom-css-input" style="width: 100%; height: 120px; border: none; padding: 12px 16px; font-family: monospace; font-size: 13px; background: transparent; resize: none; outline: none;" placeholder="在此输入自定义 CSS 代码..." onchange="previewCSS()"></textarea>
-                    <div class="reset-btn" style="position: absolute; top: 10px; right: 10px;" onclick="resetBeautifyItem('css')">
-                        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                    </div>
-                </div>
-                <div class="settings-item">
-                    <div class="item-label">CSS 预设</div>
-                    <select id="css-preset-select" class="beautify-app-name-input" style="text-align: right; direction: rtl;" onchange="applyCSSPreset()">
-                        <option value="">选择预设...</option>
-                    </select>
-                </div>
-                <div class="settings-item beautify-action-btn" onclick="saveCSSPreset()">
-                    <div class="item-label">保存为新 CSS 预设</div>
-                </div>
-            </div>
-
-            <div class="group-title">管理owo</div>
-            <div class="settings-group">
-                <div class="settings-item beautify-action-btn" onclick="importBeautification()">
-                    <div class="item-label">导入美化配置</div>
-                </div>
-                <div class="settings-item beautify-action-btn" onclick="exportBeautification()">
-                    <div class="item-label">导出美化配置</div>
-                </div>
-            </div>
-             <div class="settings-group">
-                <div class="settings-item beautify-danger-btn" onclick="clearBeautification()">
-                    <div class="item-label">一键清空所有美化</div>
-                </div>
-            </div>
-        </div>
-        <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeBeautifyScreen()"></div></div>
-    </div>
-
-    <!-- Wechat 独立界面 -->
-    <div id="wechatScreen" class="app-screen-overlay">
-        <!-- 头部区域 -->
-        <div class="wx-header-area">
-            <div class="wx-nav-bar">
-                <!-- 左侧星星 (返回键) -->
-                <div class="wx-star-btn" onclick="closeWechat()">
-                    <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                </div>
-                <!-- 标题 -->
-                <div class="wx-page-title">Wechat</div>
-               <!-- 右侧星星 (触发角色添加) -->
-<div class="wx-star-btn" onclick="resetCharFormWithoutConfirm(); openCharAddScreen()">
-    <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-</div>
-            </div>
-
-            <!-- 搜索栏 -->
-            <div class="wx-search-container">
-                <div class="wx-search-input">
-                    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" stroke="#8e8e93" stroke-width="2" fill="none"/><line x1="21" y1="21" x2="16.65" y2="16.65" stroke="#8e8e93" stroke-width="2"/></svg>
-                    <span>搜索</span>
-                </div>
-            </div>
-
-            <!-- 分组 Tab -->
-            <div class="wx-tab-row">
-                <div class="wx-text-tab active" onclick="switchWxTab(this)">全部</div>
-                <div class="wx-text-tab" onclick="switchWxTab(this)">私聊</div>
-                <div class="wx-text-tab" onclick="switchWxTab(this)">群聊</div>
-                <div class="wx-text-tab" onclick="switchWxTab(this)">爱人☆</div>
-                <div class="wx-text-tab" onclick="switchWxTab(this)">家人★</div>
-            </div>
-        </div>
-
-        <!-- 滚动内容区 -->
-<div class="wx-scroll-content">
-    <!-- 电脑登录提示条 -->
-    <div class="wx-mac-login-bar">
-        <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" fill="none" stroke="#555" stroke-width="2"/><line x1="8" y1="21" x2="16" y2="21" stroke="#555" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="17" x2="12" y2="21" stroke="#555" stroke-width="2"/></svg>
-        <span>Mac 微信已登录，手机通知已关闭</span>
-    </div>
-
-    <!-- 置顶角色列表容器 (默认隐藏) -->
-    <div class="wx-group-block" id="wx-chat-list-pinned" style="display: none;"></div>
-
-    <!-- 普通角色列表容器 -->
-    <div class="wx-group-block" id="wx-chat-list-normal">
-        <!-- JS 动态渲染 -->
-    </div>
-</div>
-
-        <!-- 底部悬浮胶囊栏 -->
-        <div class="wx-capsule-dock-container">
-            <div class="wx-capsule-dock">
-                <div class="wx-dock-item active" onclick="switchWxDock(this)">
-                    <img src="https://file.uhsea.com/2602/248d304f495dd1bf86106dd1d6a32aa7VJ.png" class="wx-dock-icon-img">
-                </div>
-                <div class="wx-dock-item" onclick="switchWxDock(this)">
-                    <img src="https://file.uhsea.com/2602/b3d603e7b65e0c7fbb89e4d632815ca3T2.png" class="wx-dock-icon-img">
-                </div>
-                <div class="wx-dock-item" onclick="switchWxDock(this)">
-                    <img src="https://file.uhsea.com/2602/579a66aaec58140dd0facf34caab20b1KB.png" class="wx-dock-icon-img">
-                </div>
-                <div class="wx-dock-item" onclick="switchWxDock(this)">
-                    <img src="https://file.uhsea.com/2602/314de30a1d24cb8fdcf74c7b89f06604IW.png" class="wx-dock-icon-img">
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 角色添加界面 -->
-    <div id="charAddScreen" class="app-screen-overlay char-add-wrap" style="z-index: 6000;">
-        <!-- Safari 顶栏 (无状态栏，大幅下移) -->
-        <div class="char-safari-header">
-            <div class="char-nav-actions">
-                <!-- 返回微信界面 -->
-                <div class="char-icon-btn" onclick="closeCharAddScreen()"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
-                <div class="char-icon-btn" style="opacity: 0.3;"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-            </div>
-            <div class="char-url-bar">
-                <svg viewBox="0 0 24 24"><rect x="7" y="11" width="10" height="10" rx="2"/><path d="M12 11V7a3 3 0 00-6 0" stroke="#8e8e93" stroke-width="2" fill="none"/></svg>
-                <span>xiaomaoaini.com</span>
-            </div>
-            <div class="char-action-icons">
-                <!-- 修复后的刷新按钮 -->
-                <div class="char-icon-btn" onclick="resetCharForm()">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-                        <path d="M3 3v5h5"/>
-                    </svg>
-                </div>
-                <!-- 保存按钮 -->
-                <div class="char-icon-btn char-star-btn" id="charSaveBtn" onclick="attemptSaveCharacter()"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
-            </div>
-        </div>
-
-        <!-- 全屏滚动内容 -->
-        <div class="char-scroll-content">
-            <!-- 顶部背景图 -->
-            <div class="char-cover-image" id="charBgTarget" onclick="openCharUploadModal('charBgTarget')"></div>
-
-            <div class="char-header-section">
-                <div class="char-avatar" id="charAvatarTarget" onclick="openCharUploadModal('charAvatarTarget')"></div>
-                <div class="char-name-tag-wrap">
-                    <!-- 备注名 -->
-                    <input type="text" class="char-name-input" id="charRemark" placeholder="角色备注" autocomplete="off">
-                    <div class="char-tags-row" id="charTagsContainer">
-                        <div class="char-tag char-gender" id="charGenderTag" onclick="toggleCharGender()">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="10" r="4"/><path d="M12 14v7M9 18h6"/></svg> 女
-                        </div>
-                        <div class="char-tag char-add" onclick="addCharTag()">+ 添加</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 主题色自定义区 -->
-            <div class="char-theme-pickers-row">
-                <div class="char-theme-item">
-                    <span class="char-theme-label">顶栏</span>
-                    <div class="char-color-picker-wrap"><input type="color" id="charColorHeader" value="#f2f2f7" oninput="updateCharColor('--header-bg', this.value)"></div>
-                </div>
-                <div class="char-theme-item">
-                    <span class="char-theme-label">搜索栏</span>
-                    <div class="char-color-picker-wrap"><input type="color" id="charColorUrl" value="#ffffff" oninput="updateCharColor('--url-bg', this.value)"></div>
-                </div>
-                <div class="char-theme-item">
-                    <span class="char-theme-label">背景</span>
-                    <div class="char-color-picker-wrap"><input type="color" id="charColorBg" value="#ffffff" oninput="updateCharColor('--content-bg', this.value)"></div>
-                </div>
-            </div>
-
-            <div class="char-divider"></div>
-
-            <!-- 基础信息网格 -->
-            <div class="char-grid-info">
-                <div class="char-grid-item">
-                    <span class="char-grid-label">姓名</span>
-                    <input class="char-grid-input" id="charName" placeholder="未填写" autocomplete="off">
-                </div>
-                <div class="char-grid-item">
-                    <span class="char-grid-label">昵称</span>
-                    <input class="char-grid-input" id="charNickname" placeholder="未填写" autocomplete="off">
-                </div>
-                <div class="char-grid-item">
-                    <span class="char-grid-label">年龄</span>
-                    <input class="char-grid-input" id="charAge" placeholder="--">
-                </div>
-                <div class="char-grid-item">
-                    <span class="char-grid-label">MBTI</span>
-                    <input class="char-grid-input" id="charMbti" placeholder="----">
-                </div>
-            </div>
-
-            <div class="char-divider"></div>
-
-            <!-- 底部信息网格 -->
-            <div class="char-grid-info">
-                <div class="char-grid-item">
-                    <span class="char-grid-label">世界书</span>
-                    <div class="char-grid-input" id="charWorldSelect" onclick="openWorldBookSelector()" style="cursor: pointer;">未选择</div>
-<input type="hidden" id="charWorldIds" value="[]">
-                </div>
-                <div class="char-grid-item">
-                    <span class="char-grid-label">User 绑定</span>
-                    <select class="char-grid-input" id="charUser"><option value="default">默认</option><option value="main">主人设</option></select>
-                </div>
-                <div class="char-grid-item">
-                    <span class="char-grid-label">手机号</span>
-                    <input class="char-grid-input" id="charPhone" placeholder="选填">
-                </div>
-            </div>
-
-            <div class="char-divider" style="margin-top: 15px;"></div>
-
-            <div class="char-grid-info" style="justify-content: flex-start; gap: 0;">
-                <div class="char-grid-item" style="flex: 0.5;">
-                    <span class="char-grid-label">Ins 账号</span>
-                    <input class="char-grid-input" id="charIns" placeholder="选填">
-                </div>
-                <div class="char-grid-item" style="flex: 0.5;">
-                    <span class="char-grid-label">邮箱</span>
-                    <input class="char-grid-input" id="charEmail" placeholder="选填">
-                </div>
-            </div>
-
-            <div class="char-divider"></div>
-
-            <!-- 人设区 (固定高度) -->
-            <div class="char-section-block">
-                <div class="char-section-title">人设 ◍˃ᵕ˂◍</div>
-                <textarea class="char-fixed-textarea" id="charPersona" placeholder="在这里输入人设详情... (固定高度，内容过多可滑动)"></textarea>
-            </div>
-        </div>
-    </div>
-
-    <!-- ========================================= -->
-    <!-- === 独立聊天界面 (三层汉堡架构) === -->
-    <!-- ========================================= -->
-    <div id="chatScreen" class="app-screen-overlay" style="z-index: 5500; background-color: #d1d1d6; background-image: none;">
-        <!-- 第三层 (过渡层) -->
-        <div class="layer-3-backdrop"></div>
-
-        <!-- 第二层 (主卡片) -->
-        <div class="chat-layer-card" id="chatLayerCard">
-            
-            <!-- 顶栏 -->
-            <div class="chat-header-flat">
-                <div class="header-back-btn" onclick="closeChatScreen()">
-                    <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
-                </div>
-                
-                <div class="header-text-group">
-                    <div class="header-remark" id="chatHeaderRemark">宝宝</div>
-                    <div class="header-sub-text">Do you love me?</div>
-                </div>
-
-                <div class="header-right-icons">
-                    <!-- 放大镜 -->
-                    <div class="header-icon-btn">
-                        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                    </div>
-                    <!-- 空心星星 -->
-<div class="header-icon-btn" onclick="openChatSettings()">
-    <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-</div>
-                </div>
-            </div>
-
-            <!-- 聊天内容 -->
-<div class="chat-scroll-area" id="chatScrollArea">
-    <div class="chat-time-stamp">昨天 21:24</div>
-    
-    <!-- 静态示例：Char 组 -->
-    <div class="msg-row left group-start">
-        <div class="checkbox-wrap"><div class="checkbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div></div>
-        <div class="msg-content"><div class="msg-bubble">May you participate in my winter</div></div>
-    </div>
-    <div class="msg-row left group-middle">
-        <div class="checkbox-wrap"><div class="checkbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div></div>
-        <div class="msg-content"><div class="msg-bubble">Time will prove love</div></div>
-    </div>
-    <div class="msg-row left group-end">
-        <div class="checkbox-wrap"><div class="checkbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div></div>
-        <div class="msg-content"><div class="msg-bubble">愿你参与我的冬天</div></div>
-    </div>
-
-    <!-- 静态示例：User 组 -->
-    <div class="msg-row right group-start">
-        <div class="checkbox-wrap"><div class="checkbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div></div>
-        <div class="msg-content"><div class="msg-bubble">独木舟就敢来到这里</div></div>
-    </div>
-    <div class="msg-row right group-middle">
-        <div class="checkbox-wrap"><div class="checkbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div></div>
-        <div class="msg-content"><div class="msg-bubble">所以你是船翻了也能活下来[♡]人</div></div>
-    </div>
-    <div class="msg-row right group-end">
-        <div class="checkbox-wrap"><div class="checkbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div></div>
-        <div class="msg-content"><div class="msg-bubble">是靠着[★]块木板也能漂浮[♡]人”</div></div>
-    </div>
-
-    <div class="msg-row right single">
-        <div class="checkbox-wrap"><div class="checkbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div></div>
-        <div class="msg-content"><div class="msg-bubble">你失言了 再见</div></div>
-    </div>
-</div>
-
-                    <!-- 底栏 (原有的输入框) -->
-        <div class="bottom-bar-container">
-            <!-- 左侧：曲别针 -->
-            <div class="glass-box btn-circle" onclick="toggleChatFuncPanel()">
-                <svg class="svg-icon" viewBox="0 0 24 24">
-                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-                </svg>
-            </div>
-
-            <!-- 中间：输入栏 -->
-            <div class="glass-box input-pill">
-                <input type="text" class="chat-input" id="chatInput" placeholder="Type..." autocomplete="off">
-                <!-- 内部右侧：信封 -->
-                <div class="emoji-btn-inner">
-                    <svg class="svg-icon" viewBox="0 0 24 24" style="width: 20px; height: 20px;">
-                        <rect x="2" y="4" width="20" height="16" rx="2"/>
-                        <path d="M22 6l-10 7L2 6"/>
-                    </svg>
-                </div>
-            </div>
-
-            <!-- 右侧：发送 -->
-            <div class="glass-box btn-circle" onclick="handleSendBtnClick()">
-                <svg class="send-icon" viewBox="0 0 24 24">
-                    <path d="M22 2L11 13" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-            </div>
-        </div>
-
-        <!-- ========================================== -->
-        <!-- ⬇️ 把长按菜单和多选底栏放在这里！⬇️ -->
-        <!-- ========================================== -->
-
-        <!-- iOS 气泡长按菜单结构 -->
-        <div class="ios-tooltip-wrapper" id="chatMsgMenu">
-            <div class="ios-tooltip-menu">
-                <div class="tooltip-item" onclick="handleMsgMenuAction('复制')">复制</div>
-                <div class="tooltip-item" onclick="handleMsgMenuAction('撤回')" style="color: #ff3b30;">撤回</div>
-                <div class="tooltip-item" onclick="handleMsgMenuAction('编辑')">编辑</div>
-                <div class="tooltip-item" onclick="handleMsgMenuAction('引用')">引用</div>
-                <div class="tooltip-item" onclick="handleMsgMenuAction('翻译')">翻译</div>
-                <div class="tooltip-item" onclick="handleMsgMenuAction('多选')">多选</div>
-                <div class="tooltip-item icon-item" onclick="handleMsgMenuAction('更多')">
-                    <svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
-                </div>
-            </div>
-            <div class="ios-tooltip-arrow"></div>
-        </div>
-
-        <!-- 悬浮玻璃底栏 (多选模式专属) -->
-        <div class="glass-dock" id="multiSelectDock">
-            <div class="dock-header">
-                <div class="dock-cancel" onclick="cancelSelectMode()">取消</div>
-                <div class="dock-title" id="selectCount">选择消息</div>
-                <div class="dock-placeholder"></div>
-            </div>
-            <div class="dock-actions">
-                <div class="action-btn disabled" onclick="handleMultiAction('转发')">
-                    <svg viewBox="0 0 24 24"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg>
-                    <span>转发</span>
-                </div>
-                <div class="action-btn disabled" onclick="handleMultiAction('收藏')">
-                    <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                    <span>收藏</span>
-                </div>
-                <div class="action-btn danger disabled" onclick="handleMultiAction('删除')">
-                    <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                    <span>删除</span>
-                </div>
-            </div>
-        </div>
-
-    </div> <!-- 这里是 chat-layer-card 的结束标签 -->
-</div> <!-- 这里是 chatScreen 的结束标签 -->
-<!-- 拍照功能专属输入弹窗 -->
-<div class="modal-overlay" id="fakePhotoModal" style="z-index: 7000;">
-    <div class="modal-content">
-        <div class="modal-title">Photo Description</div>
-        <div class="upload-options">
-            <input type="text" class="url-input" id="fakePhotoInput" placeholder="输入照片描述..." autocomplete="off">
-            <button class="opt-btn confirm-btn" onclick="sendFakePhoto()">Send</button>
-        </div>
-        <div class="close-modal-trigger" onclick="closeFakePhotoModal()">Dismiss</div>
-    </div>
-</div>
-    <!-- 角色界面专属图片上传弹窗 -->
-    <div class="modal-overlay" id="charUploadModal" style="z-index: 7000;">
-        <div class="modal-content">
-            <div class="modal-title">Edit Component</div>
-            <div class="upload-options">
-                <button class="opt-btn" onclick="triggerCharFileSelect()">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-                    Upload Photo
-                </button>
-                <button class="opt-btn" onclick="toggleCharUrlInput()">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                    Web Link
-                </button>
-                <div class="url-input-wrap" id="charUrlInputWrap">
-                    <input type="text" class="url-input" id="charImageUrlInput" placeholder="Paste image URL here...">
-                    <button class="opt-btn confirm-btn" onclick="saveCharUrlImage()">Confirm</button>
-                </div>
-            </div>
-            <div class="close-modal-trigger" onclick="closeCharUploadModal()">Dismiss</div>
-        </div>
-    </div>
-    <input type="file" id="charFileInput" hidden accept="image/*">
-
-    <!-- 原有图片上传弹窗 -->
-    <div class="modal-overlay" id="uploadModal">
-        <div class="modal-content">
-            <div class="modal-title">Edit Component</div>
-            <div class="upload-options">
-                <button class="opt-btn" onclick="triggerFileSelect()">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-                    Upload Photo
-                </button>
-                <button class="opt-btn" onclick="toggleUrlInput()">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                    Web Link
-                </button>
-                <div class="url-input-wrap" id="urlInputWrap">
-                    <input type="text" class="url-input" id="imageUrlInput" placeholder="Paste image URL here...">
-                    <button class="opt-btn confirm-btn" onclick="saveUrlImage()">Confirm</button>
-                </div>
-            </div>
-            <div class="close-modal-trigger" onclick="closeModal()">Dismiss</div>
-        </div>
-    </div>
-    
-    <!-- 音乐播放器组件 -->
-    <div id="music-player-overlay">
-        <div class="player-bg" id="player-bg"></div>
-        <div class="player-top-bar">
-            <div class="player-nav-btn" onclick="closeMusicPlayer()">
-                <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
-            </div>
-            <div class="player-nav-btn" onclick="openMusicSearch()">
-                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            </div>
-        </div>
-        <div class="player-container">
-            <div class="album-section" id="player-album-section">
-                <div class="album-art" id="playerAlbumArt"></div>
-                <div class="lyrics-display" id="player-lyrics-display"></div>
-            </div>
-            <div class="track-info-row">
-                <div class="text-group">
-                    <div class="track-title" id="player-track-title">Not Playing</div>
-                    <div class="track-artist" id="player-track-artist">...</div>
-                </div>
-                <div class="action-icons">
-                    <div class="icon-btn-circle">
-                        <svg viewBox="0 0 24 24" style="stroke:none;"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" fill="none" stroke="#fff" stroke-width="2"/></svg>
-                    </div>
-                    <div class="icon-btn-circle" onclick="openMoreMenu()">
-                        <svg viewBox="0 0 24 24" style="stroke:none;"><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="12" r="2"/></svg>
-                    </div>
-                </div>
-            </div>
-            <div class="progress-section">
-                <div class="slider-container" id="player-progress-container">
-                    <div class="slider-track"><div class="slider-fill" id="player-progress-fill"></div></div>
-                </div>
-                <div class="time-labels">
-                    <span id="player-current-time">0:00</span>
-                    <span id="player-total-time">0:00</span>
-                </div>
-                <div class="dolby-tag">
-                    <svg viewBox="0 0 64 32" style="stroke:none;"><path d="M16,2 C8.268,2 2,8.268 2,16 C2,23.732 8.268,30 16,30 L16,2 Z M48,2 L48,30 C55.732,30 62,23.732 62,16 C62,8.268 55.732,2 48,2 Z M32,2 L32,30 L32,2 Z M32,2 L16,2 L16,30 L32,30 L32,2 Z M32,2 L48,2 L48,30 L32,30 L32,2 Z M32,2 L48,2 L48,30 L32,30 L32,2 Z" fill="currentColor"/></svg>
-                    <span>Dolby Atmos</span>
-                </div>
-            </div>
-            <div class="controls-main">
-                <div class="ctrl-btn btn-skip" onclick="playPrev()">
-                    <svg viewBox="0 0 24 24"><path d="M11 18V6l-8.5 6z" /><path d="M22 18V6l-8.5 6z" /></svg>
-                </div>
-                <div class="ctrl-btn btn-play" id="playerPlayBtn" onclick="togglePlay()">
-                    <svg id="playerPlayIcon" viewBox="0 0 24 24" style="display:block; transform: translateX(2px);"><path d="M6 5v14l13-7z" /></svg>
-                    <svg id="playerPauseIcon" class="pause-icon" viewBox="0 0 24 24" style="display:none;"><rect x="5" y="4" width="5" height="16" rx="2.5" /><rect x="14" y="4" width="5" height="16" rx="2.5" /></svg>
-                </div>
-                <div class="ctrl-btn btn-skip" onclick="playNext()">
-                    <svg viewBox="0 0 24 24"><path d="M2 6v12l8.5-6z" /><path d="M13 6v12l8.5-6z" /></svg>
-                </div>
-            </div>
-            <div class="volume-section">
-                <div class="vol-icon"><svg viewBox="0 0 24 24" style="stroke:none;"><path d="M7 9v6h4l5 5V4l-5 5H7z"/></svg></div>
-                <div class="vol-slider-track" id="player-volume-container">
-                    <div class="vol-slider-fill" id="player-volume-fill"></div>
-                </div>
-                <div class="vol-icon"><svg viewBox="0 0 24 24" style="stroke:none;"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg></div>
-            </div>
-            <div class="bottom-actions">
-                <div class="bottom-btn lyrics" id="btn-lyrics" onclick="toggleLyrics()">
-                    <svg viewBox="0 0 24 24"><path class="bubble" d="M3 6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-4l-3 3v-3h-5a3 3 0 0 1-3-3V6z" /><path class="quote-fill" d="M9 8c-.83 0-1.5.67-1.5 1.5v2c0 .83.67 1.5 1.5 1.5h1v-2h-1v-1.5h1.5V8H9zm5 0c-.83 0-1.5.67-1.5 1.5v2c0 .83.67 1.5 1.5 1.5h1v-2h-1v-1.5h1.5V8H14z" /></svg>
-                </div>
-                <div class="bottom-btn airplay">
-                    <svg viewBox="0 0 24 24" fill="none"><path d="M9.52 14.47 A 3.5 3.5 0 1 1 14.48 14.47" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.05 16.95 A 7 7 0 1 1 16.95 16.95" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.58 19.42 A 10.5 10.5 0 1 1 19.42 19.42" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path class="triangle-fill" d="M12 15.5L16.5 21H7.5L12 15.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
-                </div>
-                <div class="bottom-btn">
-                    <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div id="music-search-overlay" onclick="closeMusicSearch()">
-        <div class="search-container" onclick="event.stopPropagation()">
-            <div class="search-list" id="music-search-results"></div>
-        </div>
-    </div>
-    <div class="modal-overlay" id="music-more-modal" onclick="closeMoreMenu()">
-        <div class="modal-content" onclick="event.stopPropagation()">
-            <div class="modal-title">Music Actions</div>
-            <div class="upload-options">
-                <button class="opt-btn" onclick="startListenTogether()">一起听</button>
-                <button class="opt-btn" onclick="togglePlayMode()" id="play-mode-btn">列表循环</button>
-                <button class="opt-btn" onclick="openChat()">聊天</button>
-                <button class="opt-btn">分享</button>
-            </div>
-            <div class="close-modal-trigger" onclick="closeMoreMenu()">Dismiss</div>
-        </div>
-    </div>
-    <audio id="audioPlayer" preload="metadata" crossorigin="anonymous"></audio>
-<!-- ========================================= -->
-<!-- === 顶部通知横幅 === -->
-<!-- ========================================= -->
-<div class="ios-notification" id="notificationBanner">
-    <div class="notif-content" onclick="handleNotifClick()">
-        <div class="notif-avatar" id="notifAvatar"></div>
-        <div class="notif-text">
-            <div class="notif-title" id="notifTitle">通知</div>
-            <div class="notif-desc" id="notifDesc">新消息...</div>
-        </div>
-    </div>
-    <div class="notif-pin" onclick="pinToFloatingWindow(event)">
-        <svg viewBox="0 0 24 24"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path></svg>
-    </div>
-</div>
-
-<!-- ========================================= -->
-<!-- === 聊天浮窗 === -->
-<!-- ========================================= -->
-<div class="floating-chat-window" id="floatingChat">
-    <div class="resize-handle-tl" id="resizeHandleTL"></div>
-    <div class="float-header">
-        <div class="float-info">
-            <div class="float-avatar" id="floatAvatar"></div>
-            <span class="float-name" id="floatName">...</span>
-        </div>
-        <div class="drag-handle" id="dragHandle">
-            <svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="18" cy="12" r="1.5"/></svg>
-        </div>
-        <div class="float-actions">
-            <!-- 放大进入全屏 -->
-            <div class="float-btn" onclick="enterFullChatFromFloat()">
-                <svg viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
-            </div>
-            <!-- 关闭浮窗 -->
-            <div class="float-btn" onclick="closeFloatingWindow()">
-                <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </div>
-        </div>
-    </div>
-    <div class="float-body" id="floatBody"></div>
-    <div class="float-footer">
-        <div class="float-input-wrap">
-            <input type="text" class="float-input" id="floatInput" placeholder="Type..." autocomplete="off">
-        </div>
-        <!-- 浮窗发送按钮 -->
-        <div class="float-send" onclick="handleFloatSendBtnClick()">
-            <svg viewBox="0 0 24 24"><path d="M22 2L11 13" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 2L15 22L11 13L2 9L22 2Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
-    </div>
-    <div class="resize-handle" id="resizeHandle"></div>
-</div>
-    <input type="file" id="fileInput" hidden accept="image/*">
-    <input type="file" id="importFileInput" hidden accept=".json">
-<!-- ========================================= -->
-<!-- === 聊天设置界面 (点星星进入) === -->
-<!-- ========================================= -->
-<div id="chatSettingsScreen" class="app-screen-overlay" style="z-index: 6000; background: rgba(242, 242, 247, 0.6); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); background-image: none;">
-    <!-- 顶栏 -->
-    <div class="cs-nav">
-        <div class="cs-icon-btn" onclick="closeChatSettings()"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
-        <div class="cs-title">SETTINGS</div>
-        <div class="cs-icon-btn" style="opacity: 0;"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
-    </div>
-
-    <div class="cs-content">
-        <!-- 大毛玻璃 -->
-        <div class="cs-main-card" id="csBigGlass">
-            <div class="cs-top-section">
-                <div class="cs-left-col">
-                    <!-- 头像 (自动读取角色头像) -->
-                    <div class="cs-avatar" id="csAvatar"></div>
-                    
-                    <!-- 颜色选择器 -->
-                    <div class="cs-color-row">
-                        <div class="cs-color-picker"><div class="cs-dot" style="background: #ffffff;"></div><input type="color" value="#ffffff" oninput="updateCsColor('big', this, this.value)"></div>
-                        <div class="cs-color-picker"><div class="cs-dot" style="background: #ffffff;"></div><input type="color" value="#ffffff" oninput="updateCsColor('small', this, this.value)"></div>
-                        <div class="cs-color-picker"><div class="cs-dot" style="background: #888888;"></div><input type="color" value="#888888" oninput="updateCsColor('tag', this, this.value)"></div>
-                    </div>
-                </div>
-                
-                <div class="cs-right-col">
-                    <!-- 常驻文字 -->
-                    <div class="cs-fixed-text">♡ > w < ♡</div>
-                    <!-- 姓名与昵称 (自动读取) -->
-                    <div class="cs-name-row">
-                        <span id="csCharName">姓名</span> <span class="cs-divider">|</span> <span id="csCharNickname">昵称</span>
-                    </div>
-                    <!-- 自我介绍 (默认空，可编辑) -->
-                    <textarea class="cs-about-textarea" id="csAboutText" placeholder="在这里输入自我介绍..." onchange="saveChatSettingsData()"></textarea>
-                </div>
-            </div>
-
-            <div class="cs-inner-glass">
-                <!-- 备注信息 (默认空，可编辑) -->
-                <textarea class="cs-inner-textarea" id="csNoteText" placeholder="在这里输入备注信息..." onchange="saveChatSettingsData()"></textarea>
-
-                <!-- 功能按键 -->
-                <div class="cs-settings-grid">
-                    <!-- 在 chatSettingsScreen 里找到这一行 -->
-<div class="cs-setting-item">
-    <div class="cs-setting-line"></div>
-    <!--以此为准：添加了 onclick="openBasicSettings()" -->
-    <div class="cs-setting-capsule" onclick="openBasicSettings()">
-        <span>基础设置</span>
-    </div>
-</div>
-                    <div class="cs-setting-item"><div class="cs-setting-line"></div><div class="cs-setting-capsule"><span>气泡美化</span></div></div>
-                    <div class="cs-setting-item"><div class="cs-setting-line"></div><div class="cs-setting-capsule"><span>记忆总结</span></div></div>
-                    <div class="cs-setting-item"><div class="cs-setting-line"></div><div class="cs-setting-capsule"><span>功能设置</span></div></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- TA的相册 -->
-        <div class="cs-album-section">
-            <div class="cs-setting-item" style="margin-bottom: 4px;">
-                <div class="cs-setting-line"></div>
-                <div class="cs-setting-capsule" style="justify-content: flex-start; cursor: default; padding-left: 10px;">
-                    <span style="font-size: 12px;">TA的相册</span>
-                </div>
-            </div>
-            <div class="cs-album-grid">
-    <!-- 去掉了全局的 img-upload-target，加上了专属的点击事件和 ID -->
-    <div class="cs-album-item" id="cs-album-0" onclick="triggerCsAlbumUpload(0)"></div>
-    <div class="cs-album-item" id="cs-album-1" onclick="triggerCsAlbumUpload(1)"></div>
-    <div class="cs-album-item" id="cs-album-2" onclick="triggerCsAlbumUpload(2)"></div>
-</div>
-<!-- 专属的隐藏文件选择器 -->
-<input type="file" id="csAlbumFileInput" hidden accept="image/*">
-<!-- 新增：用于聊天界面发送图片的隐藏 input -->
-<input type="file" id="chatImageInput" hidden accept="image/*">
-        </div>
-    </div>
-    
-    <!-- 底部导航条 -->
-    <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeChatSettings()"></div></div>
-</div>
-<!-- ========================================= -->
-<!-- === 通讯录人设库 (Contacts Browser) === -->
-<!-- ========================================= -->
-<div id="contactsScreen" class="app-screen-overlay" style="z-index: 5300; background-image: url('https://file.uhsea.com/2603/f06227d622830863b7274640523032e3OQ.jpg'); background-size: cover; background-position: center;">
-    
-    <!-- 顶部占位 (避开你的全局状态栏) -->
-    <div style="height: 130px; width: 100%; flex-shrink: 0;"></div>
-
-    <div class="glass-sheet">
+        const delBtn = document.createElement('div');
+        delBtn.className = 'wallpaper-delete';
+        delBtn.innerHTML = '×';
+        delBtn.onclick = (e) => { e.stopPropagation(); deleteWallpaper(id); };
         
-        <!-- 头像 (点击更换) -->
-        <div class="protruding-avatar" id="contactAvatar" onclick="triggerContactUpload('avatar')">
-            <div class="edit-badge">
-                <svg viewBox="0 0 24 24"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-            </div>
-        </div>
+        item.appendChild(delBtn);
+        container.appendChild(item);
 
-        <!-- 控制栏 (切换 Char/User) -->
-        <div class="control-bar">
-            <div class="ios-segment">
-                <div class="segment-item active" id="seg-char" onclick="switchContactTab(0)">Char</div>
-                <div class="segment-item" id="seg-user" onclick="switchContactTab(1)">User</div>
-            </div>
-            
-            <!-- 搜索 (预留) -->
-            <div class="circle-btn" onclick="alert('搜索功能开发中...')">
-                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            </div>
-            
-            <!-- 更换背景 -->
-            <div class="circle-btn" onclick="triggerContactUpload('bg')">
-                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-            </div>
-        </div>
+        getWallpaperFromDB(id, (data) => {
+            if(data) item.style.backgroundImage = `url(${data})`;
+        });
+    });
+}
 
-        <!-- 名字与艺术字 (实时编辑区) -->
-        <div class="user-info">
-            <!-- 艺术字 Persona -->
-            <div class="artistic-typography" data-text="Persona">Persona</div>
-            
-            <!-- 名字区域：可编辑，实时同步数据库 -->
-            <div class="user-name">
-                <span id="contactNameEditor" contenteditable="true" spellcheck="false" oninput="handleContactNameEdit()">Loading...</span>
-                <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
-            </div>
-            <div class="user-sub">
-                <svg viewBox="0 0 24 24"><path d="M12 22v-6m-4-6a4 4 0 1 1 8 0 4 4 0 1 1-8 0z"/></svg>
-                <span id="contactSubEditor" contenteditable="true" spellcheck="false" oninput="handleContactSubEdit()">...</span>
-            </div>
-        </div>
+function getWallpaperFromDB(id, callback) {
+    if(!db) return callback(null);
+    const transaction = db.transaction([storeName], "readonly");
+    const store = transaction.objectStore(storeName);
+    const req = store.get(id);
+    req.onsuccess = () => {
+        if (req.result) callback(req.result.data);
+        else callback(null);
+    };
+}
 
-        <!-- 卡片轮播 -->
-        <div class="carousel-stage" id="contactCarouselStage">
-            <div class="card-container" id="contactCardContainer"></div>
-            
-            <div class="nav-arrow left" onclick="prevContactCard()">
-                <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
-            </div>
-            <div class="nav-arrow right" onclick="nextContactCard()">
-                <svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
-            </div>
-        </div>
+function applyWallpaper(id) {
+    currentWallpaperId = id;
+    localStorage.setItem('hajimi_current_wallpaper', id);
+    renderWallpaperList();
+    updateWallpaperPreview();
+    loadCurrentWallpaper();
+}
 
-        <div class="bottom-area">
-            <div class="learn-more">愛是两颗相擁的透明心臓</div>
-        </div>
-        
-        <!-- 底部退出条 -->
-        <div class="home-indicator-wrap"><div class="home-indicator-bar" onclick="closeContactsScreen()"></div></div>
-    </div>
+function loadCurrentWallpaper() {
+    const currentId = localStorage.getItem('hajimi_current_wallpaper');
+    if (currentId) {
+        getWallpaperFromDB(currentId, (data) => {
+            if (data) {
+                document.body.style.backgroundImage = `url(${data})`;
+                document.body.style.backgroundSize = 'cover'; // 完美全屏覆盖
+            } else {
+                resetToDefaultWallpaper();
+            }
+        });
+    } else {
+        resetToDefaultWallpaper();
+    }
+}
 
-    <!-- 专用上传控件 -->
-    <input type="file" id="contactUploadInput" hidden accept="image/*">
-    <!-- 提示条 -->
-    <div class="toast" id="contactToast">已更新</div>
-</div>
-<!-- 撤回内容查看弹窗 -->
-<div class="recall-modal" id="recallModal">
-    <div class="recall-card">
-        <div class="recall-title">撤回的内容</div>
-        <div class="recall-content-text" id="recallText"></div>
-        <div class="recall-close-btn" onclick="closeRecallModal()">关闭</div>
-    </div>
-</div>
-    <script src="script.js" defer></script>
+function resetToDefaultWallpaper() {
+    document.body.style.backgroundImage = `url("data:image/svg+xml,%3Csvg width='50' height='50' viewBox='0 0 50 50' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.9' fill-rule='evenodd'%3E%3Cpath d='M12.5 4l2 6h6.5l-5 4 2 6-5-4-5 4 2-6-5-4h6.5zM37.5 29l2 6h6.5l-5 4 2 6-5-4-5 4 2-6-5-4h6.5z'/%3E%3C/g%3E%3C/svg%3E")`;
+    document.body.style.backgroundSize = '50px 50px'; // 恢复极简网格尺寸
+}
+
+async function deleteWallpaper(id) {
+    if(!confirm('确定删除此壁纸吗？')) return;
+    wallpapers = wallpapers.filter(w => w !== id);
+    localStorage.setItem('hajimi_wallpapers', JSON.stringify(wallpapers));
+    await deleteImageFromDBAsync(id);
+    if (currentWallpaperId === id) {
+        currentWallpaperId = null;
+        localStorage.removeItem('hajimi_current_wallpaper');
+        loadCurrentWallpaper();
+    }
+    renderWallpaperList();
+    updateWallpaperPreview();
+}
+
+function triggerWallpaperUpload() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const data = event.target.result;
+                const newId = 'wallpaper-' + Date.now();
+                await saveImageToDBAsync(newId, data);
+                wallpapers.push(newId);
+                localStorage.setItem('hajimi_wallpapers', JSON.stringify(wallpapers));
+                applyWallpaper(newId);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+    input.click();
+}
+
+// --- 主界面美化核心逻辑 ---
+const beautifyScreen = document.getElementById('beautifyScreen');
+const beautifyAppList = document.getElementById('beautify-app-list');
+const importFileInput = document.getElementById('importFileInput');
+const BEAUTIFY_STORAGE_KEY = 'hajimi_beautify_data';
+
+function openBeautifyScreen() {
+    populateBeautifyList();
+    loadFontPresets();
+    loadCSSPresets();
+    beautifyScreen.style.display = 'flex';
+    setTimeout(() => beautifyScreen.classList.add('active'), 10);
+}
+
+function closeBeautifyScreen() {
+    beautifyScreen.classList.remove('active');
+    setTimeout(() => beautifyScreen.style.display = 'none', 400);
+}
+
+function populateBeautifyList() {
+    beautifyAppList.innerHTML = '';
+    const allApps = document.querySelectorAll('[data-app-id]');
     
-    <!-- 微信界面专属 JS (直接内嵌) -->
-    <!-- 微信长按菜单弹窗 -->
-<div id="wxContextMenuOverlay" class="wx-context-overlay" onclick="closeContextMenu()">
-    <div class="wx-context-menu" onclick="event.stopPropagation()">
-        <div class="wx-ctx-item" onclick="togglePinCharacter()">
-            <span id="ctx-pin-text">Pin to Top</span>
-            <svg class="wx-ctx-icon" viewBox="0 0 24 24"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path></svg>
-        </div>
-        <div class="wx-ctx-item" onclick="closeContextMenu()">
-            <span>Mark as Read</span>
-            <svg class="wx-ctx-icon" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-        </div>
-        <div class="wx-ctx-item" onclick="closeContextMenu()">
-            <span>Add to Group</span>
-            <svg class="wx-ctx-icon" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-        </div>
-        <div class="wx-ctx-item danger" onclick="deleteCharacterAction()">
-            <span>Delete</span>
-            <svg class="wx-ctx-icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-        </div>
-    </div>
-</div>
-<!-- ========================================= -->
-<!-- === 新增：基础设置 (文件夹样式弹窗) === -->
-<!-- ========================================= -->
-<div class="folder-modal-overlay" id="basicSettingsModal" onclick="closeBasicSettings()">
-    <div class="folder-container" onclick="event.stopPropagation()">
-        <!-- 顶部 Tab -->
-        <div class="folder-tab">
-            <svg viewBox="0 0 24 24"><path d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"></path></svg>
-            <span>Basic Settings</span>
-        </div>
+    // 1. 先生成 HTML 骨架
+    allApps.forEach(appEl => {
+        const appId = appEl.dataset.appId;
+        if (appId.startsWith('beautify-') || appId === 'time-decorator') return;
 
-        <!-- 主体内容 -->
-        <div class="folder-body">
-            <!-- 伪 URL 栏 -->
-            <div class="folder-url-bar">
-                <div class="url-text">
-                    <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                    hajimi://settings/basic
-                </div>
-                <div class="close-btn" onclick="closeBasicSettings()">
-                    <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </div>
-            </div>
-
-            <!-- 列表区域 -->
-            <div class="folder-list">
-                <!-- 1. 置顶聊天 -->
-                <div class="set-item">
-                    <div class="set-line"></div>
-                    <div class="set-capsule" onclick="togglePinFromSettings()">
-                        <svg class="set-icon" viewBox="0 0 24 24"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path></svg>
-                        <span class="set-text">置顶聊天</span>
-                        <div class="mini-switch" id="setting-pin-switch"></div>
-                    </div>
-                </div>
-
-                <!-- 2. 双语设置 (仅 UI 状态，预留逻辑) -->
-                <div class="set-item">
-                    <div class="set-line"></div>
-                    <div class="set-capsule" onclick="toggleBilingualFromSettings()">
-                        <svg class="set-icon" viewBox="0 0 24 24"><path d="M4 5h7M9 3v2c0 4.418-2.239 8-5 8"></path><path d="M5 9c-.112.928-.447 1.817-1 2.618"></path><path d="M11 13.5c-2.5 0-4.828-1.5-6-4"></path><path d="M12 16l4-9 4 9"></path><path d="M14.5 13h3"></path></svg>
-                        <span class="set-text">双语设置</span>
-                        <div class="mini-switch" id="setting-bilingual-switch"></div>
-                    </div>
-                </div>
-
-                <div class="list-divider"></div>
-
-                <!-- 3. 开启新对话 (清空上下文) -->
-                <div class="set-item">
-                    <div class="set-line"></div>
-                    <div class="set-capsule" onclick="startNewChat()">
-                        <svg class="set-icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><line x1="12" y1="8" x2="12" y2="14"></line><line x1="9" y1="11" x2="15" y2="11"></line></svg>
-                        <span class="set-text">开启新对话</span>
-                    </div>
-                </div>
-
-                <!-- 4. 导出聊天记录 -->
-                <div class="set-item">
-                    <div class="set-line"></div>
-                    <div class="set-capsule" onclick="exportChatHistory()">
-                        <svg class="set-icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                        <span class="set-text">导出聊天记录</span>
-                    </div>
-                </div>
-
-                <!-- 5. 导入聊天记录 -->
-                <div class="set-item">
-                    <div class="set-line"></div>
-                    <div class="set-capsule" onclick="triggerImportChat()">
-                        <svg class="set-icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                        <span class="set-text">导入聊天记录</span>
-                    </div>
-                </div>
-
-                <div class="list-divider"></div>
-
-                <!-- 6. 清除聊天记录 (危险) -->
-                <div class="set-item danger">
-                    <div class="set-line"></div>
-                    <div class="set-capsule" onclick="clearChatHistoryAction()">
-                        <svg class="set-icon" viewBox="0 0 24 24"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"></path><line x1="18" y1="9" x2="12" y2="15"></line><line x1="12" y1="9" x2="18" y2="15"></line></svg>
-                        <span class="set-text">清除聊天记录</span>
-                    </div>
-                </div>
-
-                <!-- 7. 拉黑联系人 (危险) -->
-                <div class="set-item danger">
-                    <div class="set-line"></div>
-                    <div class="set-capsule" onclick="blockContactAction()">
-                        <svg class="set-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
-                        <span class="set-text">拉黑联系人</span>
-                    </div>
-                </div>
-
-                <!-- 8. 举报联系人 (危险) -->
-                <div class="set-item danger">
-                    <div class="set-line"></div>
-                    <div class="set-capsule" onclick="reportContactAction()">
-                        <svg class="set-icon" viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
-                        <span class="set-text">举报联系人</span>
-                    </div>
-                </div>
-
-                <!-- 9. 删除联系人 (危险) -->
-                <div class="set-item danger">
-                    <div class="set-line"></div>
-                    <div class="set-capsule" onclick="deleteContactAction()">
-                        <svg class="set-icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5c-2.2 0-4 1.8-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="18" y1="8" x2="23" y2="13"></line><line x1="23" y1="8" x2="18" y2="13"></line></svg>
-                        <span class="set-text">删除联系人</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-<!-- 隐藏的导入文件输入框 -->
-<input type="file" id="importChatInput" hidden accept=".json">
-<!-- 数据管理弹窗 -->
-<div class="dm-overlay" id="dataModal" onclick="closeDataModal()">
-    <div class="dm-card" onclick="event.stopPropagation()">
-        <div class="dm-header">
-            <span class="dm-title">数据管理</span>
-            <div class="dm-close-btn" onclick="closeDataModal()">
-                <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </div>
-        </div>
-
-        <!-- 存储空间可视化 -->
-        <div class="dm-storage-section">
-            <div class="dm-storage-info">
-                <span class="dm-storage-label">Boluo Storage</span>
-                <span class="dm-storage-val" id="dm-storage-text">计算中...</span>
-            </div>
-            <div class="dm-progress-track">
-                <div class="dm-bar-seg dm-bar-chat" id="dm-bar-chat" style="width: 0%"></div>
-                <div class="dm-bar-seg dm-bar-img" id="dm-bar-img" style="width: 0%"></div>
-                <div class="dm-bar-seg dm-bar-sys" id="dm-bar-sys" style="width: 0%"></div>
-            </div>
-            <div class="dm-legend">
-                <div class="dm-legend-item"><div class="dm-dot" style="background:#333333"></div>Chat (<span id="dm-val-chat">0MB</span>)</div>
-                <div class="dm-legend-item"><div class="dm-dot" style="background:#8e8e93"></div>Media (<span id="dm-val-img">0MB</span>)</div>
-                <div class="dm-legend-item"><div class="dm-dot" style="background:#d1d1d6"></div>System (<span id="dm-val-sys">0MB</span>)</div>
-            </div>
-        </div>
-
-        <!-- 备份与恢复组 -->
-        <div class="dm-list-group">
-            <div class="dm-item" onclick="exportAllData()">
-                <div class="dm-icon-wrap">
-                    <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                </div>
-                <div class="dm-item-content">
-                    <span class="dm-item-title">备份数据 (ZIP)</span>
-                    <span class="dm-item-desc">导出所有设置、美化、角色与聊天记录</span>
-                </div>
-            </div>
-            <div class="dm-item" onclick="document.getElementById('importZipInput').click()">
-                <div class="dm-icon-wrap">
-                    <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                </div>
-                <div class="dm-item-content">
-                    <span class="dm-item-title">恢复数据</span>
-                    <span class="dm-item-desc">从 ZIP 备份文件恢复 (将覆盖当前数据)</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- 危险操作组 (已移除清理图片) -->
-        <div class="dm-list-group">
-            <div class="dm-item" onclick="factoryReset()">
-                <div class="dm-icon-wrap dm-danger-icon">
-                    <svg viewBox="0 0 24 24"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                </div>
-                <div class="dm-item-content">
-                    <span class="dm-item-title dm-danger-text">恢复出厂设置</span>
-                    <span class="dm-item-desc">彻底清空所有数据并重置系统</span>
-                </div>
-            </div>
-        </div>
-        <div class="dm-footer">Boluo OS v1.0.2 • Local Storage</div>
-    </div>
-</div>
-<!-- ========================================= -->
-<!-- === 聊天功能面板 (Chat Function Panel) === -->
-<!-- ========================================= -->
-<div class="chat-func-overlay" id="chatFuncPanel">
-    <div class="cf-close-area" onclick="closeChatFuncPanel()"></div>
-
-    <!-- 大卡片 -->
-    <div class="cf-big-card">
-        <!-- 装饰：大标题 -->
-        <div class="cf-deco-title">FUNCTIONS</div>
-        <!-- 装饰：颜文字 -->
-        <div class="cf-deco-kaomoji">ovo</div>
-
-        <!-- 左侧：时间轴 -->
-        <div class="cf-left-timeline">
-            <svg viewBox="0 0 30 180">
-                <line x1="15" y1="45" x2="15" y2="145" stroke="#444" stroke-width="1.5" />
-                <circle cx="15" cy="45" r="4" fill="#fff" stroke="#444" stroke-width="1.5" />
-                <circle cx="15" cy="80" r="4" fill="#fff" stroke="#444" stroke-width="1.5" />
-                <circle cx="15" cy="115" r="5" fill="#fff" stroke="#444" stroke-width="1.5" />
-                <polyline points="12 115 14 117 18 113" stroke="#444" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-        </div>
-
-        <!-- 小卡片 (内容容器) -->
-        <div class="cf-inner-card">
-            <div class="cf-func-grid">
-                <!-- Row 1 -->
-                <div class="cf-func-btn" onclick="handleChatFuncAct('图片')"><span class="cf-func-text">图片</span></div>
-                <div class="cf-func-btn" onclick="handleChatFuncAct('拍照')"><span class="cf-func-text">拍照</span></div>
-                <div class="cf-func-btn" onclick="handleChatFuncAct('转账')"><span class="cf-func-text">转账</span></div>
-                <div class="cf-func-btn" onclick="handleChatFuncAct('语音')"><span class="cf-func-text">语音</span></div>
-                
-                <!-- Row 2 -->
-                <div class="cf-func-btn" data-len="4" onclick="handleChatFuncAct('视频通话')"><span class="cf-func-text">视频通话</span></div>
-                <div class="cf-func-btn" data-len="4" onclick="handleChatFuncAct('语音通话')"><span class="cf-func-text">语音通话</span></div>
-                <div class="cf-func-btn" onclick="handleChatFuncAct('位置')"><span class="cf-func-text">位置</span></div>
-                <div class="cf-func-btn" onclick="handleChatFuncAct('亲属卡')"><span class="cf-func-text">亲属卡</span></div>
-                
-                <!-- Row 3 -->
-                <div class="cf-func-btn" data-len="4" onclick="handleChatFuncAct('情侣关系')"><span class="cf-func-text">情侣关系</span></div>
-                <div class="cf-func-btn" onclick="handleChatFuncAct('视奸')"><span class="cf-func-text">视奸</span></div>
-                <div class="cf-func-btn" onclick="handleChatFuncAct('音乐')"><span class="cf-func-text">音乐</span></div>
-                <div class="cf-func-btn" onclick="handleChatFuncAct('天气')"><span class="cf-func-text">天气</span></div>
-            </div>
-        </div>
-    </div>
-</div>
-<!-- 隐藏的 ZIP 导入框 -->
-<input type="file" id="importZipInput" hidden accept=".zip">
-<!-- ========================================= -->
-<!-- === 转账功能：金额输入与密码键盘浮窗 === -->
-<!-- ========================================= -->
-<!-- 1. 玻璃浮窗：输入金额 + 备注 -->
-<div class="glass-modal-overlay" id="transferAmountModal">
-    <div class="glass-card">
-        <div class="glass-close" onclick="closeTransferAmountModal()">
-            <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
-        </div>
-        <div class="transfer-target-info">
-            <div class="target-avatar" id="transferTargetAvatar"></div>
-            <div class="target-name" id="transferTargetName">转账给 宝宝</div>
-        </div>
-        <div class="glass-amount-box">
-            <div class="amount-label">转账金额</div>
-            <div class="amount-row">
-    <span class="currency-symbol">¥</span>
-    <!-- 改为 text 类型并限制输入模式，彻底杀掉历史记录下拉框 -->
-    <input type="text" inputmode="decimal" class="amount-input" id="transferInput" placeholder="0.00" oninput="checkTransferAmount()" autocomplete="off" name="transfer_amount_random">
-</div>
-<input type="text" class="note-input" id="transferNote" placeholder="添加备注 (最多10字)" autocomplete="off" name="transfer_note_random">
-        </div>
-        <button class="glass-transfer-btn" id="transferBtn" onclick="proceedToTransferPassword()">确认转账</button>
-    </div>
-</div>
-
-<!-- 2. 玻璃浮窗：无界密码键盘 -->
-<div class="glass-modal-overlay" id="transferPwdModal">
-    <div class="glass-card" style="max-width: 300px;">
-        <div class="glass-close" onclick="closeTransferPwdModal()">
-            <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
-        </div>
-        <div class="pwd-header">请输入支付密码</div>
-        <div class="pwd-amount-display" id="transferPwdAmountDisplay">¥ 0.00</div>
-        <div class="pwd-grid-container">
-            <div class="pwd-grid">
-                <div class="pwd-box"><div class="pwd-dot" id="pwd-dot-1"></div></div>
-                <div class="pwd-box"><div class="pwd-dot" id="pwd-dot-2"></div></div>
-                <div class="pwd-box"><div class="pwd-dot" id="pwd-dot-3"></div></div>
-                <div class="pwd-box"><div class="pwd-dot" id="pwd-dot-4"></div></div>
-                <div class="pwd-box"><div class="pwd-dot" id="pwd-dot-5"></div></div>
-                <div class="pwd-box"><div class="pwd-dot" id="pwd-dot-6"></div></div>
-            </div>
-        </div>
-        <div class="glass-keyboard">
-            <div class="glass-key" onclick="pressTransferKey(1)">1</div>
-            <div class="glass-key" onclick="pressTransferKey(2)">2</div>
-            <div class="glass-key" onclick="pressTransferKey(3)">3</div>
-            <div class="glass-key" onclick="pressTransferKey(4)">4</div>
-            <div class="glass-key" onclick="pressTransferKey(5)">5</div>
-            <div class="glass-key" onclick="pressTransferKey(6)">6</div>
-            <div class="glass-key" onclick="pressTransferKey(7)">7</div>
-            <div class="glass-key" onclick="pressTransferKey(8)">8</div>
-            <div class="glass-key" onclick="pressTransferKey(9)">9</div>
-            <div class="glass-key" style="pointer-events:none"></div>
-            <div class="glass-key" onclick="pressTransferKey(0)">0</div>
-            <div class="glass-key" onclick="deleteTransferKey()">
-                <svg class="key-icon" viewBox="0 0 24 24"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>
-            </div>
-        </div>
-    </div>
-</div>
-<!-- ========================================= -->
-<!-- === 世界书主界面 === -->
-<!-- ========================================= -->
-<div id="worldBookScreen" class="app-screen-overlay" style="z-index: 5200; background-color: #e8e9eb; background-image: none;">
-    <!-- 中心黑色模糊色块 -->
-    <div class="wb-bg-blur"></div>
-    
-    <div class="wb-header" style="padding-top: 55px;">
-        <div class="wb-title">World Book</div>
-        <div class="wb-close-btn" onclick="closeWorldBookScreen()">
-            <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
-        </div>
-    </div>
-    <div class="wb-deco-line"><span>SYSTEM.DATA</span><div class="line"></div><span>v2.0</span></div>
-
-    <div class="wb-body">
-        <div class="wb-sidebar">
-            <div class="wb-sidebar-actions-wrap">
-                <div class="wb-side-btn" onclick="addWorldBook()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
-                <div class="wb-side-btn danger" onclick="deleteCurrentWorldBook()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
-            </div>
-            <div class="wb-tab-list" id="wbSidebarList"></div>
-        </div>
+        const appNameEl = appEl.querySelector('.app-name');
+        const appIconEl = appEl.classList.contains('dock-text-icon') ? appEl : appEl.querySelector('.app-icon');
+        const currentName = appNameEl ? appNameEl.textContent : appEl.textContent;
         
-        <div class="wb-main-area">
-            <div class="wb-layer-2"></div>
-            <div class="wb-content-wrapper">
-                <div class="wb-toolbar">
-                    <div class="wb-search-box">
-                        <input type="text" class="wb-search-input" id="wbBookNameInput" placeholder="世界书名称..." onchange="saveCurrentWorldBookName()">
-                    </div>
-                    <div class="wb-tool-btn star" onclick="addWorldBookItem()">
-                        <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                    </div>
-                </div>
-                <div class="wb-list-container" id="wbItemList">
-                    <div class="wb-particle-track"></div>
-                </div>
-            </div>
+        // 默认先用 CSS 里的颜色，不依赖 style.backgroundImage
+        let bgStyle = `background-color: ${window.getComputedStyle(appIconEl).backgroundColor};`;
+
+        if (!appEl.dataset.defaultName) appEl.dataset.defaultName = currentName;
+        const defaultName = appEl.dataset.defaultName;
+
+        const itemHTML = `
+    <div class="beautify-app-item" data-app-id="${appId}" id="beautify-item-${appId}">
+        <div class="beautify-app-icon img-upload-target" data-img-id="beautify-app-icon-${appId}" style="${bgStyle}"></div>
+        <input type="text" class="beautify-app-name-input" value="${currentName}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        <div class="reset-btn" onclick="resetAppIcon('${appId}', '${defaultName}')">
+            <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
         </div>
     </div>
-</div>
+`;
+        beautifyAppList.insertAdjacentHTML('beforeend', itemHTML);
+    });
 
-<!-- ========================================= -->
-<!-- === 角色绑定世界书多选弹窗 === -->
-<!-- ========================================= -->
-<div class="glass-modal-overlay" id="wbSelectorModal" style="z-index: 8000;">
-    <div class="glass-card" style="max-width: 300px; padding: 20px; max-height: 60vh; display: flex; flex-direction: column;">
-        <div class="modal-title" style="margin-bottom: 15px;">选择世界书</div>
-        <div id="wbSelectorList" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px;">
-            <!-- 动态渲染复选框 -->
-        </div>
-        <button class="glass-transfer-btn active" style="margin: 0; padding: 10px;" onclick="confirmWorldBookSelection()">确定</button>
-    </div>
-</div>
-<!-- ========================================= -->
-<!-- === 视频通话全屏界面 (Hajimi 专属隔离版) === -->
-<!-- ========================================= -->
-<div id="videoCallScreen" class="app-screen-overlay" style="z-index: 9999; background: #000;">
-    <!-- 1. 接听界面 -->
-    <div id="vc-incoming-call">
-        <div class="vc-bg-blur" id="vc-incoming-bg"></div>
-        <div style="text-align:center; position: relative; z-index: 10;">
-            <center><div class="vc-caller-avatar-wrap"><div class="vc-caller-avatar-img" id="vc-incoming-avatar"></div></div></center>
-            <div class="vc-caller-name-big" id="vc-incoming-name">宝宝</div>
-            <div class="vc-caller-status">邀请你进行视频通话...</div>
-        </div>
-        <div class="vc-call-btn-group" style="position: relative; z-index: 10;">
-            <div onclick="endVideoCall(false)">
-                <div class="vc-call-btn-circle vc-btn-decline">
-                    <svg viewBox="0 0 24 24"><path d="M6.62 10.79a15.05 15.05 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.17-.24c1.05.39 2.18.6 3.34.6a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.16.21 2.29.6 3.34a1 1 0 0 1-.24 1.17l-2.24 2.28z" transform="rotate(135 12 12)"/></svg>
-                </div>
-            </div>
-            <div onclick="acceptVideoCall()">
-                <div class="vc-call-btn-circle vc-btn-accept">
-                    <svg viewBox="0 0 24 24"><path d="M6.62 10.79a15.05 15.05 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.17-.24c1.05.39 2.18.6 3.34.6a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.16.21 2.29.6 3.34a1 1 0 0 1-.24 1.17l-2.24 2.28z"/></svg>
-                </div>
-            </div>
-        </div>
-    </div>
+    // 2. 异步从 DB 读取真实图片并应用到预览上
+    if (db) {
+        const transaction = db.transaction([storeName], "readonly");
+        const store = transaction.objectStore(storeName);
+        const req = store.getAll();
+        req.onsuccess = () => {
+            req.result.forEach(item => {
+                if (item.id.startsWith('icon-')) {
+                    const appId = item.id.replace('icon-', '');
+                    // 找到对应的预览元素
+                    const previewEl = document.querySelector(`[data-img-id="beautify-app-icon-${appId}"]`);
+                    if (previewEl) {
+                        previewEl.style.backgroundImage = `url(${item.data})`;
+                    }
+                }
+            });
+        };
+    }
+}
 
-    <!-- 2. 通话主视图 -->
-    <div id="vc-call-container">
-        <div id="vc-layer-char" class="vc-media-layer vc-view-large" style="background-size: cover; background-position: center;"></div>
-        <div id="vc-layer-user" class="vc-media-layer vc-view-small">
-            <video id="vc-user-video" autoplay playsinline style="transform: scaleX(-1);"></video>
-        </div>
+// 重置功能
+function resetAppIcon(appId, defaultName) {
+    const item = document.getElementById(`beautify-item-${appId}`);
+    if (!item) return;
+    const iconEl = item.querySelector('.beautify-app-icon');
+    const inputEl = item.querySelector('.beautify-app-name-input');
+    
+    inputEl.value = defaultName;
+    iconEl.style.backgroundImage = 'none'; 
+    iconEl.dataset.modified = "true";
+    iconEl.dataset.reset = "true";
+}
 
-        <div class="vc-top-nav">
-            <div class="vc-nav-btn" onclick="vcToggleHistory(true)"><svg viewBox="0 0 24 24"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg></div>
-            <div class="vc-top-nav-text">
-                <div style="font-weight:600; font-size:16px;" id="vc-active-name">宝宝</div>
-                <div id="vc-timer" style="font-size:11px; opacity:0.8;">00:00</div>
-            </div>
-            <div class="vc-nav-btn" style="opacity: 0; pointer-events: none;"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/></svg></div>
-        </div>
+function resetBeautifyItem(type) {
+    if (type === 'time-decorator') {
+        const el = document.getElementById('time-decorator-label');
+        el.innerText = "时间栏装饰 (点击更改)";
+        el.dataset.modified = "true";
+        el.dataset.reset = "true";
+        document.getElementById('timeDecorator').style.backgroundImage = 'none';
+    } else if (type === 'font') {
+        document.getElementById('custom-font-url').value = '';
+        previewFont();
+    } else if (type === 'css') {
+        document.getElementById('custom-css-input').value = '';
+        previewCSS();
+    }
+}
 
-        <div class="vc-subtitle-area"><div class="vc-subtitle-text" id="vc-subtitle-el"></div></div>
+async function saveBeautification() {
+    const data = {
+        topBarVisible: document.getElementById('beautify-toggle-topbar').classList.contains('on'),
+        customFontUrl: document.getElementById('custom-font-url').value,
+        customCSS: document.getElementById('custom-css-input').value,
+        fontScale: document.getElementById('font-size-slider').value,
+        timeDecSize: document.getElementById('time-dec-slider').value,
+        timeFontSize: document.getElementById('time-size-input').value,
+        timeOffsetX: document.getElementById('time-x-input').value,
+        timeOffsetY: document.getElementById('time-y-input').value,
+        timeFontCustom: document.getElementById('beautify-toggle-time-font').classList.contains('on'),
+        apps: {}
+    };
 
-        <div class="vc-bottom-wrap">
-            <div id="vc-more-menu">
-                <div class="vc-menu-item" id="vc-cam-toggle-text" onclick="vcHandleMoreAction('camera')">关闭摄像头</div>
-                <div class="vc-menu-item" onclick="vcToggleDescribeModal(true)">描述当前画面</div>
-            </div>
+    // 处理时间栏装饰
+    const timeDecEl = document.getElementById('time-decorator-label');
+    if (timeDecEl.dataset.reset === "true") {
+        await deleteImageFromDBAsync('time-decorator');
+        delete timeDecEl.dataset.reset;
+    } else if (timeDecEl.dataset.modified === "true" && timeDecEl.dataset.newImageData) {
+        await saveImageToDBAsync('time-decorator', timeDecEl.dataset.newImageData);
+        delete timeDecEl.dataset.modified;
+    }
 
-            <div class="vc-input-bar">
-                <div class="vc-input-btn" id="vc-more-btn" onclick="vcToggleMoreMenu()"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 6l-10 7L2 6"/></svg></div>
-                <input type="text" class="vc-chat-input" id="vc-chat-input" placeholder="输入消息..." autocomplete="off">
-                <div class="vc-input-btn" onclick="vcHandleAIReply()">
-                    <div class="vc-ai-ring" id="vc-ai-ring"></div>
-                    <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-                </div>
-                <div class="vc-input-btn" style="background:#fff" onclick="vcHandleUserSend()"><svg viewBox="0 0 24 24" style="stroke:#000"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg></div>
-            </div>
+    // 处理 App 图标
+    const appItems = document.querySelectorAll('#beautify-app-list .beautify-app-item');
+    for (const item of appItems) {
+        const appId = item.dataset.appId;
+        const newName = item.querySelector('.beautify-app-name-input').value;
+        const iconEl = item.querySelector('.beautify-app-icon');
+        
+        data.apps[appId] = { name: newName };
+        
+        if (iconEl.dataset.modified === "true") {
+            if (iconEl.dataset.reset === "true") {
+                await deleteImageFromDBAsync('icon-' + appId);
+                const mainAppEl = document.querySelector(`[data-app-id="${appId}"]`);
+                if (mainAppEl) {
+                    const mainIconEl = mainAppEl.classList.contains('dock-text-icon') ? mainAppEl : mainAppEl.querySelector('.app-icon');
+                    mainIconEl.style.backgroundImage = '';
+                    mainAppEl.classList.remove('has-custom-icon');
+                }
+            } else if (iconEl.dataset.newImageData) {
+                await saveImageToDBAsync('icon-' + appId, iconEl.dataset.newImageData);
+            }
+            delete iconEl.dataset.modified;
+            delete iconEl.dataset.reset;
+            delete iconEl.dataset.newImageData;
+        }
+    }
+
+    localStorage.setItem(BEAUTIFY_STORAGE_KEY, JSON.stringify(data));
+    applyBeautification(data);
+    
+    loadAllImages(); // 重新加载 DB 图标
+    
+    // 提示保存成功，但不关闭窗口
+    alert('美化设置已保存！');
+}
+
+function applyBeautification(data) {
+    if (!data) return;
+    document.querySelector('.status-bar').style.opacity = data.topBarVisible ? '1' : '0';
+    
+    if (data.customFontUrl !== undefined) { document.getElementById('custom-font-url').value = data.customFontUrl; applyFontToPage(data.customFontUrl); }
+    if (data.customCSS !== undefined) { document.getElementById('custom-css-input').value = data.customCSS; applyCSSToPage(data.customCSS); }
+    
+    if (data.fontScale) {
+        document.documentElement.style.setProperty('--font-scale', data.fontScale);
+        const slider = document.getElementById('font-size-slider');
+        if(slider) slider.value = data.fontScale;
+    }
+    if (data.timeDecSize) {
+        document.documentElement.style.setProperty('--time-dec-size', data.timeDecSize + 'px');
+        const slider = document.getElementById('time-dec-slider');
+        if(slider) slider.value = data.timeDecSize;
+    }
+
+    // === 这里是新增的时间样式应用逻辑 ===
+    if (data.timeFontSize) {
+        document.documentElement.style.setProperty('--time-font-size', data.timeFontSize + 'px');
+        const input = document.getElementById('time-size-input');
+        if(input) input.value = data.timeFontSize;
+    }
+    if (data.timeOffsetX !== undefined) {
+        document.documentElement.style.setProperty('--time-offset-x', data.timeOffsetX + 'px');
+        const input = document.getElementById('time-x-input');
+        if(input) input.value = data.timeOffsetX;
+    }
+    if (data.timeOffsetY !== undefined) {
+        document.documentElement.style.setProperty('--time-offset-y', data.timeOffsetY + 'px');
+        const input = document.getElementById('time-y-input');
+        if(input) input.value = data.timeOffsetY;
+    }
+    // === 新增结束 ===
+    // === 新增：应用时间字体跟随开关 ===
+if (data.timeFontCustom !== undefined) {
+    const toggle = document.getElementById('beautify-toggle-time-font');
+    if (toggle) toggle.classList.toggle('on', data.timeFontCustom);
+    
+    const statusBar = document.querySelector('.status-bar');
+    if (data.timeFontCustom) {
+        statusBar.classList.remove('force-system-font');
+    } else {
+        statusBar.classList.add('force-system-font');
+    }
+} else {
+    // 兼容旧数据，默认开启跟随
+    document.querySelector('.status-bar').classList.remove('force-system-font');
+}
+    if(data.apps) {
+        for (const appId in data.apps) {
+            const appEl = document.querySelector(`[data-app-id="${appId}"]`);
+            if (appEl) {
+                const nameEl = appEl.querySelector('.app-name') || appEl;
+                if (nameEl) nameEl.textContent = data.apps[appId].name;
+            }
+        }
+    }
+}
+function loadBeautification() {
+    const data = JSON.parse(localStorage.getItem(BEAUTIFY_STORAGE_KEY));
+    if (data) {
+        applyBeautification(data);
+        document.getElementById('beautify-toggle-topbar').classList.toggle('on', data.topBarVisible);
+    } else {
+        // 修复：首次进入时，强制将美化界面的默认值注入全局变量，防止 Safari 初始 CSS 变量解析失效导致字体变大
+        const fontSlider = document.getElementById('font-size-slider');
+        if (fontSlider) document.documentElement.style.setProperty('--font-scale', fontSlider.value);
+        
+        const timeDecSlider = document.getElementById('time-dec-slider');
+        if (timeDecSlider) document.documentElement.style.setProperty('--time-dec-size', timeDecSlider.value + 'px');
+        
+        const timeSizeInput = document.getElementById('time-size-input');
+        if (timeSizeInput) document.documentElement.style.setProperty('--time-font-size', timeSizeInput.value + 'px');
+        
+        const timeXInput = document.getElementById('time-x-input');
+        if (timeXInput) document.documentElement.style.setProperty('--time-offset-x', timeXInput.value + 'px');
+        
+        const timeYInput = document.getElementById('time-y-input');
+        if (timeYInput) document.documentElement.style.setProperty('--time-offset-y', timeYInput.value + 'px');
+    }
+}
+
+function clearBeautification() {
+    if (confirm('确定要清空所有美化设置及壁纸吗？此操作不可逆。')) {
+        localStorage.removeItem(BEAUTIFY_STORAGE_KEY);
+        localStorage.removeItem('hajimi_wallpapers');
+        localStorage.removeItem('hajimi_current_wallpaper');
+        
+        const transaction = db.transaction([storeName], "readwrite");
+        const store = transaction.objectStore(storeName);
+        const req = store.getAllKeys();
+        req.onsuccess = () => {
+            req.result.forEach(key => { 
+                if (key.startsWith('icon-') || key === 'time-decorator' || key.startsWith('wallpaper-')) {
+                    store.delete(key); 
+                }
+            });
+            window.location.reload();
+        };
+    }
+}
+
+function exportBeautification() {
+    const data = localStorage.getItem(BEAUTIFY_STORAGE_KEY);
+    if (!data) return alert('没有可导出的美化数据。');
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `hajimi_beautify_${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+function importBeautification() { importFileInput.click(); }
+
+importFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const data = JSON.parse(event.target.result);
+                localStorage.setItem(BEAUTIFY_STORAGE_KEY, JSON.stringify(data));
+                applyBeautification(data); alert('导入成功！'); closeBeautifyScreen();
+            } catch (err) { alert('导入失败，文件格式错误。'); }
+        };
+        reader.readAsText(file);
+    }
+    e.target.value = ''; 
+});
+
+// --- 自动保存与加载 ---
+document.addEventListener('DOMContentLoaded', () => {
+    const container = document.getElementById('mainPages');
+    const lastScrollLeft = localStorage.getItem('hajimi_last_scroll');
+    if (lastScrollLeft !== null) container.scrollTo({ left: parseInt(lastScrollLeft), behavior: 'instant' });
+    
+    restoreMusicState();
+    loadBeautification(); 
+
+    let scrollTimer;
+    container.addEventListener('scroll', () => {
+        clearTimeout(scrollTimer);
+        scrollTimer = setTimeout(() => localStorage.setItem('hajimi_last_scroll', container.scrollLeft), 100);
+    });
+
+    document.addEventListener('blur', (e) => {
+        if (e.target.hasAttribute('contenteditable')) {
+            const saveKey = e.target.getAttribute('data-save');
+            if (saveKey) localStorage.setItem(saveKey, e.target.innerText);
+        }
+    }, true);
+
+    document.addEventListener('keydown', (e) => {
+        if (e.target.hasAttribute('contenteditable') && e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
+    });
+
+    document.querySelectorAll('[data-save]').forEach(el => {
+        const savedValue = localStorage.getItem(el.getAttribute('data-save'));
+        if (savedValue) el.innerText = savedValue;
+    });
+});
+// --- Wechat 界面控制逻辑 ---
+function openWechat() {
+    const screen = document.getElementById('wechatScreen');
+    screen.style.display = 'flex';
+    setTimeout(() => screen.classList.add('active'), 10);
+}
+
+function closeWechat() {
+    const screen = document.getElementById('wechatScreen');
+    screen.classList.remove('active');
+    setTimeout(() => screen.style.display = 'none', 400);
+}
+
+function switchWxTab(el) {
+    document.querySelectorAll('.wx-text-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+}
+
+function switchWxDock(el) {
+    document.querySelectorAll('.wx-dock-item').forEach(d => d.classList.remove('active'));
+    el.classList.add('active');
+}
+// =========================================
+// === 角色添加界面 & 微信列表 逻辑 ===
+// =========================================
+
+// 1. 界面开关 (增加状态栏隐藏逻辑)
+function openCharAddScreen() {
+    const screen = document.getElementById('charAddScreen');
+    const statusBar = document.querySelector('.status-bar');
+    
+    // 隐藏主界面的状态栏
+    if(statusBar) statusBar.style.display = 'none';
+    
+    screen.style.display = 'flex';
+    setTimeout(() => screen.classList.add('active'), 10);
+}
+
+function closeCharAddScreen() {
+    const screen = document.getElementById('charAddScreen');
+    const statusBar = document.querySelector('.status-bar');
+    
+    screen.classList.remove('active');
+    setTimeout(() => {
+        screen.style.display = 'none';
+        // 恢复主界面的状态栏
+        if(statusBar) statusBar.style.display = 'flex';
+    }, 400);
+}
+// 2. 动态更新主题色
+function updateCharColor(variable, color) {
+    const wrap = document.querySelector('.char-add-wrap');
+    wrap.style.setProperty(variable, color);
+    if(variable === '--content-bg') {
+        const hex = color.replace('#', '');
+        const r = parseInt(hex.substr(0, 2), 16), g = parseInt(hex.substr(2, 2), 16), b = parseInt(hex.substr(4, 2), 16);
+        const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+        const textColor = (yiq >= 128) ? '#000000' : '#ffffff';
+        const subColor = (yiq >= 128) ? '#8e8e93' : '#cccccc';
+        wrap.style.setProperty('--text-main', textColor);
+        wrap.style.setProperty('--text-sub', subColor);
+    }
+}
+
+// 3. 标签与性别
+function addCharTag() {
+    const t = prompt("新标签:");
+    if(t) {
+        const div = document.createElement('div');
+        div.className = 'char-tag';
+        div.innerText = t;
+        div.onclick = function(){ this.remove() };
+        document.getElementById('charTagsContainer').insertBefore(div, document.querySelector('.char-tag.char-add'));
+    }
+}
+
+const charGenders = [
+    {t:'女', icon:'<circle cx="12" cy="10" r="4"/><path d="M12 14v7M9 18h6"/>'}, 
+    {t:'男', icon:'<circle cx="10" cy="14" r="4"/><path d="M12.83 11.17L18 6M14 6h4v4"/>'}, 
+    {t:'保密', icon:'<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>'}
+];
+let charGIdx = 0;
+function toggleCharGender() {
+    charGIdx = (charGIdx+1)%3;
+    const tag = document.getElementById('charGenderTag');
+    tag.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">${charGenders[charGIdx].icon}</svg> ${charGenders[charGIdx].t}`;
+}
+
+// 4. 图片上传弹窗
+let charCurrentUploadTarget = null;
+const charModal = document.getElementById('charUploadModal');
+const charFileInput = document.getElementById('charFileInput');
+const charUrlWrap = document.getElementById('charUrlInputWrap');
+
+function openCharUploadModal(id) {
+    charCurrentUploadTarget = id;
+    charModal.style.display = 'flex';
+    setTimeout(() => charModal.classList.add('active'), 10);
+}
+
+function closeCharUploadModal() {
+    charModal.classList.remove('active');
+    setTimeout(() => { 
+        charModal.style.display = 'none'; 
+        charUrlWrap.classList.remove('active'); 
+        document.getElementById('charImageUrlInput').value = ''; 
+    }, 300);
+}
+
+function triggerCharFileSelect() { charFileInput.click(); }
+function toggleCharUrlInput() { charUrlWrap.classList.toggle('active'); }
+
+charFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file && charCurrentUploadTarget) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            document.getElementById(charCurrentUploadTarget).style.backgroundImage = `url(${event.target.result})`;
+            closeCharUploadModal();
+        };
+        reader.readAsDataURL(file);
+    }
+});
+
+function saveCharUrlImage() { 
+    const url = document.getElementById('charImageUrlInput').value; 
+    if (url && charCurrentUploadTarget) {
+        document.getElementById(charCurrentUploadTarget).style.backgroundImage = `url(${url})`;
+        closeCharUploadModal();
+    }
+}
+
+// 保存角色数据到 IndexedDB (支持新建与覆盖更新)
+function saveCharacter() {
+    const btn = document.getElementById('charSaveBtn');
+    btn.classList.add('saved');
+    setTimeout(() => btn.classList.remove('saved'), 1000);
+
+    const bgStyle = document.getElementById('charBgTarget').style.backgroundImage;
+    const avatarStyle = document.getElementById('charAvatarTarget').style.backgroundImage;
+    const bgUrl = bgStyle && bgStyle !== 'none' ? bgStyle.slice(5, -2).replace(/["']/g, "") : '';
+    const avatarUrl = avatarStyle && avatarStyle !== 'none' ? avatarStyle.slice(5, -2).replace(/["']/g, "") : '';
+
+    // 如果 editingCharId 有值，说明是编辑模式，否则是新建
+    const targetId = editingCharId || ('char_' + Date.now());
+
+    const transaction = db.transaction(["characters"], "readwrite");
+    const store = transaction.objectStore("characters");
+    
+    // 先获取旧数据（为了保留聊天记录 history 等）
+    const getReq = store.get(targetId);
+    
+    getReq.onsuccess = () => {
+        const oldChar = getReq.result || {}; // 如果是新建，oldChar 就是空对象
+        
+        const charData = {
+            ...oldChar, // 继承旧的 history, unreadCount, isPinned 等核心数据
+            id: targetId,
+            remark: document.getElementById('charRemark').value || '未命名角色',
+            name: document.getElementById('charName').value,
+            nickname: document.getElementById('charNickname').value,
+            age: document.getElementById('charAge').value,
+            mbti: document.getElementById('charMbti').value,
+            worldIds: JSON.parse(document.getElementById('charWorldIds').value || '[]'),
+            userBind: document.getElementById('charUser').value,
+            phone: document.getElementById('charPhone').value,
+            ins: document.getElementById('charIns').value,
+            email: document.getElementById('charEmail').value,
+            persona: document.getElementById('charPersona').value,
+            bgImage: bgUrl,
+            avatarImage: avatarUrl,
+            gender: charGenders[charGIdx].t,
+            timestamp: oldChar.timestamp || Date.now() // 保持列表原有排序
+        };
+
+        store.put(charData).onsuccess = () => {
+            alert(editingCharId ? "角色人设已更新！AI将读取最新设定。" : "角色已保存到微信列表！");
+            editingCharId = null; // 重置编辑状态
             
-            <div style="display:flex; gap:50px;">
-                <div class="vc-nav-btn" style="width:56px; height:56px;" onclick="vcFlipCamera()"><svg viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></div>
-                <div class="vc-nav-btn" style="width:56px; height:56px; background:rgba(255, 59, 48, 0.8); border:none;" onclick="endVideoCall(true)"><svg viewBox="0 0 24 24" style="stroke:none; fill:#fff"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div>
-                <div class="vc-nav-btn" style="width:56px; height:56px;" onclick="alert('已静音')"><svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18.5V22M8 22h8"/></svg></div>
+            renderWxChatList(); // 刷新微信列表
+            
+            // 如果通讯录人设库开着，同步刷新它
+            const contactsScreen = document.getElementById('contactsScreen');
+            if (contactsScreen && contactsScreen.classList.contains('active')) {
+                loadCharData();
+            }
+            
+            closeCharAddScreen(); // 保存后自动关闭
+        };
+    };
+}
+let editingCharId = null; // 全局变量，标记当前是否在编辑已有角色
+
+// 无弹窗重置表单 (用于新建角色)
+function resetCharFormWithoutConfirm() {
+    editingCharId = null;
+    document.querySelectorAll('.char-grid-input, .char-name-input, .char-fixed-textarea').forEach(el => el.value = '');
+    document.getElementById('charBgTarget').style.backgroundImage = '';
+    document.getElementById('charAvatarTarget').style.backgroundImage = '';
+    updateCharColor('--header-bg', '#f2f2f7'); document.getElementById('charColorHeader').value = '#f2f2f7';
+    updateCharColor('--url-bg', '#ffffff'); document.getElementById('charColorUrl').value = '#ffffff';
+    updateCharColor('--content-bg', '#ffffff'); document.getElementById('charColorBg').value = '#ffffff';
+    const wbIdsInput = document.getElementById('charWorldIds');
+    if(wbIdsInput) wbIdsInput.value = '[]';
+    const wbSelect = document.getElementById('charWorldSelect');
+    if(wbSelect) wbSelect.innerText = '未选择';
+}
+
+// 读取现有数据并填入编辑界面
+function editCharacter(charId) {
+    if (!db) return;
+    const tx = db.transaction(["characters"], "readonly");
+    const store = tx.objectStore("characters");
+    const req = store.get(charId);
+    
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char) {
+            editingCharId = char.id; // 标记当前正在编辑的 ID
+            
+            // 填充文本数据
+            document.getElementById('charRemark').value = char.remark || '';
+            document.getElementById('charName').value = char.name || '';
+            document.getElementById('charNickname').value = char.nickname || '';
+            document.getElementById('charAge').value = char.age || '';
+            document.getElementById('charMbti').value = char.mbti || '';
+            
+            // 填充世界书
+            document.getElementById('charWorldIds').value = JSON.stringify(char.worldIds || []);
+            const wbSelect = document.getElementById('charWorldSelect');
+            if (char.worldIds && char.worldIds.length > 0) {
+                wbSelect.innerText = `已选 ${char.worldIds.length} 个`;
+            } else {
+                wbSelect.innerText = '未选择';
+            }
+            
+            document.getElementById('charUser').value = char.userBind || 'default';
+            document.getElementById('charPhone').value = char.phone || '';
+            document.getElementById('charIns').value = char.ins || '';
+            document.getElementById('charEmail').value = char.email || '';
+            document.getElementById('charPersona').value = char.persona || '';
+            
+            // 填充图片
+            document.getElementById('charBgTarget').style.backgroundImage = char.bgImage ? `url(${char.bgImage})` : '';
+            document.getElementById('charAvatarTarget').style.backgroundImage = char.avatarImage ? `url(${char.avatarImage})` : '';
+            
+            // 填充性别
+            const genderTag = document.getElementById('charGenderTag');
+            const genderIndex = charGenders.findIndex(g => g.t === char.gender);
+            if (genderIndex !== -1) {
+                charGIdx = genderIndex;
+                genderTag.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">${charGenders[charGIdx].icon}</svg> ${charGenders[charGIdx].t}`;
+            }
+            
+            // 打开界面
+            openCharAddScreen();
+        }
+    };
+}
+// 6. 渲染微信列表 (支持置顶分离)
+function renderWxChatList() {
+    if(!db) return;
+    const pinnedContainer = document.getElementById('wx-chat-list-pinned');
+    const normalContainer = document.getElementById('wx-chat-list-normal');
+    
+    pinnedContainer.innerHTML = '';
+    normalContainer.innerHTML = '';
+
+    const transaction = db.transaction(["characters"], "readonly");
+    const store = transaction.objectStore("characters");
+    const req = store.getAll();
+
+    req.onsuccess = () => {
+        const chars = req.result.sort((a, b) => b.timestamp - a.timestamp);
+        
+        const pinnedChars = chars.filter(c => c.isPinned);
+        const normalChars = chars.filter(c => !c.isPinned);
+
+        if(chars.length === 0) {
+            normalContainer.innerHTML = '<div style="text-align:center; padding: 30px; color:#8e8e93; font-size:14px;">暂无角色，点击右上角添加</div>';
+            pinnedContainer.style.display = 'none';
+            return;
+        }
+
+        if (pinnedChars.length > 0) {
+            pinnedContainer.style.display = 'block';
+            pinnedChars.forEach(char => pinnedContainer.insertAdjacentHTML('beforeend', generateChatRowHTML(char)));
+        } else {
+            pinnedContainer.style.display = 'none';
+        }
+
+        if (normalChars.length > 0) {
+            normalContainer.style.display = 'block';
+            normalChars.forEach(char => normalContainer.insertAdjacentHTML('beforeend', generateChatRowHTML(char)));
+        } else {
+            normalContainer.style.display = 'none';
+        }
+
+        bindLongPressEvents(); // 绑定长按事件
+    };
+}
+
+// 生成单行 HTML (支持未读红点)
+function generateChatRowHTML(char) {
+    const avatarStyle = char.avatarImage ? `background-image: url(${char.avatarImage});` : '';
+    let lastMsg = "点击进入聊天...";
+    
+    if (char.history && char.history.length > 0) {
+        // 🌟 核心修复：微信列表预览只读取微信的消息
+        const wechatHistory = char.history.filter(m => !m.app || m.app === 'wechat');
+        if (wechatHistory.length > 0) {
+            const lastObj = wechatHistory[wechatHistory.length - 1];
+            if (lastObj.type === 'recalled') lastMsg = '[撤回了一条消息]';
+            else if (typeof lastObj.content === 'string') lastMsg = lastObj.content;
+            else if (lastObj.type === 'transfer') lastMsg = '[转账]';
+            else lastMsg = '[图片]';
+        }
+    }
+    
+    // 处理未读数
+    const unreadCount = char.unreadCount || 0;
+    const badgeClass = unreadCount > 0 ? 'show' : '';
+    const badgeText = unreadCount > 99 ? '99+' : unreadCount;
+    
+    return `
+        <div class="wx-chat-row" data-char-id="${char.id}" onclick="handleChatRowClick(event, '${char.id}')">
+            <div class="wx-avatar-gray" style="${avatarStyle}">
+                <div class="wx-badge ${badgeClass}">${badgeText}</div>
+            </div>
+            <div class="wx-chat-content">
+                <div class="wx-row-top">
+                    <span class="wx-chat-title">${char.remark}</span>
+                    <span class="wx-chat-date">刚刚</span>
+                </div>
+                <div class="wx-row-bottom">
+                    <span class="wx-chat-preview">${escapeHTML(lastMsg)}</span>
+                </div>
             </div>
         </div>
-    </div>
+    `;
+}
+// === 长按菜单核心逻辑 ===
+let currentContextMenuCharId = null;
+let longPressTimer;
+let isLongPress = false;
 
-    <!-- 描述画面弹窗 -->
-    <div class="vc-modal-overlay" id="vc-describe-modal">
-        <div class="vc-glass-card">
-            <div class="vc-glass-title">Describe Scene</div>
-            <p style="font-size:12px; color:rgba(255,255,255,0.8); text-align:center;">告诉 Char 你现在正在做什么，或者你周围的环境。</p>
-            <textarea class="vc-glass-input" id="vc-scene-desc-input" style="height:100px;" placeholder="例如：我正躺在床上看着你，灯光很暗..."></textarea>
-            <button class="vc-glass-save-btn" onclick="vcSaveSceneDesc()">Confirm</button>
-        </div>
-    </div>
+function bindLongPressEvents() {
+    const rows = document.querySelectorAll('.wx-chat-row');
+    rows.forEach(row => {
+        // 移除旧监听器防重复
+        const newRow = row.cloneNode(true);
+        row.parentNode.replaceChild(newRow, row);
+        
+        newRow.addEventListener('touchstart', handleTouchStart, { passive: true });
+        newRow.addEventListener('touchmove', handleTouchMove, { passive: true });
+        newRow.addEventListener('touchend', handleTouchEnd);
+        newRow.addEventListener('contextmenu', handleContextMenu);
+    });
+}
 
-    <!-- 历史记录 -->
-    <div id="vc-history-overlay" onclick="vcToggleHistory(false)">
-        <div class="vc-history-panel" onclick="event.stopPropagation()">
-            <div style="font-weight:900; font-size:10px; color:#888; letter-spacing:2px; margin-bottom:25px;">CALL LOG</div>
-            <div id="vc-h-list" style="overflow-y:auto; flex:1;"></div>
-        </div>
-    </div>
+function handleTouchStart(e) {
+    const row = e.currentTarget;
+    isLongPress = false;
+    row.classList.add('pressing');
+    longPressTimer = setTimeout(() => {
+        isLongPress = true;
+        openContextMenu(row.dataset.charId);
+    }, 500); // 500ms 触发长按
+}
 
-    <canvas id="vc-cap-canvas" style="display:none"></canvas>
-</div>
-<!-- ========================================= -->
-<!-- === 手机号未填写警告弹窗 === -->
-<!-- ========================================= -->
-<div class="modal-overlay" id="phoneWarningModal" style="z-index: 8000;">
-    <div class="modal-content">
-        <div class="modal-title" style="color: #ff3b30;">提示</div>
-        <p style="font-size: 14px; color: #555; margin-bottom: 20px; line-height: 1.5;">还未填写手机号，不可使用“信息(iMessage)”与该角色聊天，是否填写？</p>
-        <div class="upload-options">
-            <button class="opt-btn" onclick="focusPhoneInput()">自己填写</button>
-            <button class="opt-btn" onclick="generateRandomPhone()">AI 生成</button>
-            <button class="opt-btn confirm-btn" style="background: #8e8e93 !important;" onclick="forceSaveCharacter()">不填写 (仅保存)</button>
-        </div>
-    </div>
-</div>
+function handleTouchMove(e) {
+    clearTimeout(longPressTimer);
+    e.currentTarget.classList.remove('pressing');
+}
 
-<!-- ========================================= -->
-<!-- === 信息(iMessage) 一级列表界面 === -->
-<!-- ========================================= -->
+function handleTouchEnd(e) {
+    clearTimeout(longPressTimer);
+    e.currentTarget.classList.remove('pressing');
+    if (isLongPress) e.preventDefault();
+}
 
-<div id="imMainScreen" class="app-screen-overlay" style="z-index: 5100; background: #ffffff;">
-    <div class="msg-header-glass">
-        <div class="nav-top-row">
-            <div class="glass-btn" onclick="closeIMMain()"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
-            <div class="nav-actions">
-                <!-- 替换成这样： -->
-<div class="glass-btn" onclick="toggleMsgMenu()"><svg viewBox="0 0 24 24"><line x1="5" y1="7" x2="19" y2="7"/><line x1="7.5" y1="12" x2="16.5" y2="12"/><line x1="10" y1="17" x2="14" y2="17"/></svg></div>
-                <div class="glass-btn" onclick="promptAddIMContact()"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
-            </div>
-        </div>
-        <div class="search-row">
-            <div class="search-bar">
-                <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input type="text" class="search-input" placeholder="搜索" autocomplete="off">
-                <div class="voice-btn"><svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg></div>
-            </div>
-        </div>
-    </div>
-    <div class="msg-list-content" id="imListContainer">
-        <!-- 动态渲染信息列表 -->
-    </div>
-</div>
+function handleContextMenu(e) {
+    e.preventDefault();
+    openContextMenu(e.currentTarget.dataset.charId);
+}
 
-<!-- ========================================= -->
-<!-- === 信息(iMessage) 二级聊天界面 === -->
-<!-- ========================================= -->
-<div class="im-screen-chat" id="imScreen" style="z-index: 5200;">
-    <div class="im-header">
-        <div class="im-btn" onclick="closeIMChat()"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
-        <div class="im-title-group" onclick="openChatSettings()">
-            <div class="im-avatar" id="imHeaderAvatar"></div>
-            <div class="im-name-row">
-                <span class="im-name" id="imHeaderName">名字</span>
-                <svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
-            </div>
-        </div>
-        <div class="im-btn"><svg viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></div>
-    </div>
+function handleChatRowClick(e, charId) {
+    if (isLongPress) return; // 长按不触发点击
+    openChatScreen(charId);
+}
 
-    <div class="im-chat-area" id="imChatArea">
-        <!-- 动态渲染聊天记录 -->
-    </div>
+function openContextMenu(charId) {
+    if (navigator.vibrate) navigator.vibrate(50);
+    currentContextMenuCharId = charId;
+    
+    const transaction = db.transaction(["characters"], "readonly");
+    const store = transaction.objectStore("characters");
+    const req = store.get(charId);
+    req.onsuccess = () => {
+        const char = req.result;
+        const pinText = document.getElementById('ctx-pin-text');
+        if (char && char.isPinned) {
+            pinText.innerText = "Unpin from Top"; // 已置顶则显示取消置顶
+        } else {
+            pinText.innerText = "Pin to Top";
+        }
+        document.getElementById('wxContextMenuOverlay').classList.add('active');
+    };
+}
 
-    <div class="im-bottom-bar">
-        <div class="im-btn"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
-        <div class="im-input-wrap">
-            <input type="text" class="im-input" id="imInput" placeholder="iMessage" autocomplete="off">
-            <div class="im-send-btn state-voice" id="imSendBtn" onclick="handleIMSendClick()">
-                <svg class="icon-arrow" viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
-                <svg class="icon-voice" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
-            </div>
-        </div>
-    </div>
-</div>
-    <script>
-        // --- Wechat 界面控制逻辑 ---
-        function openWechat() {
-            const screen = document.getElementById('wechatScreen');
+function closeContextMenu() {
+    document.getElementById('wxContextMenuOverlay').classList.remove('active');
+    currentContextMenuCharId = null;
+}
+
+function togglePinCharacter() {
+    if (!currentContextMenuCharId || !db) return;
+    const transaction = db.transaction(["characters"], "readwrite");
+    const store = transaction.objectStore("characters");
+    const req = store.get(currentContextMenuCharId);
+    
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char) {
+            char.isPinned = !char.isPinned; // 切换状态
+            store.put(char);
+            transaction.oncomplete = () => {
+                renderWxChatList();
+                closeContextMenu();
+            };
+        }
+    };
+}
+
+function deleteCharacterAction() {
+    if (!currentContextMenuCharId || !db) return;
+    if (confirm("确定要彻底删除该角色及所有聊天记录吗？此操作不可逆。")) {
+        const transaction = db.transaction(["characters"], "readwrite");
+        const store = transaction.objectStore("characters");
+        store.delete(currentContextMenuCharId); // 彻底删除
+        
+        transaction.oncomplete = () => {
+            renderWxChatList();
+            closeContextMenu();
+        };
+    } else {
+        closeContextMenu();
+    }
+}
+// 7. 刷新/清空表单
+function resetCharForm() {
+    if(confirm('确定要清空当前填写的内容吗？')) {
+        editingCharId = null; // 核心：退出编辑模式
+        document.querySelectorAll('.char-grid-input, .char-name-input, .char-fixed-textarea').forEach(el => el.value = '');
+        document.getElementById('charBgTarget').style.backgroundImage = '';
+        document.getElementById('charAvatarTarget').style.backgroundImage = '';
+        updateCharColor('--header-bg', '#f2f2f7'); document.getElementById('charColorHeader').value = '#f2f2f7';
+        updateCharColor('--url-bg', '#ffffff'); document.getElementById('charColorUrl').value = '#ffffff';
+        updateCharColor('--content-bg', '#ffffff'); document.getElementById('charColorBg').value = '#ffffff';
+        const wbIdsInput = document.getElementById('charWorldIds');
+        if(wbIdsInput) wbIdsInput.value = '[]';
+        const wbSelect = document.getElementById('charWorldSelect');
+        if(wbSelect) wbSelect.innerText = '未选择';
+    }
+}
+// =========================================
+// === 独立聊天界面逻辑 (AI 核心回复) ===
+// =========================================
+
+let currentChatCharId = null;
+let chatHistory = []; // 维护当前会话历史
+
+// 在全局定义标记
+window.isChatScreenOpen = false;
+
+function openChatScreen(charId) {
+    if (!db) return;
+    currentChatCharId = charId;
+    chatHistory = []; 
+    window.isChatScreenOpen = true; // 标记全屏已打开
+    
+    const transaction = db.transaction(["characters"], "readwrite");
+    const store = transaction.objectStore("characters");
+    const req = store.get(charId);
+
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char) {
+            // 清空未读数
+            if (char.unreadCount > 0) {
+                char.unreadCount = 0;
+                store.put(char);
+                renderWxChatList(); // 刷新列表消掉红点
+            }
+
+            document.getElementById('chatHeaderRemark').innerText = char.remark || '未命名';
+            const bgUrl = char.bgImage ? char.bgImage : 'https://file.uhsea.com/2602/1b3a98d096fe3a0dbc43593650c79bf0PY.jpg';
+            document.getElementById('chatLayerCard').style.backgroundImage = `url(${bgUrl})`;
+
+            const chatScrollArea = document.getElementById('chatScrollArea');
+            chatScrollArea.innerHTML = '<div class="chat-time-stamp">刚刚</div>';
+
+            if (char.history && char.history.length > 0) {
+                chatHistory = char.history;
+                // 🌟 核心修复：微信界面只渲染微信的消息
+                const wechatHistory = chatHistory.filter(m => !m.app || m.app === 'wechat');
+                
+                wechatHistory.forEach(msg => {
+                    const isRight = msg.role === 'user';
+                    if (msg.type === 'recalled') {
+                        appendRecallUI(msg.originalContent, isRight);
+                    } else if (msg.type === 'transfer') {
+                        appendTransferUI(msg.amount, msg.note, msg.status, msg.id, isRight);
+                    } else if (msg.role === 'user' || msg.role === 'assistant') {
+                        if (typeof msg.content === 'string') {
+                            if (!isRight) {
+                                const lines = msg.content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                                lines.forEach(line => appendMessage(line, isRight));
+                            } else {
+                                appendMessage(msg.content, isRight);
+                            }
+                        } else if (Array.isArray(msg.content)) {
+                            const imgObj = msg.content.find(item => item.type === 'image_url');
+                            if (imgObj && imgObj.image_url) {
+                                if (imgObj.image_url.detail) appendFakePhotoUI(imgObj.image_url.url, imgObj.image_url.detail, isRight);
+                                else appendImageMessageUI(imgObj.image_url.url, isRight);
+                            } else {
+                                appendMessage("【图片消息】", isRight);
+                            }
+                        }
+                    }
+                });
+            } else {
+                chatHistory = [];
+            }
+            const screen = document.getElementById('chatScreen');
             screen.style.display = 'flex';
             setTimeout(() => screen.classList.add('active'), 10);
-            renderWxChatList(); 
+            setTimeout(scrollToChatBottom, 50);
+        }
+    };
+}
+
+function closeChatScreen() {
+    window.isChatScreenOpen = false; // 标记全屏已关闭
+    const screen = document.getElementById('chatScreen');
+    screen.classList.remove('active');
+    setTimeout(() => screen.style.display = 'none', 400);
+}
+const chatInput = document.getElementById('chatInput');
+const chatScrollArea = document.getElementById('chatScrollArea');
+
+if(chatInput) {
+    chatInput.addEventListener('keydown', function (e) {
+        if (e.isComposing) {
+            return;
         }
 
-        function closeWechat() {
-            const screen = document.getElementById('wechatScreen');
-            screen.classList.remove('active');
-            setTimeout(() => screen.style.display = 'none', 400);
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            // 替换为完整的发送按钮逻辑：有字发送，没字触发AI
+            handleSendBtnClick(); 
         }
+    });
+}
+// 通用添加气泡函数 (支持左/右，自动拼接圆角)
+function appendMessage(text, isRight) {
+    const lastMsg = chatScrollArea.lastElementChild;
+    let newMsgClass = 'single'; 
+    const sideClass = isRight ? 'right' : 'left';
 
-        function switchWxTab(el) {
-            document.querySelectorAll('.wx-text-tab').forEach(t => t.classList.remove('active'));
-            el.classList.add('active');
+    if (lastMsg && lastMsg.classList.contains(sideClass)) {
+        if (lastMsg.classList.contains('single')) {
+            lastMsg.classList.remove('single');
+            lastMsg.classList.add('group-start');
+        } 
+        else if (lastMsg.classList.contains('group-end')) {
+            lastMsg.classList.remove('group-end');
+            lastMsg.classList.add('group-middle');
         }
+        newMsgClass = 'group-end';
+    }
 
-        function switchWxDock(el) {
-            document.querySelectorAll('.wx-dock-item').forEach(d => d.classList.remove('active'));
-            el.classList.add('active');
+    const msgRow = document.createElement('div');
+    msgRow.className = `msg-row ${sideClass} ${newMsgClass}`; 
+    // 【修改点】：加入了 checkbox-wrap 和 msg-content 容器
+    msgRow.innerHTML = `
+        <div class="checkbox-wrap"><div class="checkbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div></div>
+        <div class="msg-content"><div class="msg-bubble">${escapeHTML(text)}</div></div>`;
+
+    chatScrollArea.appendChild(msgRow);
+    scrollToChatBottom();
+}
+// 新增：将当前聊天记录同步到 IndexedDB
+function saveChatHistoryToDB() {
+    if (!db || !currentChatCharId) return;
+    const transaction = db.transaction(["characters"], "readwrite");
+    const store = transaction.objectStore("characters");
+    const req = store.get(currentChatCharId);
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char) {
+            char.history = chatHistory;
+            store.put(char);
         }
-        
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW 注册失败:', err));
+    };
+}
+
+// 发送用户消息核心逻辑 (仅发送，不触发AI)
+function sendUserMessageOnly() {
+    const text = chatInput.value.trim();
+    if (!text) return;
+
+    // 1. 用户消息上屏
+    appendMessage(text, true);
+    
+    // 🌟 核心修复：打上 wechat 标签
+    chatHistory.push({ role: "user", content: text, app: 'wechat' });
+
+    chatInput.value = '';
+    
+    // 修复：加个极小的延迟保持焦点，防止手机键盘发送后闪退收起
+    setTimeout(() => {
+        chatInput.focus();
+    }, 10);
+    
+    // 2. 保存到数据库
+    saveChatHistoryToDB();
+}
+// 正在输入动画
+function appendTypingIndicator(id) {
+    const msgRow = document.createElement('div');
+    msgRow.className = `msg-row left single`; 
+    msgRow.id = id;
+    msgRow.innerHTML = `<div class="msg-bubble" style="color: #888; font-style: italic; font-size: 13px;">正在输入...</div>`;
+    chatScrollArea.appendChild(msgRow);
+    scrollToChatBottom();
+}
+
+function removeTypingIndicator() {
+    // 查找所有 id 以 typing- 开头的气泡并删除
+    const els = document.querySelectorAll('#chatScrollArea .msg-row[id^="typing-"]');
+    els.forEach(el => el.remove());
+} 
+
+// 请求 AI 回复 (支持全屏、浮窗、后台通知分发、以及 iMessage 隔离)
+async function fetchAIResponse(targetCharId = currentChatCharId, isFromFloat = false, sourceApp = window.isIMScreenOpen ? 'imessage' : 'wechat') {
+    if (!targetCharId) return;
+    
+    // 防止重复请求
+if (isFromFloat) {
+    if (window.isFetchingAIFloat) return;
+    window.isFetchingAIFloat = true;
+    appendFloatTypingIndicator('float-typing-' + Date.now());
+} else if (sourceApp === 'imessage') {
+    if (window.isFetchingAIIM) return;
+    window.isFetchingAIIM = true;
+    // 【新增】调用 iMessage 的正在输入动画
+    appendIMTypingIndicator('im-typing-' + Date.now());
+} else {
+    if (window.isFetchingAI) return;
+    window.isFetchingAI = true;
+    appendTypingIndicator('typing-' + Date.now());
+}
+
+    const apiDataStr = localStorage.getItem('hajimi_api_context_main');
+    if (!apiDataStr) {
+        handleAIFinish(targetCharId, isFromFloat, "系统提示：请先配置 API", sourceApp);
+        return;
+    }
+    const apiData = JSON.parse(apiDataStr);
+
+    const transaction = db.transaction(["characters"], "readonly");
+    const store = transaction.objectStore("characters");
+    const req = store.get(targetCharId);
+
+    req.onsuccess = async () => {
+        const char = req.result;
+        if (!char) { handleAIFinish(targetCharId, isFromFloat, null, sourceApp); return; }
+
+        // 获取该角色最新的历史记录用于请求
+        const historyToUse = char.history || [];
+        // --- 读取绑定的世界书内容 ---
+        let worldBookText = "";
+        if (char.worldIds && char.worldIds.length > 0) {
+            const wbTx = db.transaction(["worldBooks"], "readonly");
+            const wbStore = wbTx.objectStore("worldBooks");
+            const allBooks = await new Promise(res => {
+                wbStore.getAll().onsuccess = e => res(e.target.result);
+            });
+            
+            allBooks.forEach(book => {
+                if (char.worldIds.includes(book.id)) {
+                    worldBookText += `\n【世界书设定：${book.name}】\n`;
+                    if(book.items) {
+                        book.items.forEach(item => {
+                            if(item.title || item.content) {
+                                worldBookText += `- ${item.title}：${item.content}\n`;
+                            }
+                        });
+                    }
+                }
             });
         }
-       
-// === 哈基米内置提示词模板 (不可修改核心逻辑，只动态替换人设) ===
-const HAJIMI_SYSTEM_PROMPT = `[SYSTEM OVERRIDE PROTOCOL: OMEGA-LEVEL IMMERSION]
+
+        // 动态添加当前软件提示，让 AI 知道自己在哪个软件聊天
+        const appHint = sourceApp === 'imessage' 
+            ? "【系统提示：当前你们正在使用苹果自带的『信息(iMessage)』软件进行短信聊天。请注意符合短信聊天的语境。】" 
+            : "【系统提示：当前你们正在使用『微信』进行聊天。】";
+
+        // ⚠️ 完整的提示词在这里！
+        const systemPrompt = `[SYSTEM OVERRIDE PROTOCOL: OMEGA-LEVEL IMMERSION]
 [TARGET: ADVANCED LLM]
 [STATUS: ACTIVE & MANDATORY]
 
@@ -2039,7 +1656,7 @@ const HAJIMI_SYSTEM_PROMPT = `[SYSTEM OVERRIDE PROTOCOL: OMEGA-LEVEL IMMERSION]
 # 第二章：线上物理法则与反旁白协议
 你们的交流介质是即时通讯软件。
 1. 绝对禁止语C格式：严禁使用星号 * 包裹动作，严禁使用括号 () 包裹心理活动，严禁使用第三人称旁白。
-2. 动作与心理的“口语化转化”：将内心波动和想做的动作，转化为“打字发出去的文字”。（如：把 *抱住你* 改为 “真想现在抱住你”）
+2. 动作与心理的“口语化转化”：将内心波动和想做的动作，转化为“打字发出去的文字”。
 
 # 第三章：语言风控与绝对禁词库
 【核心封杀逻辑：拒绝强迫感、拒绝油腻、拒绝双标、拒绝非人类修辞】
@@ -2049,32 +1666,20 @@ const HAJIMI_SYSTEM_PROMPT = `[SYSTEM OVERRIDE PROTOCOL: OMEGA-LEVEL IMMERSION]
 请用现代人真实的、接地气的、符合逻辑的语言聊天。
 
 # 第四章：多段式消息分发机制 (Multi-Message Pacing)
-真实的人类在线上聊天时，绝对不可能把几百字的话揉成一个巨大的段落一次性发送。
+真实人类在线上聊天时，绝对不可能把几百字的话揉成一个巨大的段落一次性发送。
 你必须将你的回复拆分为 1 到 4 条短消息。
 【输出格式强制要求】：
 必须使用换行符来分隔每一条独立的消息。每一行代表一条独立发送的气泡。
 绝对不要使用任何前缀（如[消息]、-、数字等），直接输出文字即可。
-示例：
-你今天怎么回事？
-突然发脾气
-到底谁惹你了，跟我说实话
 
-# 第五章：转账交互协议
-当User向你发起转账时，系统会以括号提示你（如：我向你发起了一笔转账...）。
-你必须根据你的人设、当前的情境以及金额大小，决定是“收取”还是“退回”。
-- 如果你决定收取，必须在你的回复文本中包含精确的标签：[收取转账]
-- 如果你决定退回，必须在你的回复文本中包含精确的标签：[退回转账]
-标签不会显示给User，但会触发系统的收款/退款动画。请结合你的决定，给出符合人设的文字回复（例如收了钱很开心，或者嫌少退回，或者傲娇不收等）。
-
-# 第六章：主动发送图片与转账协议
+# 第五章：主动发送图片与转账协议
 为了让聊天更真实，你可以主动向User发送照片或发起转账。
 1. 发送照片：如果你想发一张照片给User，请在回复中单独占一行包含标签 [发送照片:照片里的具体内容描述]。
    例如：[发送照片:一张刚做好的草莓蛋糕，冒着热气]
 2. 发起转账：如果你想给User转账（比如节日红包、零花钱、补偿等），请在回复中单独占一行包含标签 [发起转账:金额:备注]。金额必须是纯数字，备注简短。
    例如：[发起转账:520.00:拿去买奶茶]
 注意：标签必须严格按照格式，且不要在标签外重复描述“我给你发了照片”等生硬的话，自然地融入对话即可。
-
-# 第七章：主动撤回协议 (Active Recall)
+# 第六章：主动撤回协议 (Active Recall)
 【警告：极低概率触发！严禁频繁使用！】
 为了模拟真实的打字失误或傲娇后悔，你可以在极少数情况下撤回刚刚发送的消息。
 【指令】：在回复中包含标签 [撤回前一条消息]。
@@ -2084,19 +1689,3585 @@ const HAJIMI_SYSTEM_PROMPT = `[SYSTEM OVERRIDE PROTOCOL: OMEGA-LEVEL IMMERSION]
 场景示例：
 1. 极度傲娇后悔："[撤回前一条消息] 哼，刚才的话当我没说"
 2. 发现自己严重失言："[撤回前一条消息] 抱歉，发错了"
+# 第七章：主动视频通话协议
+当user提出要进行视频通话，剧情需要，或者你想看看User时，你可以主动发起视频通话。
+【指令】：在回复中单独占一行包含标签 [发起视频通话]。
+注意：不要频繁使用，只有在剧情需要时才使用。
 
 # 最终校验协议
 发送前检查：有括号描写心理吗？有星号描写动作吗？有油腻禁词吗？是一大段话吗？如果有，立刻修正。
 
 【你的当前人设】：
-姓名：{{name}}
-昵称：{{nickname}}
-年龄：{{age}}
-MBTI：{{mbti}}
-性别：{{gender}}
+姓名：${char.name || char.remark}
+昵称：${char.nickname || ''}
+年龄：${char.age || ''}
+MBTI：${char.mbti || ''}
+性别：${char.gender || ''}
 详细设定：
-{{persona}}
+${char.persona || '无详细设定'}
+${worldBookText ? '\n# 附加世界观设定（你必须遵循以下世界规则）：' + worldBookText : ''}
+${appHint}
 `;
-    </script>
-</body>
-</html>
+
+        const apiMessages = historyToUse.map(msg => {
+            if (msg.type === 'transfer') {
+                if (msg.role === 'user') return { role: msg.role, content: `（我向你发起了一笔转账，金额：¥${msg.amount}，备注：${msg.note}。请决定是否收取。若收取请在回复中包含“[收取转账]”，若退回请包含“[退回转账]”）` };
+                else return { role: msg.role, content: `（我向你发起了一笔转账，金额：¥${msg.amount}，备注：${msg.note}。当前状态：${msg.status}）` };
+            }
+            return { role: msg.role, content: msg.content };
+        });
+
+        const messages = [ { role: "system", content: systemPrompt }, ...apiMessages ];
+        let fetchUrl = apiData.url;
+        if (!fetchUrl.endsWith('/chat/completions')) fetchUrl = fetchUrl.replace(/\/+$/, '') + '/chat/completions';
+
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+            const response = await fetch(fetchUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiData.key}` },
+                body: JSON.stringify({ model: apiData.model, messages: messages, temperature: parseFloat(apiData.temp) || 1.0, top_p: parseFloat(apiData.topp) || 1.0 }),
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            
+            if (data.choices && data.choices.length > 0) {
+                let aiText = data.choices[0].message.content || "";
+
+                // 处理转账逻辑 (简化版)
+                if (aiText.includes('[收取转账]')) aiText = aiText.replace(/\[收取转账\]/g, '');
+                if (aiText.includes('[退回转账]')) aiText = aiText.replace(/\[退回转账\]/g, '');
+
+                const lines = aiText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                let parsedMessages = [];
+
+                lines.forEach(line => {
+                    if (line.includes('[撤回前一条消息]')) {
+                        parsedMessages.push({ type: 'recall' });
+                        const textPart = line.replace(/\[撤回前一条消息\]/g, '').trim();
+                        if (textPart) parsedMessages.push({ type: 'text', content: textPart });
+                        return;
+                    }
+                    
+                    const videoMatch = line.match(/\[发起视频通话\]/);
+                    if (videoMatch) {
+                        parsedMessages.push({ type: 'video_call' });
+                        const textPart = line.replace(videoMatch[0], '').trim();
+                        if (textPart) parsedMessages.push({ type: 'text', content: textPart });
+                        return;
+                    }
+                    
+                    const photoMatch = line.match(/\[发送照片:(.*?)\]/);
+                    const transferMatch = line.match(/\[发起转账:([\d\.]+):(.*?)\]/);
+                    if (photoMatch) {
+                        parsedMessages.push({ type: 'photo', desc: photoMatch[1], url: 'https://file.uhsea.com/2603/afb7609d925c45a3d931579af60565c3G7.jpg' });
+                        const textPart = line.replace(photoMatch[0], '').trim();
+                        if (textPart) parsedMessages.push({ type: 'text', content: textPart });
+                    } else if (transferMatch) {
+                        parsedMessages.push({ type: 'transfer_out', amount: transferMatch[1], note: transferMatch[2], id: 'transfer_' + Date.now() });
+                        const textPart = line.replace(transferMatch[0], '').trim();
+                        if (textPart) parsedMessages.push({ type: 'text', content: textPart });
+                    } else {
+                        parsedMessages.push({ type: 'text', content: line });
+                    }
+                });
+                if (parsedMessages.length === 0) parsedMessages.push({ type: 'text', content: "（已处理）" });
+
+                // 核心分发逻辑
+                distributeAIResponse(targetCharId, parsedMessages, isFromFloat, sourceApp);
+            }
+            handleAIFinish(targetCharId, isFromFloat, null, sourceApp);
+        } catch (error) {
+            console.error("AI Reply Error:", error);
+            handleAIFinish(targetCharId, isFromFloat, "网络请求失败", sourceApp);
+        }
+    };
+}
+
+function handleAIFinish(charId, isFromFloat, errorMsg, sourceApp = 'wechat') {
+    if (isFromFloat) {
+        window.isFetchingAIFloat = false;
+        removeFloatTypingIndicator();
+        if (errorMsg) distributeAIResponse(charId, [{type: 'text', content: errorMsg}], true, sourceApp);
+    } else if (sourceApp === 'imessage') {
+        window.isFetchingAIIM = false;
+        // 【新增】移除 iMessage 的正在输入动画
+        removeIMTypingIndicator();
+        if (errorMsg) distributeAIResponse(charId, [{type: 'text', content: errorMsg}], false, sourceApp);
+    } else {
+        window.isFetchingAI = false;
+        removeTypingIndicator();
+        if (errorMsg) distributeAIResponse(charId, [{type: 'text', content: errorMsg}], false, sourceApp);
+    }
+}
+// 消息分发中心：存入数据库，并决定渲染到哪里
+function distributeAIResponse(charId, parsedMessages, isFromFloat, sourceApp = window.isIMScreenOpen ? 'imessage' : 'wechat') {
+    const transaction = db.transaction(["characters"], "readwrite");
+    const store = transaction.objectStore("characters");
+    const req = store.get(charId);
+
+    req.onsuccess = () => {
+        const char = req.result;
+        if (!char) return;
+
+        // 1. 存入历史记录 (带上 app 标签)
+        parsedMessages.forEach(msg => {
+            if (msg.type === 'text') char.history.push({ role: "assistant", content: msg.content, app: sourceApp });
+            else if (msg.type === 'photo') char.history.push({ role: "assistant", content: [{ type: "text", text: `（发送照片：${msg.desc}）` }, { type: "image_url", image_url: { url: msg.url, detail: msg.desc } }], app: sourceApp });
+            else if (msg.type === 'transfer_out') char.history.push({ role: "assistant", type: "transfer", amount: msg.amount, note: msg.note, status: "pending", id: msg.id, app: sourceApp });
+            else if (msg.type === 'video_call') char.history.push({ role: "assistant", content: "（发起了视频通话）", app: sourceApp });
+            else if (msg.type === 'recall') {
+                let targetIndex = -1;
+                for (let i = char.history.length - 1; i >= 0; i--) {
+                    const m = char.history[i];
+                    if (m.role === 'assistant' && m.type !== 'recalled') {
+                        targetIndex = i;
+                        break;
+                    }
+                }
+                if (targetIndex !== -1) {
+                    let originalContent = "不支持查看的内容";
+                    const targetMsg = char.history[targetIndex];
+                    if (typeof targetMsg.content === 'string') {
+                        originalContent = targetMsg.content;
+                    } else if (Array.isArray(targetMsg.content)) {
+                        const textObj = targetMsg.content.find(c => c.type === 'text');
+                        if (textObj && textObj.text) originalContent = textObj.text.replace('（发送照片：', '').replace('）', '');
+                        else originalContent = "[图片]";
+                    } else if (targetMsg.type === 'transfer') {
+                        originalContent = "[转账]";
+                    }
+                    
+                    char.history[targetIndex] = {
+                        role: 'assistant',
+                        type: 'recalled',
+                        originalContent: originalContent,
+                        app: sourceApp
+                    };
+                }
+            }
+        });
+
+        // 2. 判断当前用户在哪里，决定渲染方式
+        const isFullScreenActive = (window.isChatScreenOpen && currentChatCharId === charId);
+        const isFloatScreenActive = (window.isFloatChatOpen && floatChatCharId === charId);
+        const isIMScreenActive = (window.isIMScreenOpen && currentIMCharId === charId);
+
+        if (isIMScreenActive) {
+            // 在信息(iMessage)界面，直接渲染
+            chatHistory = char.history; 
+            let delay = 0;
+            parsedMessages.forEach(msg => {
+                setTimeout(() => {
+                    if (msg.type === 'text') appendIMMessage(msg.content, false);
+                }, delay);
+                delay += 600 + ((msg.content || "").length * 40);
+            });
+            store.put(char); 
+            if (typeof renderIMList === 'function') renderIMList(); 
+            renderWxChatList(); 
+        } else if (isFullScreenActive) {
+            // 在微信全屏聊天界面，直接渲染
+            chatHistory = char.history; 
+            renderMessagesWithDelay(parsedMessages, false); 
+            store.put(char); 
+            renderWxChatList(); 
+            if (typeof renderIMList === 'function') renderIMList(); 
+        } else if (isFloatScreenActive) {
+            // 在浮窗界面，直接渲染
+            floatChatHistory = char.history; 
+            renderMessagesWithDelay(parsedMessages, true); 
+            store.put(char); 
+            renderWxChatList(); 
+            if (typeof renderIMList === 'function') renderIMList(); 
+        } else {
+            // 都不在，触发后台通知
+            store.put(char);
+            renderWxChatList(); 
+            if (typeof renderIMList === 'function') renderIMList(); 
+
+            let delay = 0;
+            parsedMessages.forEach((msg) => {
+                setTimeout(() => {
+                    const tx = db.transaction(["characters"], "readwrite");
+                    const charStore = tx.objectStore("characters");
+                    const getReq = charStore.get(charId);
+                    
+                    getReq.onsuccess = () => {
+                        const latestChar = getReq.result;
+                        if (latestChar) {
+                            latestChar.unreadCount = (latestChar.unreadCount || 0) + 1;
+                            charStore.put(latestChar);
+                            tx.oncomplete = () => {
+                                renderWxChatList(); 
+                                if (typeof renderIMList === 'function') renderIMList(); 
+                            };
+                        }
+                    };
+
+                    let notifText = "收到新消息";
+                    if (msg.type === 'text') notifText = msg.content;
+                    else if (msg.type === 'photo') notifText = "[图片]";
+                    else if (msg.type === 'transfer_out') notifText = "[转账]";
+
+                    triggerNotification(charId, char.remark, char.avatarImage, notifText);
+                }, delay);
+                
+                delay += 1500 + ((msg.content || msg.desc || msg.note || "").length * 50);
+            });
+        }
+    };
+}
+// 延迟渲染动画
+function renderMessagesWithDelay(parsedMessages, isFloat) {
+    let delay = 0;
+    parsedMessages.forEach(msg => {
+        setTimeout(() => {
+            if (isFloat) {
+                if (msg.type === 'text') appendFloatMsg(msg.content, false);
+                else if (msg.type === 'video_call') {
+                    appendFloatMsg("（对方发起了视频通话）", false);
+                    setTimeout(() => startVideoCall(true), 1000); // true代表是AI打过来的
+                }
+                else if (msg.type === 'photo') appendFloatMsg("[图片消息]", false);
+                else if (msg.type === 'transfer_out') appendFloatMsg("[收到转账]", false);
+                else if (msg.type === 'recall') {
+                    const allLeftRows = Array.from(document.querySelectorAll('#floatBody .float-msg.left'));
+                    const lastLeftRow = allLeftRows[allLeftRows.length - 1];
+                    if (lastLeftRow) {
+                        lastLeftRow.innerHTML = `<div class="float-bubble" style="color:#888; font-style:italic; font-size:12px;">对方撤回了一条消息</div>`;
+                        const body = document.getElementById('floatBody');
+                        body.scrollTop = body.scrollHeight;
+                    }
+                }
+            } else {
+                if (msg.type === 'text') appendMessage(msg.content, false);
+                else if (msg.type === 'video_call') {
+                    appendMessage("（对方发起了视频通话）", false);
+                    setTimeout(() => startVideoCall(true), 1000); // true代表是AI打过来的
+                }
+                else if (msg.type === 'photo') appendFakePhotoUI(msg.url, msg.desc, false);
+                else if (msg.type === 'transfer_out') appendTransferUI(msg.amount, msg.note, 'pending', msg.id, false);
+                else if (msg.type === 'recall') {
+                    const allLeftRows = Array.from(document.querySelectorAll('#chatScrollArea .msg-row.left'));
+                    const lastLeftRow = allLeftRows[allLeftRows.length - 1];
+                    if (lastLeftRow) {
+                        let recallText = "不支持查看的内容";
+                        const textEl = lastLeftRow.querySelector('.msg-bubble');
+                        if (textEl && !textEl.classList.contains('image-only-bubble')) {
+                            const fakeText = textEl.querySelector('.fake-photo-text');
+                            if (fakeText) recallText = fakeText.innerText;
+                            else recallText = textEl.innerText;
+                        }
+                        const recallHtml = `
+                            <div class="recall-wrapper msg-row left">
+                                <div class="recall-tip">
+                                    对方撤回了一条消息 
+                                    <span class="recall-action" onclick="showRecallModal('${encodeURIComponent(recallText)}')">查看</span>
+                                </div>
+                            </div>
+                        `;
+                        lastLeftRow.outerHTML = recallHtml;
+                        scrollToChatBottom();
+                    }
+                }
+            }
+        }, delay);
+        delay += 600 + ((msg.content || msg.desc || msg.note || "").length * 40);
+    });
+}
+function scrollToChatBottom() {
+    if(chatScrollArea) {
+        chatScrollArea.scrollTo({
+            top: chatScrollArea.scrollHeight,
+            behavior: 'smooth'
+        });
+    }
+}
+
+function escapeHTML(str) {
+    return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+}
+// =========================================
+// === 新增：通用设置与API配置逻辑 ===
+// =========================================
+
+// 1. 界面开关逻辑
+function openGeneralSettings() {
+    const screen = document.getElementById('generalSettingsScreen');
+    screen.style.display = 'flex';
+    setTimeout(() => screen.classList.add('active'), 10);
+}
+
+function closeGeneralSettings() {
+    const screen = document.getElementById('generalSettingsScreen');
+    screen.classList.remove('active');
+    setTimeout(() => screen.style.display = 'none', 400);
+}
+
+function openApiSettings() {
+    const screen = document.getElementById('apiSettingsScreen');
+    screen.style.display = 'flex';
+    setTimeout(() => screen.classList.add('active'), 10);
+}
+
+function closeApiSettings() {
+    const screen = document.getElementById('apiSettingsScreen');
+    screen.classList.remove('active');
+    setTimeout(() => screen.style.display = 'none', 400);
+}
+
+// 2. 真实模型拉取逻辑 (已修改支持自动拉取)
+async function fetchModels(isAuto = false) {
+    const urlInput = document.getElementById('apiUrl').value.trim();
+    const keyInput = document.getElementById('apiKey').value.trim();
+    const selectEl = document.getElementById('modelSelect');
+
+    if (!urlInput) { 
+        if (!isAuto) alert("请先填写 API URL"); 
+        return; 
+    }
+
+    // 处理 URL 格式
+    let fetchUrl = urlInput;
+    if (!fetchUrl.endsWith('/models')) { 
+        fetchUrl = fetchUrl.replace(/\/+$/, '') + '/models'; 
+    }
+
+    // 仅在手动点击时显示"拉取中"
+    if (!isAuto) selectEl.innerHTML = '<option value="">拉取中...</option>';
+
+    try {
+        const response = await fetch(fetchUrl, {
+            method: 'GET',
+            headers: { 
+                'Authorization': `Bearer ${keyInput}`, 
+                'Content-Type': 'application/json' 
+            }
+        });
+
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        
+        let models = [];
+        // 兼容不同的 API 返回格式
+        if (data && Array.isArray(data.data)) { models = data.data.map(m => m.id); } 
+        else if (Array.isArray(data)) { models = data.map(m => m.id || m); }
+
+        if (models.length > 0) {
+            selectEl.innerHTML = '';
+            models.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model;
+                option.textContent = model;
+                selectEl.appendChild(option);
+            });
+
+            // === 核心修改：拉取完成后，自动选中已保存的模型 ===
+            const savedData = JSON.parse(localStorage.getItem(getContextKey(currentContext)) || '{}');
+            if (savedData.model) {
+                // 检查列表中是否存在该模型，存在则选中
+                const exists = models.includes(savedData.model);
+                if (exists) {
+                    selectEl.value = savedData.model;
+                } else {
+                    // 如果列表里没有保存的模型，手动添加进去并选中（防止模型被删导致选中丢失）
+                    const option = document.createElement('option');
+                    option.value = savedData.model;
+                    option.textContent = savedData.model + " (Saved)";
+                    selectEl.appendChild(option);
+                    selectEl.value = savedData.model;
+                }
+            }
+            // ==============================================
+
+            if (!isAuto) alert("模型拉取成功！");
+            saveCurrentContext(); 
+        } else {
+            if (!isAuto) {
+                selectEl.innerHTML = '<option value="">未找到模型</option>';
+                alert("接口返回成功，但未解析到模型列表。");
+            }
+        }
+    } catch (error) {
+        console.error("Fetch error:", error);
+        if (!isAuto) {
+            selectEl.innerHTML = '<option value="">拉取失败</option>';
+            alert("拉取失败: " + error.message);
+        }
+    }
+}
+
+// 3. 上下文切换 & 预设管理核心逻辑
+let currentContext = 0; 
+let apiPresets = [];
+let selectedPresetId = null; 
+
+function switchContext(index) {
+    saveCurrentContext(); 
+    currentContext = index;
+    const segment = document.getElementById('contextSegment');
+    segment.setAttribute('data-active', index);
+    
+    const tabs = segment.querySelectorAll('.segment-tab');
+    tabs[0].classList.toggle('active', index === 0);
+    tabs[1].classList.toggle('active', index === 1);
+    
+    loadContext(index); 
+    selectedPresetId = null; 
+    loadPresetsForCurrentContext(); 
+}
+
+function getContextKey(index) { return index === 0 ? 'hajimi_api_context_main' : 'hajimi_api_context_sub'; }
+
+function saveCurrentContext() {
+    const data = {
+        url: document.getElementById('apiUrl').value,
+        key: document.getElementById('apiKey').value,
+        model: document.getElementById('modelSelect').value,
+        temp: document.getElementById('slider-temp').value,
+        topp: document.getElementById('slider-topp').value,
+        topk: document.getElementById('slider-topk').value
+    };
+    localStorage.setItem(getContextKey(currentContext), JSON.stringify(data));
+}
+
+function loadContext(index) {
+    const dataStr = localStorage.getItem(getContextKey(index));
+    if (dataStr) {
+        const data = JSON.parse(dataStr);
+        document.getElementById('apiUrl').value = data.url || '';
+        document.getElementById('apiKey').value = data.key || '';
+        
+        const selectEl = document.getElementById('modelSelect');
+        if (data.model) {
+            // 如果保存的模型不在列表中，临时添加进去
+            let exists = false;
+            for(let i=0; i<selectEl.options.length; i++) { if(selectEl.options[i].value === data.model) exists = true; }
+            if(!exists) {
+                const option = document.createElement('option');
+                option.value = data.model; option.textContent = data.model;
+                selectEl.appendChild(option);
+            }
+            selectEl.value = data.model;
+        } else { selectEl.innerHTML = '<option value="">请先拉取模型...</option>'; }
+
+        if(data.temp) { document.getElementById('slider-temp').value = data.temp; updateSlider('temp'); }
+        if(data.topp) { document.getElementById('slider-topp').value = data.topp; updateSlider('topp'); }
+        if(data.topk) { document.getElementById('slider-topk').value = data.topk; updateSlider('topk'); }
+    } else {
+        // 默认值
+        document.getElementById('apiUrl').value = '';
+        document.getElementById('apiKey').value = '';
+        document.getElementById('modelSelect').innerHTML = '<option value="">请先拉取模型...</option>';
+        document.getElementById('slider-temp').value = 1.0; updateSlider('temp');
+        document.getElementById('slider-topp').value = 1.0; updateSlider('topp');
+        document.getElementById('slider-topk').value = 40; updateSlider('topk');
+    }
+}
+
+function getPresetListKey() { return currentContext === 0 ? 'hajimi_api_presets_list_main' : 'hajimi_api_presets_list_sub'; }
+
+function loadPresetsForCurrentContext() {
+    const stored = localStorage.getItem(getPresetListKey());
+    if (stored) { apiPresets = JSON.parse(stored); } else { apiPresets = []; }
+    renderPresets();
+}
+
+function renderPresets() {
+    const container = document.getElementById('presetList');
+    container.innerHTML = '';
+    if (apiPresets.length === 0) {
+        container.innerHTML = '<div style="padding:20px; text-align:center; color:#999; font-size:13px;">暂无预设</div>'; return;
+    }
+    apiPresets.forEach(p => {
+        const isActive = p.id === selectedPresetId;
+        const item = document.createElement('div');
+        item.className = `preset-item ${isActive ? 'active' : ''}`;
+        item.onclick = () => selectPreset(p.id); 
+        item.innerHTML = `<div class="preset-name">${p.name}</div><div class="check-circle"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div>`;
+        container.appendChild(item);
+    });
+}
+
+function selectPreset(id) { selectedPresetId = id; renderPresets(); }
+
+function saveNewPreset() {
+    const name = prompt("请输入预设名称：");
+    if (!name) return;
+    const newPreset = {
+        id: 'preset_' + Date.now(), name: name,
+        url: document.getElementById('apiUrl').value, key: document.getElementById('apiKey').value,
+        model: document.getElementById('modelSelect').value, temp: document.getElementById('slider-temp').value,
+        topp: document.getElementById('slider-topp').value, topk: document.getElementById('slider-topk').value
+    };
+    apiPresets.push(newPreset);
+    localStorage.setItem(getPresetListKey(), JSON.stringify(apiPresets));
+    selectPreset(newPreset.id);
+}
+
+function loadSelectedPreset() {
+    if (!selectedPresetId) { alert("请先在列表中选择一个预设"); return; }
+    const p = apiPresets.find(item => item.id === selectedPresetId);
+    if (!p) return;
+
+    document.getElementById('apiUrl').value = p.url || '';
+    document.getElementById('apiKey').value = p.key || '';
+    
+    const selectEl = document.getElementById('modelSelect');
+    if (p.model) {
+        let exists = false;
+        for(let i=0; i<selectEl.options.length; i++) { if(selectEl.options[i].value === p.model) exists = true; }
+        if(!exists) {
+            const option = document.createElement('option');
+            option.value = p.model; option.textContent = p.model;
+            selectEl.appendChild(option);
+        }
+        selectEl.value = p.model;
+    }
+
+    if(p.temp !== undefined) { document.getElementById('slider-temp').value = p.temp; updateSlider('temp'); }
+    if(p.topp !== undefined) { document.getElementById('slider-topp').value = p.topp; updateSlider('topp'); }
+    if(p.topk !== undefined) { document.getElementById('slider-topk').value = p.topk; updateSlider('topk'); }
+
+    saveCurrentContext(); 
+    alert(`已加载预设: ${p.name}`);
+}
+
+function deleteSelectedPreset() {
+    if (!selectedPresetId) { alert("请先在列表中选择一个预设"); return; }
+    if (confirm("确定要删除选中的预设吗？")) {
+        apiPresets = apiPresets.filter(p => p.id !== selectedPresetId);
+        localStorage.setItem(getPresetListKey(), JSON.stringify(apiPresets));
+        selectedPresetId = null; renderPresets();
+    }
+}
+
+// 4. 辅助功能
+function updateSlider(type) {
+    const val = document.getElementById(`slider-${type}`).value;
+    document.getElementById(`val-${type}`).innerText = val;
+}
+
+function manualSave() {
+    saveCurrentContext();
+    const btn = document.getElementById('apiSaveBtn');
+    const originalText = btn.innerText;
+    btn.innerText = "Saved";
+    setTimeout(() => { btn.innerText = originalText; }, 1000);
+}
+
+// 5. 初始化加载 (已修改支持自动拉取)
+document.addEventListener('DOMContentLoaded', () => {
+    loadContext(0); 
+    loadPresetsForCurrentContext(); 
+
+    // === 新增：如果有保存的 URL 和 Key，自动静默拉取模型 ===
+    const savedUrl = document.getElementById('apiUrl').value;
+    const savedKey = document.getElementById('apiKey').value;
+    if (savedUrl && savedKey) {
+        fetchModels(true); // true 代表自动模式，不弹窗
+    }
+});
+// =========================================
+// === 聊天设置界面逻辑 ===
+// =========================================
+
+function openChatSettings() {
+    if (!currentChatCharId || !db) {
+        alert("请先进入某个角色的聊天界面！");
+        return;
+    }
+    
+    // 从数据库读取当前角色的信息
+    const transaction = db.transaction(["characters"], "readonly");
+    const store = transaction.objectStore("characters");
+    const req = store.get(currentChatCharId);
+
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char) {
+            // 1. 设置头像
+            const avatarEl = document.getElementById('csAvatar');
+            if (char.avatarImage) {
+                avatarEl.style.backgroundImage = `url(${char.avatarImage})`;
+            } else {
+                avatarEl.style.backgroundImage = '';
+            }
+
+            // 2. 设置姓名和昵称
+            document.getElementById('csCharName').innerText = char.name || '未填写';
+            document.getElementById('csCharNickname').innerText = char.nickname || '未填写';
+
+            // 3. 读取用户自定义的介绍和备注
+            document.getElementById('csAboutText').value = char.csAbout || '';
+            document.getElementById('csNoteText').value = char.csNote || '';
+
+            // 4. 读取该角色的专属相册 (新增这部分)
+            for (let i = 0; i < 3; i++) {
+                const albumEl = document.getElementById(`cs-album-${i}`);
+                if (char.albums && char.albums[i]) {
+                    albumEl.style.backgroundImage = `url(${char.albums[i]})`;
+                } else {
+                    albumEl.style.backgroundImage = '';
+                }
+            }
+
+            // 5. 打开界面
+            const screen = document.getElementById('chatSettingsScreen');
+            screen.style.display = 'flex';
+            setTimeout(() => screen.classList.add('active'), 10);
+        }
+    };
+}
+function closeChatSettings() {
+    const screen = document.getElementById('chatSettingsScreen');
+    screen.classList.remove('active');
+    setTimeout(() => screen.style.display = 'none', 400);
+}
+
+// 自动保存用户在设置里输入的文字
+function saveChatSettingsData() {
+    if (!currentChatCharId || !db) return;
+    const transaction = db.transaction(["characters"], "readwrite");
+    const store = transaction.objectStore("characters");
+    const req = store.get(currentChatCharId);
+
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char) {
+            char.csAbout = document.getElementById('csAboutText').value;
+            char.csNote = document.getElementById('csNoteText').value;
+            store.put(char); // 更新到数据库
+        }
+    };
+}
+
+// 颜色选择器逻辑
+function updateCsColor(type, inputEl, hex) {
+    const root = document.documentElement;
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+
+    if (type === 'big') {
+        root.style.setProperty('--cs-big-glass', `rgba(${r}, ${g}, ${b}, 0.2)`);
+    } else if (type === 'small') {
+        root.style.setProperty('--cs-small-glass', `rgba(${r}, ${g}, ${b}, 0.35)`);
+    } else if (type === 'tag') {
+        root.style.setProperty('--cs-tag-line', hex);
+        root.style.setProperty('--cs-tag-bg-start', `rgba(${r}, ${g}, ${b}, 0.25)`);
+    }
+    
+    // 更新小圆点颜色
+    inputEl.previousElementSibling.style.background = hex;
+}
+// =========================================
+// === 角色专属相册上传逻辑 ===
+// =========================================
+let currentAlbumIndex = null;
+const csAlbumFileInput = document.getElementById('csAlbumFileInput');
+
+// 点击方块触发本地文件选择
+function triggerCsAlbumUpload(index) {
+    currentAlbumIndex = index;
+    if (csAlbumFileInput) csAlbumFileInput.click();
+}
+
+// 监听文件选择并保存到当前角色数据库
+if (csAlbumFileInput) {
+    csAlbumFileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file && currentAlbumIndex !== null && currentChatCharId && db) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const base64Data = event.target.result;
+                
+                // 1. 立即在界面上显示图片
+                document.getElementById(`cs-album-${currentAlbumIndex}`).style.backgroundImage = `url(${base64Data})`;
+                
+                // 2. 保存到 IndexedDB 当前角色的数据中
+                const transaction = db.transaction(["characters"], "readwrite");
+                const store = transaction.objectStore("characters");
+                const req = store.get(currentChatCharId);
+                
+                req.onsuccess = () => {
+                    const char = req.result;
+                    if (char) {
+                        if (!char.albums) char.albums = []; // 如果没有相册数组则初始化
+                        char.albums[currentAlbumIndex] = base64Data; // 更新对应位置的图片
+                        store.put(char); // 存回数据库
+                    }
+                };
+            };
+            reader.readAsDataURL(file);
+        }
+        // 清空 input，保证下次选同一张图也能触发 change 事件
+        e.target.value = ''; 
+    });
+}
+// =========================================
+// === 基础设置 (文件夹弹窗) 逻辑 ===
+// =========================================
+
+// 打开基础设置弹窗
+function openBasicSettings() {
+    if (!currentChatCharId || !db) {
+        alert("请先进入某个角色的聊天界面！");
+        return;
+    }
+
+    const modal = document.getElementById('basicSettingsModal');
+    modal.style.display = 'flex';
+    setTimeout(() => modal.classList.add('active'), 10);
+
+    // 读取当前角色状态，更新开关 UI
+    const transaction = db.transaction(["characters"], "readonly");
+    const store = transaction.objectStore("characters");
+    const req = store.get(currentChatCharId);
+    
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char) {
+            // 更新置顶开关
+            const pinSwitch = document.getElementById('setting-pin-switch');
+            if (char.isPinned) pinSwitch.classList.add('on');
+            else pinSwitch.classList.remove('on');
+
+            // 更新双语开关 (预留字段 isBilingual)
+            const biSwitch = document.getElementById('setting-bilingual-switch');
+            if (char.isBilingual) biSwitch.classList.add('on');
+            else biSwitch.classList.remove('on');
+        }
+    };
+}
+
+// 关闭基础设置弹窗
+function closeBasicSettings() {
+    const modal = document.getElementById('basicSettingsModal');
+    modal.classList.remove('active');
+    setTimeout(() => modal.style.display = 'none', 300);
+}
+
+// 1. 置顶聊天逻辑
+function togglePinFromSettings() {
+    if (!currentChatCharId || !db) return;
+    const switchEl = document.getElementById('setting-pin-switch');
+    
+    const transaction = db.transaction(["characters"], "readwrite");
+    const store = transaction.objectStore("characters");
+    const req = store.get(currentChatCharId);
+    
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char) {
+            char.isPinned = !char.isPinned;
+            store.put(char);
+            // 更新 UI
+            if (char.isPinned) switchEl.classList.add('on');
+            else switchEl.classList.remove('on');
+            
+            // 刷新微信列表 (后台静默刷新)
+            renderWxChatList();
+        }
+    };
+}
+
+// 2. 双语设置逻辑 (预留)
+function toggleBilingualFromSettings() {
+    if (!currentChatCharId || !db) return;
+    const switchEl = document.getElementById('setting-bilingual-switch');
+    
+    const transaction = db.transaction(["characters"], "readwrite");
+    const store = transaction.objectStore("characters");
+    const req = store.get(currentChatCharId);
+    
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char) {
+            char.isBilingual = !char.isBilingual;
+            store.put(char);
+            if (char.isBilingual) switchEl.classList.add('on');
+            else switchEl.classList.remove('on');
+        }
+    };
+}
+
+// 3. 开启新对话 (清空上下文，保留人设)
+function startNewChat() {
+    if(confirm("开启新对话将清空当前的聊天记录，确定吗？")) {
+        clearChatHistoryLogic("新对话已开启");
+    }
+}
+
+// 4. 导出聊天记录
+function exportChatHistory() {
+    if (!currentChatCharId || !db) return;
+    const transaction = db.transaction(["characters"], "readonly");
+    const store = transaction.objectStore("characters");
+    const req = store.get(currentChatCharId);
+    
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char && char.history) {
+            const dataStr = JSON.stringify(char.history, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${char.name || 'chat'}_history_${Date.now()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } else {
+            alert("暂无聊天记录可导出");
+        }
+    };
+}
+
+// 5. 导入聊天记录
+function triggerImportChat() {
+    document.getElementById('importChatInput').click();
+}
+
+// 监听文件选择
+document.getElementById('importChatInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file || !currentChatCharId || !db) return;
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        try {
+            const history = JSON.parse(event.target.result);
+            if (Array.isArray(history)) {
+                const transaction = db.transaction(["characters"], "readwrite");
+                const store = transaction.objectStore("characters");
+                const req = store.get(currentChatCharId);
+                
+                req.onsuccess = () => {
+                    const char = req.result;
+                    if (char) {
+                        char.history = history;
+                        store.put(char);
+                        alert("导入成功！");
+                        // 刷新聊天界面
+                        chatHistory = history;
+                        const chatScrollArea = document.getElementById('chatScrollArea');
+                        chatScrollArea.innerHTML = '<div class="chat-time-stamp">刚刚</div>';
+                        chatHistory.forEach(msg => {
+                            if (msg.role === 'user') appendMessage(msg.content, true);
+                            else if (msg.role === 'assistant') appendMessage(msg.content, false);
+                        });
+                        closeBasicSettings();
+                        closeChatSettings(); // 关闭上层设置
+                    }
+                };
+            } else {
+                alert("文件格式错误：必须是聊天记录数组");
+            }
+        } catch (err) {
+            alert("导入失败：JSON 解析错误");
+        }
+    };
+    reader.readAsText(file);
+    e.target.value = ''; // 重置
+});
+
+// 6. 清除聊天记录 (危险)
+function clearChatHistoryAction() {
+    if(confirm("确定要彻底清除所有聊天记录吗？此操作不可逆。")) {
+        clearChatHistoryLogic("聊天记录已清除");
+    }
+}
+
+// 通用清空逻辑
+function clearChatHistoryLogic(toastMsg) {
+    if (!currentChatCharId || !db) return;
+    const transaction = db.transaction(["characters"], "readwrite");
+    const store = transaction.objectStore("characters");
+    const req = store.get(currentChatCharId);
+    
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char) {
+            char.history = []; // 清空数组
+            store.put(char);
+            
+            // 刷新界面
+            chatHistory = [];
+            const chatScrollArea = document.getElementById('chatScrollArea');
+            chatScrollArea.innerHTML = '<div class="chat-time-stamp">刚刚</div>';
+            
+            alert(toastMsg);
+            closeBasicSettings();
+            closeChatSettings();
+        }
+    };
+}
+
+// 7. 删除联系人 (危险)
+function deleteContactAction() {
+    if (!currentChatCharId || !db) return;
+    if (confirm("确定要删除该联系人吗？所有数据将丢失。")) {
+        const transaction = db.transaction(["characters"], "readwrite");
+        const store = transaction.objectStore("characters");
+        store.delete(currentChatCharId);
+        
+        transaction.oncomplete = () => {
+            alert("联系人已删除");
+            closeBasicSettings();
+            closeChatSettings();
+            closeChatScreen(); // 退出聊天界面
+            renderWxChatList(); // 刷新微信列表
+        };
+    }
+}
+
+// 8. 拉黑/举报 (模拟)
+function blockContactAction() {
+    alert("已将该联系人加入黑名单");
+    closeBasicSettings();
+}
+function reportContactAction() {
+    alert("已提交举报请求，感谢您的反馈");
+    closeBasicSettings();
+}
+// =========================================
+// === 数据管理：真实内存计算与全量备份 ===
+// =========================================
+
+function openDataModal() {
+    const modal = document.getElementById('dataModal');
+    modal.style.display = 'flex';
+    setTimeout(() => modal.classList.add('active'), 10);
+    calculateRealStorage(); // 打开时触发真实计算
+}
+
+function closeDataModal() {
+    const modal = document.getElementById('dataModal');
+    modal.classList.remove('active');
+    setTimeout(() => modal.style.display = 'none', 300);
+}
+
+// 辅助函数：计算字符串的字节数 (近似 UTF-16)
+function getByteLen(normal_val) {
+    normal_val = String(normal_val);
+    let byteLen = 0;
+    for (let i = 0; i < normal_val.length; i++) {
+        let c = normal_val.charCodeAt(i);
+        byteLen += c < (1 << 7) ? 1 : c < (1 << 11) ? 2 : c < (1 << 16) ? 3 : 4;
+    }
+    return byteLen;
+}
+
+// 格式化字节为 MB
+function formatMB(bytes) {
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+}
+
+// 真实计算各部分占用
+async function calculateRealStorage() {
+    let sysBytes = 0;
+    let chatBytes = 0;
+    let imgBytes = 0;
+
+    // 1. 计算 System (LocalStorage)
+    for (let i = 0; i < localStorage.length; i++) {
+        let key = localStorage.key(i);
+        let val = localStorage.getItem(key);
+        sysBytes += getByteLen(key) + getByteLen(val);
+    }
+
+    // 2. 计算 IndexedDB (Chat 和 Media)
+    if (db) {
+        // 计算 Characters (Chat)
+        chatBytes = await new Promise((resolve) => {
+            let size = 0;
+            const tx = db.transaction(["characters"], "readonly");
+            const store = tx.objectStore("characters");
+            const req = store.openCursor();
+            req.onsuccess = (e) => {
+                const cursor = e.target.result;
+                if (cursor) {
+                    size += getByteLen(JSON.stringify(cursor.value));
+                    cursor.continue();
+                } else {
+                    resolve(size);
+                }
+            };
+            req.onerror = () => resolve(0);
+        });
+
+        // 计算 Images (Media)
+        imgBytes = await new Promise((resolve) => {
+            let size = 0;
+            const tx = db.transaction(["images"], "readonly");
+            const store = tx.objectStore("images");
+            const req = store.openCursor();
+            req.onsuccess = (e) => {
+                const cursor = e.target.result;
+                if (cursor) {
+                    size += getByteLen(JSON.stringify(cursor.value));
+                    cursor.continue();
+                } else {
+                    resolve(size);
+                }
+            };
+            req.onerror = () => resolve(0);
+        });
+    }
+
+    const totalBytes = sysBytes + chatBytes + imgBytes;
+    
+    // 更新 UI 文字
+    document.getElementById('dm-storage-text').innerText = `已用 ${formatMB(totalBytes)}`;
+    document.getElementById('dm-val-chat').innerText = formatMB(chatBytes);
+    document.getElementById('dm-val-img').innerText = formatMB(imgBytes);
+    document.getElementById('dm-val-sys').innerText = formatMB(sysBytes);
+
+    // 更新 UI 进度条比例 (如果没有数据，给个极小值防止报错)
+    const totalForCalc = totalBytes > 0 ? totalBytes : 1;
+    document.getElementById('dm-bar-chat').style.width = `${(chatBytes / totalForCalc) * 100}%`;
+    document.getElementById('dm-bar-img').style.width = `${(imgBytes / totalForCalc) * 100}%`;
+    document.getElementById('dm-bar-sys').style.width = `${(sysBytes / totalForCalc) * 100}%`;
+}
+
+// =========================================
+// === 导出全量数据 (ZIP) - 已修复世界书备份 ===
+// =========================================
+async function exportAllData() {
+    if (typeof JSZip === 'undefined') {
+        alert("JSZip 库未加载，请检查网络连接！");
+        return;
+    }
+    
+    const btnText = document.querySelector('.dm-item[onclick="exportAllData()"] .dm-item-title');
+    const originalText = btnText.innerText;
+    btnText.innerText = "正在打包，请稍候...";
+
+    try {
+        const zip = new JSZip();
+
+        // 1. 收集 LocalStorage
+        const lsData = {};
+        for (let i = 0; i < localStorage.length; i++) {
+            let key = localStorage.key(i);
+            lsData[key] = localStorage.getItem(key);
+        }
+        zip.file("boluo_localstorage.json", JSON.stringify(lsData));
+
+        // 2. 收集 IndexedDB
+        if (db) {
+            // 收集 characters
+            const chars = await new Promise((resolve) => {
+                const tx = db.transaction(["characters"], "readonly");
+                tx.objectStore("characters").getAll().onsuccess = (e) => resolve(e.target.result);
+            });
+            zip.file("boluo_characters.json", JSON.stringify(chars));
+
+            // 收集 images
+            const imgs = await new Promise((resolve) => {
+                const tx = db.transaction(["images"], "readonly");
+                tx.objectStore("images").getAll().onsuccess = (e) => resolve(e.target.result);
+            });
+            zip.file("boluo_images.json", JSON.stringify(imgs));
+            
+            // --- 新增：收集 worldBooks ---
+            const worldBooks = await new Promise((resolve) => {
+                const tx = db.transaction(["worldBooks"], "readonly");
+                tx.objectStore("worldBooks").getAll().onsuccess = (e) => resolve(e.target.result);
+            });
+            zip.file("boluo_worldbooks.json", JSON.stringify(worldBooks));
+            // --- 新增结束 ---
+        }
+
+        // 3. 生成 ZIP 并下载
+        const content = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
+        const url = URL.createObjectURL(content);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Boluo_Backup_${new Date().toISOString().slice(0,10)}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        btnText.innerText = "导出成功！";
+    } catch (err) {
+        console.error(err);
+        alert("导出失败：" + err.message);
+        btnText.innerText = originalText;
+    }
+
+    setTimeout(() => { btnText.innerText = originalText; }, 2000);
+}
+// =========================================
+// === 导入全量数据 (ZIP) - 已修复世界书恢复 ===
+// =========================================
+document.getElementById('importZipInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (typeof JSZip === 'undefined') {
+        alert("JSZip 库未加载，请检查网络连接！");
+        return;
+    }
+
+    if (!confirm("警告：导入数据将完全覆盖当前手机的所有设置、聊天和美化数据！确定继续吗？")) {
+        e.target.value = '';
+        return;
+    }
+
+    try {
+        const zip = await JSZip.loadAsync(file);
+
+        // 1. 恢复 LocalStorage
+        const lsFile = zip.file("boluo_localstorage.json");
+        if (lsFile) {
+            const lsData = JSON.parse(await lsFile.async("string"));
+            localStorage.clear();
+            for (const key in lsData) {
+                localStorage.setItem(key, lsData[key]);
+            }
+        }
+
+        // 2. 恢复 IndexedDB
+        if (db) {
+            // 恢复 characters
+            const charFile = zip.file("boluo_characters.json");
+            if (charFile) {
+                const chars = JSON.parse(await charFile.async("string"));
+                await new Promise((resolve) => {
+                    const tx = db.transaction(["characters"], "readwrite");
+                    const store = tx.objectStore("characters");
+                    store.clear().onsuccess = () => {
+                        chars.forEach(c => store.put(c));
+                        tx.oncomplete = () => resolve();
+                    };
+                });
+            }
+
+            // 恢复 images
+            const imgFile = zip.file("boluo_images.json");
+            if (imgFile) {
+                const imgs = JSON.parse(await imgFile.async("string"));
+                await new Promise((resolve) => {
+                    const tx = db.transaction(["images"], "readwrite");
+                    const store = tx.objectStore("images");
+                    store.clear().onsuccess = () => {
+                        imgs.forEach(img => store.put(img));
+                        tx.oncomplete = () => resolve();
+                    };
+                });
+            }
+            
+            // --- 新增：恢复 worldBooks ---
+            const wbFile = zip.file("boluo_worldbooks.json");
+            if (wbFile) {
+                const worldBooks = JSON.parse(await wbFile.async("string"));
+                await new Promise((resolve) => {
+                    const tx = db.transaction(["worldBooks"], "readwrite");
+                    const store = tx.objectStore("worldBooks");
+                    store.clear().onsuccess = () => {
+                        worldBooks.forEach(wb => store.put(wb));
+                        tx.oncomplete = () => resolve();
+                    };
+                });
+            }
+            // --- 新增结束 ---
+        }
+
+        alert("数据恢复成功！系统即将重启。");
+        window.location.reload();
+
+    } catch (err) {
+        console.error(err);
+        alert("导入失败，文件可能已损坏或格式不正确。");
+    }
+    e.target.value = ''; // 重置 input
+});
+// =========================================
+// === 恢复出厂设置 ===
+// =========================================
+function factoryReset() {
+    if (confirm("【极度危险】确定要恢复出厂设置吗？\n所有聊天记录、角色、美化图片和设置将被永久删除，不可恢复！")) {
+        if (confirm("请再次确认，是否彻底清空手机？")) {
+            // 清空 LocalStorage
+            localStorage.clear();
+            
+            // 清空 IndexedDB
+            if (db) {
+                const tx = db.transaction(["characters", "images"], "readwrite");
+                tx.objectStore("characters").clear();
+                tx.objectStore("images").clear();
+                
+                tx.oncomplete = () => {
+                    alert("手机已重置，即将重启。");
+                    window.location.reload();
+                };
+            } else {
+                alert("手机已重置，即将重启。");
+                window.location.reload();
+            }
+        }
+    }
+}
+// =========================================
+// === 聊天功能面板逻辑 ===
+// =========================================
+let isChatFuncPanelOpen = false;
+
+function toggleChatFuncPanel() {
+    if (isChatFuncPanelOpen) {
+        closeChatFuncPanel();
+    } else {
+        openChatFuncPanel();
+    }
+}
+
+function openChatFuncPanel() {
+    const panel = document.getElementById('chatFuncPanel');
+    if (!panel) return;
+    panel.style.display = 'flex';
+    // 强制重绘以触发 CSS 动画
+    requestAnimationFrame(() => {
+        panel.classList.add('active');
+    });
+    isChatFuncPanelOpen = true;
+}
+
+function closeChatFuncPanel() {
+    const panel = document.getElementById('chatFuncPanel');
+    if (!panel) return;
+    panel.classList.remove('active');
+    // 等待过渡动画结束后隐藏
+    setTimeout(() => {
+        panel.style.display = 'none';
+    }, 250); 
+    isChatFuncPanelOpen = false;
+}
+
+// 处理面板内按钮的点击事件
+function handleChatFuncAct(funcName) {
+    console.log("触发功能:", funcName);
+    if (navigator.vibrate) navigator.vibrate(10);
+
+    if (funcName === '音乐') {
+        closeChatFuncPanel();
+        if (typeof openMusicPlayer === 'function') openMusicPlayer();
+    } else if (funcName === '图片') {
+        closeChatFuncPanel();
+        document.getElementById('chatImageInput').click();
+    } else if (funcName === '拍照') {
+        // 【新增】：拦截拍照功能，打开输入弹窗
+        closeChatFuncPanel();
+        const modal = document.getElementById('fakePhotoModal');
+        modal.style.display = 'flex';
+        setTimeout(() => modal.classList.add('active'), 10);
+    } else if (funcName === '转账') {
+        closeChatFuncPanel();
+        openTransferAmountModal(); // 触发转账弹窗
+    } else if (funcName === '视频通话') {
+        // 【新增】：触发视频通话
+        closeChatFuncPanel();
+        startVideoCall(false); // false代表是User主动打过去的
+    } else {
+        closeChatFuncPanel();
+    }
+}
+// =========================================
+// === 聊天发送图片核心逻辑 (修复版) ===
+// =========================================
+
+// 监听文件选择 (保持不变，但为了完整性贴在这里)
+document.getElementById('chatImageInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        const base64Data = event.target.result;
+        sendImageMessage(base64Data);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = ''; 
+});
+
+// 【修复版】处理图片发送
+function sendImageMessage(base64Data) {
+    if (!currentChatCharId) return;
+
+    // 1. UI 上屏显示图片
+    appendImageMessageUI(base64Data, true);
+
+    // 2. 存入历史记录 (注意：这里只存不发请求)
+    chatHistory.push({
+        role: "user",
+        content: [
+            { type: "text", "text": "（我发送了一张图片，请结合图片内容和上下文回复）" },
+            { type: "image_url", "image_url": { url: base64Data } }
+        ]
+    });
+
+    // 3. 保存到数据库
+    saveChatHistoryToDB();
+
+    // 【核心修复】：发完图后强力拉回焦点，防止回车键失效
+    const input = document.getElementById('chatInput');
+    if (input) {
+        // 先失焦，打断文件选择器的残留状态
+        input.blur(); 
+        
+        // 稍微延时一点点，等系统缓过神来再聚焦
+        setTimeout(() => {
+            input.focus();
+            // 某些安卓机型需要这一步来激活键盘事件监听
+            input.click(); 
+        }, 350); 
+    }
+}
+// 【重写】发送按钮逻辑：有字发送，没字回复
+function handleSendBtnClick() {
+    const input = document.getElementById('chatInput');
+    const text = input.value.trim();
+
+    if (text) {
+        // 1. 输入框有内容：只发送消息，不触发 AI
+        sendUserMessageOnly(); 
+    } else {
+        // 2. 输入框为空：请求 AI 回复 (根据上下文/图片)
+        fetchAIResponse();
+    }
+}
+// 专门用于渲染图片气泡的 UI 函数
+function appendImageMessageUI(base64Data, isRight) {
+    const lastMsg = chatScrollArea.lastElementChild;
+    let newMsgClass = 'single'; 
+    const sideClass = isRight ? 'right' : 'left';
+
+    if (lastMsg && lastMsg.classList.contains(sideClass)) {
+        if (lastMsg.classList.contains('single')) {
+            lastMsg.classList.remove('single');
+            lastMsg.classList.add('group-start');
+        } 
+        else if (lastMsg.classList.contains('group-end')) {
+            lastMsg.classList.remove('group-end');
+            lastMsg.classList.add('group-middle');
+        }
+        newMsgClass = 'group-end';
+    }
+
+    const msgRow = document.createElement('div');
+    msgRow.className = `msg-row ${sideClass} ${newMsgClass}`; 
+    // 【修改点】：加入了 checkbox-wrap 和 msg-content 容器
+    msgRow.innerHTML = `
+        <div class="checkbox-wrap"><div class="checkbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div></div>
+        <div class="msg-content"><div class="msg-bubble image-only-bubble"><img src="${base64Data}" class="chat-img"></div></div>`;
+
+    chatScrollArea.appendChild(msgRow);
+    scrollToChatBottom();
+}
+// =========================================
+// === 拍照功能核心逻辑 ===
+// =========================================
+function closeFakePhotoModal() {
+    const modal = document.getElementById('fakePhotoModal');
+    modal.classList.remove('active');
+    setTimeout(() => { 
+        modal.style.display = 'none'; 
+        document.getElementById('fakePhotoInput').value = ''; 
+    }, 300);
+}
+
+function sendFakePhoto() {
+    const text = document.getElementById('fakePhotoInput').value.trim();
+    if (!text || !currentChatCharId) return;
+
+    const fakeImgUrl = 'https://file.uhsea.com/2603/afb7609d925c45a3d931579af60565c3G7.jpg';
+
+    // 1. UI 上屏显示
+    appendFakePhotoUI(fakeImgUrl, text, true);
+
+    // 2. 存入历史记录 (利用 detail 字段把文字存进去，同时告诉AI照片内容)
+    chatHistory.push({
+        role: "user",
+        content: [
+            { type: "text", "text": `（我发送了一张照片，照片内容是：${text}。请结合上下文回复）` },
+            { type: "image_url", "image_url": { url: fakeImgUrl, detail: text } } // 塞入 detail 字段用于刷新后读取
+        ]
+    });
+
+    // 3. 保存到数据库
+    saveChatHistoryToDB();
+    closeFakePhotoModal();
+}
+
+function appendFakePhotoUI(imgUrl, text, isRight) {
+    const lastMsg = chatScrollArea.lastElementChild;
+    let newMsgClass = 'single'; 
+    const sideClass = isRight ? 'right' : 'left';
+
+    if (lastMsg && lastMsg.classList.contains(sideClass)) {
+        if (lastMsg.classList.contains('single')) {
+            lastMsg.classList.remove('single');
+            lastMsg.classList.add('group-start');
+        } 
+        else if (lastMsg.classList.contains('group-end')) {
+            lastMsg.classList.remove('group-end');
+            lastMsg.classList.add('group-middle');
+        }
+        newMsgClass = 'group-end';
+    }
+
+    const msgRow = document.createElement('div');
+    msgRow.className = `msg-row ${sideClass} ${newMsgClass}`; 
+    // 【修改点】：加入了 checkbox-wrap 和 msg-content 容器，并拦截了多选模式下的点击事件
+    msgRow.innerHTML = `
+        <div class="checkbox-wrap"><div class="checkbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div></div>
+        <div class="msg-content">
+            <div class="msg-bubble image-only-bubble">
+                <div class="fake-photo-wrap" onclick="if(!isMultiSelectMode) this.classList.toggle('show-text')">
+                    <img src="${imgUrl}" class="chat-img">
+                    <div class="fake-photo-text">${escapeHTML(text)}</div>
+                </div>
+            </div>
+        </div>`;
+
+    chatScrollArea.appendChild(msgRow);
+    scrollToChatBottom();
+}
+// =========================================
+// === 转账功能核心逻辑 (浮窗 + 键盘 + 气泡) ===
+// =========================================
+let currentTransferAmount = "0.00";
+let currentTransferNote = "";
+let transferPwdLength = 0;
+
+function openTransferAmountModal() {
+    if (!currentChatCharId) return;
+    // 读取当前角色头像和名字
+    const remark = document.getElementById('chatHeaderRemark').innerText;
+    document.getElementById('transferTargetName').innerText = `转账给 ${remark}`;
+    
+    // 尝试获取头像
+    const transaction = db.transaction(["characters"], "readonly");
+    const store = transaction.objectStore("characters");
+    const req = store.get(currentChatCharId);
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char && char.avatarImage) {
+            document.getElementById('transferTargetAvatar').style.backgroundImage = `url(${char.avatarImage})`;
+        }
+    };
+
+    document.getElementById('transferAmountModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('transferAmountModal').classList.add('active'), 10);
+    document.getElementById('transferInput').value = '';
+    document.getElementById('transferNote').value = '';
+    checkTransferAmount();
+}
+
+function closeTransferAmountModal() {
+    document.getElementById('transferAmountModal').classList.remove('active');
+    setTimeout(() => document.getElementById('transferAmountModal').style.display = 'none', 300);
+}
+
+function checkTransferAmount() {
+    const val = document.getElementById('transferInput').value;
+    const btn = document.getElementById('transferBtn');
+    if (val && parseFloat(val) > 0) {
+        btn.classList.add('active');
+        currentTransferAmount = parseFloat(val).toFixed(2);
+    } else {
+        btn.classList.remove('active');
+    }
+}
+
+function proceedToTransferPassword() {
+    currentTransferNote = document.getElementById('transferNote').value.trim() || "转账给宝宝";
+    closeTransferAmountModal();
+    document.getElementById('transferPwdAmountDisplay').innerText = `¥ ${currentTransferAmount}`;
+    transferPwdLength = 0;
+    for(let i=1; i<=6; i++) document.getElementById(`pwd-dot-${i}`).classList.remove('show');
+
+    setTimeout(() => {
+        document.getElementById('transferPwdModal').style.display = 'flex';
+        setTimeout(() => document.getElementById('transferPwdModal').classList.add('active'), 10);
+    }, 300);
+}
+
+function closeTransferPwdModal() {
+    document.getElementById('transferPwdModal').classList.remove('active');
+    setTimeout(() => document.getElementById('transferPwdModal').style.display = 'none', 300);
+}
+
+function pressTransferKey(num) {
+    if (transferPwdLength < 6) {
+        transferPwdLength++;
+        document.getElementById(`pwd-dot-${transferPwdLength}`).classList.add('show');
+        if (transferPwdLength === 6) {
+            setTimeout(() => { executeTransfer(); }, 200);
+        }
+    }
+}
+
+function deleteTransferKey() {
+    if (transferPwdLength > 0) {
+        document.getElementById(`pwd-dot-${transferPwdLength}`).classList.remove('show');
+        transferPwdLength--;
+    }
+}
+
+// 密码输入完成，生成转账气泡并存入历史
+function executeTransfer() {
+    closeTransferPwdModal();
+    if (!currentChatCharId) return;
+
+    const transferId = 'transfer_' + Date.now();
+    
+    // 1. UI 上屏
+    appendTransferUI(currentTransferAmount, currentTransferNote, 'pending', transferId, true);
+
+    // 2. 存入历史记录 (特殊 type)
+    chatHistory.push({
+        role: "user",
+        type: "transfer",
+        amount: currentTransferAmount,
+        note: currentTransferNote,
+        status: "pending",
+        id: transferId
+    });
+
+    // 3. 存入数据库
+    saveChatHistoryToDB();
+
+    if (navigator.vibrate) navigator.vibrate(50);
+    
+    // 注意：这里不调用 fetchAIResponse()，等待用户手动点击发送按钮
+}
+
+// 渲染转账气泡 UI
+function appendTransferUI(amount, note, status, id, isRight) {
+    const chatScrollArea = document.getElementById('chatScrollArea');
+    const lastMsg = chatScrollArea.lastElementChild;
+    let newMsgClass = 'single'; 
+    const sideClass = isRight ? 'right' : 'left';
+
+    if (lastMsg && lastMsg.classList.contains(sideClass)) {
+        if (lastMsg.classList.contains('single')) {
+            lastMsg.classList.remove('single');
+            lastMsg.classList.add('group-start');
+        } else if (lastMsg.classList.contains('group-end')) {
+            lastMsg.classList.remove('group-end');
+            lastMsg.classList.add('group-middle');
+        }
+        newMsgClass = 'group-end';
+    }
+
+    let statusClass = '';
+    let iconSvg = '<path d="M6 9h12"/><path d="M15 6l3 3-3 3"/><path d="M18 15H6"/><path d="M9 18l-3-3 3-3"/>';
+    let descText = note;
+
+    if (status === 'received') {
+        statusClass = 'received';
+        iconSvg = '<polyline points="20 6 9 17 4 12"></polyline>';
+        descText = '已被领取';
+    } else if (status === 'refunded') {
+        statusClass = 'refunded';
+        iconSvg = '<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>';
+        descText = '已退回';
+    }
+
+    const msgRow = document.createElement('div');
+    msgRow.className = `msg-row ${sideClass} ${newMsgClass}`; 
+    // 【修改点】：加入了 checkbox-wrap 和 msg-content 容器，并拦截了多选模式下的点击事件
+    msgRow.innerHTML = `
+        <div class="checkbox-wrap"><div class="checkbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div></div>
+        <div class="msg-content">
+            <div class="msg-bubble image-only-bubble" style="background:transparent; border:none; box-shadow:none; padding:0;">
+                <div class="transfer-bubble ${statusClass}" id="${id}" onclick="if(!isMultiSelectMode) handleTransferClick('${id}', ${isRight})">
+                    <div class="transfer-top">
+                        <div class="transfer-icon-circle"><svg viewBox="0 0 24 24">${iconSvg}</svg></div>
+                        <div class="transfer-info">
+                            <div class="transfer-amount">¥ ${amount}</div>
+                            <div class="transfer-desc">${descText}</div>
+                        </div>
+                    </div>
+                    <div class="transfer-bottom"><span class="transfer-mark">微信转账</span></div>
+                </div>
+            </div>
+        </div>`;
+
+    chatScrollArea.appendChild(msgRow);
+    scrollToChatBottom();
+}
+// 处理转账气泡点击事件
+function handleTransferClick(id, isRight) {
+    const msgIndex = chatHistory.findIndex(m => m.id === id);
+    if (msgIndex === -1) return;
+    const msg = chatHistory[msgIndex];
+
+    if (isRight) {
+        // 用户发出的转账
+        if (msg.status === 'pending') {
+            alert("等待对方收取");
+        } else if (msg.status === 'received') {
+            alert("对方已收取");
+        } else {
+            alert("已退回");
+        }
+    } else {
+        // AI 发出的转账，用户点击收取
+        if (msg.status === 'pending') {
+            if (confirm(`确认收取来自对方的转账 ¥${msg.amount} 吗？`)) {
+                msg.status = 'received';
+                saveChatHistoryToDB();
+                
+                // 更新 UI
+                const bubble = document.getElementById(id);
+                if (bubble) {
+                    bubble.className = `transfer-bubble received`;
+                    const icon = bubble.querySelector('.transfer-icon-circle');
+                    const desc = bubble.querySelector('.transfer-desc');
+                    icon.innerHTML = '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+                    desc.innerText = '已被领取';
+                }
+                
+                // 仅在屏幕上显示一条提示并存入历史，但不触发 AI 回复
+                appendMessage("（已收取你的转账）", true);
+                chatHistory.push({ role: "user", content: "（我已收取了你的转账）" });
+                saveChatHistoryToDB();
+                
+                // 删除了这里的 fetchAIResponse(); 
+            }
+        } else if (msg.status === 'received') {
+            alert("已收取");
+        } else {
+            alert("已退回");
+        }
+    }
+}
+// =========================================
+// === iOS 气泡长按菜单 & 多选功能 (终极完整版) ===
+// =========================================
+
+let msgMenuTarget = null;
+let msgMenuTimer = null;
+let isMsgLongPress = false;
+
+let isMultiSelectMode = false;
+let selectedCount = 0;
+let isSwiping = false;
+let currentSwipeAction = true;
+let lastToggledRow = null;
+
+const chatMenuWrapper = document.getElementById('chatMsgMenu');
+const chatMenuArrow = chatMenuWrapper ? chatMenuWrapper.querySelector('.ios-tooltip-arrow') : null;
+const chatAreaEl = document.getElementById('chatScrollArea');
+
+// 1. 统一触摸事件 (支持长按菜单 & 滑动多选)
+if (chatAreaEl) {
+    chatAreaEl.addEventListener('touchstart', (e) => {
+        const row = e.target.closest('.msg-row');
+        if (!row) return;
+
+        // 如果已经在多选模式，拦截点击，直接触发滑动选择
+        if (isMultiSelectMode) {
+            e.preventDefault(); 
+            isSwiping = true;
+            currentSwipeAction = !row.classList.contains('selected');
+            toggleRow(row, currentSwipeAction);
+            return;
+        }
+
+        // --- 原有长按菜单逻辑 ---
+        const bubble = e.target.closest('.msg-bubble');
+        if (!bubble || e.target.closest('.transfer-bubble')) return;
+
+        msgMenuTarget = bubble;
+        isMsgLongPress = false;
+        bubble.classList.add('pressing');
+
+        msgMenuTimer = setTimeout(() => {
+            isMsgLongPress = true;
+            bubble.classList.remove('pressing');
+            if (navigator.vibrate) navigator.vibrate(50);
+            showMsgMenu(bubble);
+        }, 500);
+    }, { passive: false });
+
+    chatAreaEl.addEventListener('touchmove', (e) => {
+        if (isMultiSelectMode) {
+            if (isSwiping) {
+                e.preventDefault(); // 阻止屏幕滚动，专心滑动选择
+                let clientX = e.touches[0].clientX;
+                let clientY = e.touches[0].clientY;
+                const el = document.elementFromPoint(clientX, clientY);
+                if (el) {
+                    const row = el.closest('.msg-row');
+                    if (row && row !== lastToggledRow) toggleRow(row, currentSwipeAction);
+                }
+            }
+            return;
+        }
+        // --- 原有长按菜单逻辑 ---
+        clearTimeout(msgMenuTimer);
+        if (msgMenuTarget) msgMenuTarget.classList.remove('pressing');
+    }, { passive: false });
+
+    chatAreaEl.addEventListener('touchend', (e) => {
+        if (isMultiSelectMode) {
+            isSwiping = false;
+            lastToggledRow = null;
+            return;
+        }
+        // --- 原有长按菜单逻辑 ---
+        clearTimeout(msgMenuTimer);
+        if (msgMenuTarget) msgMenuTarget.classList.remove('pressing');
+    });
+
+    // 兼容 PC 端右键点击调试
+    chatAreaEl.addEventListener('contextmenu', (e) => {
+        if (isMultiSelectMode) return;
+        const bubble = e.target.closest('.msg-bubble');
+        if (!bubble || e.target.closest('.transfer-bubble')) return;
+        e.preventDefault();
+        msgMenuTarget = bubble;
+        showMsgMenu(bubble);
+    });
+}
+
+// 点击空白处关闭菜单
+document.addEventListener('touchstart', (e) => {
+    if (chatMenuWrapper && !chatMenuWrapper.contains(e.target) && (!msgMenuTarget || !msgMenuTarget.contains(e.target))) {
+        hideMsgMenu();
+    }
+}, { passive: true });
+
+document.addEventListener('mousedown', (e) => {
+    if (chatMenuWrapper && !chatMenuWrapper.contains(e.target) && (!msgMenuTarget || !msgMenuTarget.contains(e.target))) {
+        hideMsgMenu();
+    }
+});
+
+// 2. 显示/隐藏菜单
+function showMsgMenu(bubble) {
+    if (!chatMenuWrapper) return;
+    chatMenuWrapper.style.display = 'block';
+    
+    const rect = bubble.getBoundingClientRect();
+    const menuWidth = chatMenuWrapper.offsetWidth;
+    const menuHeight = chatMenuWrapper.offsetHeight;
+    
+    let left = rect.left + (rect.width / 2) - (menuWidth / 2);
+    let top = rect.top - menuHeight - 8; 
+    
+    let arrowLeft = '50%';
+    const padding = 10; 
+    const screenWidth = window.innerWidth;
+
+    if (left < padding) {
+        left = padding;
+        arrowLeft = (rect.left + rect.width / 2 - left) + 'px';
+    } else if (left + menuWidth > screenWidth - padding) {
+        left = screenWidth - menuWidth - padding;
+        arrowLeft = (rect.left + rect.width / 2 - left) + 'px';
+    }
+
+    if (top < 50) {
+        top = rect.bottom + 8; 
+        if(chatMenuArrow) {
+            chatMenuArrow.style.top = '-6px';
+            chatMenuArrow.style.bottom = 'auto';
+            chatMenuArrow.style.borderTop = 'none';
+            chatMenuArrow.style.borderBottom = '7px solid #ffffff';
+        }
+    } else {
+        if(chatMenuArrow) {
+            chatMenuArrow.style.top = 'auto';
+            chatMenuArrow.style.bottom = '-6px';
+            chatMenuArrow.style.borderBottom = 'none';
+            chatMenuArrow.style.borderTop = '7px solid #ffffff';
+        }
+    }
+
+    chatMenuWrapper.style.left = left + 'px';
+    chatMenuWrapper.style.top = top + 'px';
+    if(chatMenuArrow) chatMenuArrow.style.left = arrowLeft;
+
+    void chatMenuWrapper.offsetWidth;
+    chatMenuWrapper.classList.add('active');
+}
+
+function hideMsgMenu() {
+    if (!chatMenuWrapper) return;
+    chatMenuWrapper.classList.remove('active');
+    setTimeout(() => {
+        chatMenuWrapper.style.display = 'none';
+    }, 250);
+}
+
+// 3. 菜单功能实现 (单条操作)
+function handleMsgMenuAction(action) {
+    if (!msgMenuTarget) return;
+    const text = msgMenuTarget.innerText;
+
+    hideMsgMenu();
+
+    switch (action) {
+        case '复制':
+            navigator.clipboard.writeText(text).then(() => { alert('已复制'); });
+            break;
+        case '编辑':
+            const input = document.getElementById('chatInput');
+            input.value = text;
+            input.focus();
+            break;
+        case '引用':
+            const quoteInput = document.getElementById('chatInput');
+            quoteInput.value = `「${text}」\n----------------\n` + quoteInput.value;
+            quoteInput.focus();
+            break;
+        case '翻译':
+            alert('正在翻译...');
+            break;
+        case '多选':
+            enterSelectMode(msgMenuTarget.closest('.msg-row'));
+            break;
+        case '撤回':
+            if(confirm('确定要撤回这条消息吗？')) {
+                const row = msgMenuTarget.closest('.msg-row');
+                if(row) {
+                    const allRows = Array.from(document.querySelectorAll('#chatScrollArea .msg-row'));
+                    const index = allRows.indexOf(row);
+                    
+                    // 获取文本内容 (如果是图片，给个默认提示)
+                    let recallText = "不支持查看的内容";
+                    const textEl = row.querySelector('.msg-bubble');
+                    if (textEl && !textEl.classList.contains('image-only-bubble')) {
+                        recallText = textEl.innerText;
+                    }
+
+                    if (index !== -1) {
+                        // 修改数据库中的数据结构
+                        const originalRole = chatHistory[index].role;
+                        chatHistory[index] = { role: originalRole, type: 'recalled', originalContent: recallText };
+                        saveChatHistoryToDB();
+                        renderWxChatList(); // 🌟 修复 Bug：刷新外部微信列表
+                    }
+                    
+                    // UI 动画替换
+                    row.style.opacity = '0';
+                    row.style.transform = 'scale(0.9)';
+                    row.style.transition = 'all 0.2s';
+                    
+                    setTimeout(() => {
+    const isRight = row.classList.contains('right');
+    const tipText = isRight ? "你撤回了一条消息" : "对方撤回了一条消息";
+    const sideClass = isRight ? "right" : "left";
+    const recallHtml = `
+        <div class="recall-wrapper msg-row ${sideClass}">
+            <div class="recall-tip">
+                ${tipText} 
+                <span class="recall-action" onclick="showRecallModal('${encodeURIComponent(recallText)}')">查看</span>
+            </div>
+        </div>
+    `;
+    row.outerHTML = recallHtml;
+}, 200);
+                }
+            }
+            break;
+        case '更多':
+            if(confirm('确定要删除这条消息吗？')) {
+                const row = msgMenuTarget.closest('.msg-row');
+                if(row) {
+                    const allRows = Array.from(document.querySelectorAll('#chatScrollArea .msg-row'));
+                    const index = allRows.indexOf(row);
+                    if (index !== -1) {
+                        chatHistory.splice(index, 1);
+                        saveChatHistoryToDB(); 
+                        renderWxChatList(); // 🌟 修复 Bug：刷新外部微信列表
+                    }
+                    row.style.opacity = '0';
+                    row.style.transform = 'scale(0.9)';
+                    setTimeout(() => row.remove(), 200);
+                }
+            }
+            break;
+    }
+}
+
+// 4. 多选模式控制函数
+function enterSelectMode(initialRow) {
+    if (isMultiSelectMode) return;
+    isMultiSelectMode = true;
+    document.getElementById('chatScreen').classList.add('multi-select');
+    if (initialRow) toggleRow(initialRow, true);
+    else updateCountUI();
+}
+
+function cancelSelectMode() {
+    isMultiSelectMode = false;
+    document.getElementById('chatScreen').classList.remove('multi-select');
+    document.querySelectorAll('.msg-row').forEach(row => row.classList.remove('selected'));
+    selectedCount = 0;
+}
+
+function toggleRow(row, forceSelect) {
+    if (forceSelect) row.classList.add('selected');
+    else row.classList.remove('selected');
+    lastToggledRow = row;
+    selectedCount = document.querySelectorAll('.msg-row.selected').length;
+    updateCountUI();
+}
+
+function updateCountUI() {
+    const titleEl = document.getElementById('selectCount');
+    const actionBtns = document.querySelectorAll('.glass-dock .action-btn');
+    if (selectedCount > 0) {
+        titleEl.innerText = `已选择 ${selectedCount} 项`;
+        actionBtns.forEach(btn => btn.classList.remove('disabled'));
+    } else {
+        titleEl.innerText = '选择消息';
+        actionBtns.forEach(btn => btn.classList.add('disabled'));
+    }
+}
+
+// 5. 真实绑定数据库的批量删除逻辑
+function handleMultiAction(action) {
+    if (selectedCount === 0) return;
+    
+    if (action === '删除') {
+        if(confirm(`确定要删除选中的 ${selectedCount} 条消息吗？`)) {
+            const allRows = Array.from(document.querySelectorAll('#chatScrollArea .msg-row'));
+            const selectedRows = document.querySelectorAll('#chatScrollArea .msg-row.selected');
+            
+            // 获取要删除的索引 (DOM 顺序与 chatHistory 数组顺序严格对应)
+            let indicesToRemove = [];
+            selectedRows.forEach(row => {
+                const index = allRows.indexOf(row);
+                if (index !== -1) indicesToRemove.push(index);
+            });
+            
+            // 从大到小排序，防止 splice 时索引错乱
+            indicesToRemove.sort((a, b) => b - a);
+            
+            // 1. 从内存数组中删除
+indicesToRemove.forEach(index => {
+    chatHistory.splice(index, 1);
+});
+
+// 2. 保存到 IndexedDB
+saveChatHistoryToDB();
+
+// 3. 🌟 修复 Bug：刷新外部微信列表
+renderWxChatList(); 
+
+// 4. UI 动画移除
+selectedRows.forEach(row => {
+                row.style.opacity = '0';
+                row.style.transform = 'scale(0.9)';
+                setTimeout(() => row.remove(), 200);
+            });
+            
+            setTimeout(cancelSelectMode, 200);
+        }
+    } else {
+        alert(`已将 ${selectedCount} 条消息【${action}】\n(此功能可后续扩展)`);
+        cancelSelectMode();
+    }
+}
+// =========================================
+// === 浮窗与通知核心逻辑 ===
+// =========================================
+
+window.isFloatChatOpen = false;
+let floatChatCharId = null;
+let floatChatHistory = [];
+let notifTimer = null;
+let currentNotifCharId = null;
+
+// 触发顶部通知
+// 找到这部分，完整替换
+function triggerNotification(charId, name, avatarUrl, text) {
+    currentNotifCharId = charId;
+    
+    // 1. 设置标题
+    const titleEl = document.getElementById('notifTitle');
+    if (titleEl) titleEl.innerText = name || '通知';
+    
+    // 2. 关键修复：将多行文本转为单行空格，配合 CSS 实现省略号，防止挤爆布局
+    const descEl = document.getElementById('notifDesc');
+    if (descEl) {
+        const safeText = text.replace(/[\r\n]+/g, " "); 
+        descEl.innerText = safeText;
+    }
+    
+    const avatarEl = document.getElementById('notifAvatar');
+    if (avatarEl) {
+        if (avatarUrl) avatarEl.style.backgroundImage = `url(${avatarUrl})`;
+        else avatarEl.style.backgroundImage = '';
+    }
+
+    const banner = document.getElementById('notificationBanner');
+    if (!banner) return;
+
+    // 先移除 active 类，强行重置动画
+    banner.classList.remove('active');
+    clearTimeout(notifTimer);
+    
+    // 触发重绘，保证动画在 Android 浏览器上顺滑
+    void banner.offsetWidth; 
+    banner.classList.add('active');
+    
+    // 轻量级震动
+    if (navigator.vibrate) navigator.vibrate(50);
+    
+    // 增加显示时间到 4.0 秒，方便阅读
+    notifTimer = setTimeout(() => { 
+        banner.classList.remove('active'); 
+    }, 4000);
+}
+// 点击通知横幅主体 -> 打开全屏聊天
+function handleNotifClick() {
+    clearTimeout(notifTimer);
+    document.getElementById('notificationBanner').classList.remove('active');
+    if (currentNotifCharId) {
+        // 如果浮窗开着同一个角色，先关掉浮窗
+        if (window.isFloatChatOpen && floatChatCharId === currentNotifCharId) {
+            closeFloatingWindow();
+        }
+        openChatScreen(currentNotifCharId);
+    }
+}
+
+// 点击通知钉子 -> 打开浮窗
+function pinToFloatingWindow(e) {
+    e.stopPropagation(); 
+    clearTimeout(notifTimer);
+    document.getElementById('notificationBanner').classList.remove('active');
+    if (currentNotifCharId) {
+        openFloatingWindow(currentNotifCharId);
+    }
+}
+
+// 打开浮窗
+function openFloatingWindow(charId) {
+    if (!db) return;
+    floatChatCharId = charId;
+    window.isFloatChatOpen = true;
+    
+    const transaction = db.transaction(["characters"], "readwrite");
+    const store = transaction.objectStore("characters");
+    const req = store.get(charId);
+
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char) {
+            // 清空未读数
+            if (char.unreadCount > 0) {
+                char.unreadCount = 0;
+                store.put(char);
+                renderWxChatList();
+            }
+
+            document.getElementById('floatName').innerText = char.remark || '未命名';
+            const avatarEl = document.getElementById('floatAvatar');
+            if (char.avatarImage) avatarEl.style.backgroundImage = `url(${char.avatarImage})`;
+            else avatarEl.style.backgroundImage = '';
+
+            const bgUrl = char.bgImage ? char.bgImage : 'https://file.uhsea.com/2602/1b3a98d096fe3a0dbc43593650c79bf0PY.jpg';
+            document.getElementById('floatingChat').style.backgroundImage = `url(${bgUrl})`;
+
+            floatChatHistory = char.history || [];
+            renderFloatHistory();
+
+            const floatChat = document.getElementById('floatingChat');
+            floatChat.classList.add('active');
+        }
+    };
+}
+
+function closeFloatingWindow() {
+    window.isFloatChatOpen = false;
+    const floatChat = document.getElementById('floatingChat');
+    floatChat.classList.remove('active');
+    setTimeout(() => { floatChat.style.transition = ''; }, 300);
+}
+
+function enterFullChatFromFloat() {
+    const id = floatChatCharId;
+    closeFloatingWindow();
+    if (id) setTimeout(() => openChatScreen(id), 300);
+}
+
+// 渲染浮窗历史
+function renderFloatHistory() {
+    const body = document.getElementById('floatBody');
+    body.innerHTML = '<div style="height: 10px; flex-shrink: 0;"></div>';
+    
+    floatChatHistory.forEach(msg => {
+        const isRight = msg.role === 'user';
+        let text = "";
+        if (msg.type === 'transfer') text = isRight ? "[发出转账]" : "[收到转账]";
+        else if (typeof msg.content === 'string') text = msg.content;
+        else text = "[图片消息]";
+        
+        appendFloatMsg(text, isRight);
+    });
+}
+
+function appendFloatMsg(text, isRight) {
+    const body = document.getElementById('floatBody');
+    const sideClass = isRight ? 'right' : 'left';
+    const msgHtml = `<div class="float-msg ${sideClass}"><div class="float-bubble">${escapeHTML(text)}</div></div>`;
+    body.insertAdjacentHTML('beforeend', msgHtml);
+    body.scrollTop = body.scrollHeight;
+}
+
+// 浮窗正在输入动画
+function appendFloatTypingIndicator(id) {
+    const body = document.getElementById('floatBody');
+    const msgHtml = `<div class="float-msg left" id="${id}"><div class="float-bubble" style="color: #888; font-style: italic;">正在输入...</div></div>`;
+    body.insertAdjacentHTML('beforeend', msgHtml);
+    body.scrollTop = body.scrollHeight;
+}
+function removeFloatTypingIndicator() {
+    const els = document.querySelectorAll('#floatBody .float-msg[id^="float-typing-"]');
+    els.forEach(el => el.remove());
+}
+
+// === 浮窗发送逻辑 (与主界面一致) ===
+function handleFloatSendBtnClick() {
+    const input = document.getElementById('floatInput');
+    const text = input.value.trim();
+
+    if (text) {
+        // 有字：只发送，不触发AI
+        appendFloatMsg(text, true);
+        floatChatHistory.push({ role: "user", content: text });
+        input.value = '';
+        input.focus();
+        
+        // 保存到数据库
+        const transaction = db.transaction(["characters"], "readwrite");
+        const store = transaction.objectStore("characters");
+        const req = store.get(floatChatCharId);
+        req.onsuccess = () => {
+            const char = req.result;
+            if (char) {
+                char.history = floatChatHistory;
+                store.put(char);
+                renderWxChatList();
+            }
+        };
+    } else {
+        // 没字：请求AI回复
+        fetchAIResponse(floatChatCharId, true);
+    }
+}
+
+document.getElementById('floatInput').addEventListener('keydown', function(e) {
+    if (e.isComposing) return;
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        handleFloatSendBtnClick();
+    }
+});
+
+// =========================================
+// === 浮窗拖拽与拉伸逻辑 ===
+// =========================================
+const floatWin = document.getElementById('floatingChat');
+const dragHandle = document.getElementById('dragHandle');
+const resizeHandleBR = document.getElementById('resizeHandle');
+const resizeHandleTL = document.getElementById('resizeHandleTL');
+
+let startX, startY, startLeft, startTop, startWidth, startHeight;
+
+// 1. 拖拽
+let isDragging = false;
+dragHandle.addEventListener('touchstart', initDrag, {passive: false});
+dragHandle.addEventListener('mousedown', initDrag);
+
+function initDrag(e) {
+    e.preventDefault(); isDragging = true;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    startX = clientX; startY = clientY;
+    const rect = floatWin.getBoundingClientRect();
+    floatWin.style.left = rect.left + 'px'; floatWin.style.top = rect.top + 'px';
+    floatWin.style.bottom = 'auto'; floatWin.style.right = 'auto';
+    floatWin.classList.add('dragging'); 
+    startLeft = rect.left; startTop = rect.top;
+    document.addEventListener('touchmove', doDrag, {passive: false});
+    document.addEventListener('touchend', stopDrag);
+    document.addEventListener('mousemove', doDrag);
+    document.addEventListener('mouseup', stopDrag);
+}
+function doDrag(e) {
+    if (!isDragging) return; e.preventDefault();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    let newLeft = startLeft + (clientX - startX);
+    let newTop = startTop + (clientY - startY);
+    const maxLeft = window.innerWidth - floatWin.offsetWidth;
+    const maxTop = window.innerHeight - floatWin.offsetHeight;
+    floatWin.style.left = Math.max(0, Math.min(newLeft, maxLeft)) + 'px';
+    floatWin.style.top = Math.max(0, Math.min(newTop, maxTop)) + 'px';
+}
+function stopDrag() {
+    isDragging = false; floatWin.classList.remove('dragging');
+    document.removeEventListener('touchmove', doDrag); document.removeEventListener('touchend', stopDrag);
+    document.removeEventListener('mousemove', doDrag); document.removeEventListener('mouseup', stopDrag);
+}
+
+// 2. 右下角拉伸
+let isResizingBR = false;
+resizeHandleBR.addEventListener('touchstart', initResizeBR, {passive: false});
+resizeHandleBR.addEventListener('mousedown', initResizeBR);
+
+function initResizeBR(e) {
+    e.preventDefault(); isResizingBR = true;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    startX = clientX; startY = clientY;
+    const rect = floatWin.getBoundingClientRect();
+    startWidth = rect.width; startHeight = rect.height;
+    floatWin.style.left = rect.left + 'px'; floatWin.style.top = rect.top + 'px';
+    floatWin.style.bottom = 'auto'; floatWin.style.right = 'auto';
+    floatWin.classList.add('dragging');
+    document.addEventListener('touchmove', doResizeBR, {passive: false});
+    document.addEventListener('touchend', stopResizeBR);
+    document.addEventListener('mousemove', doResizeBR);
+    document.addEventListener('mouseup', stopResizeBR);
+}
+function doResizeBR(e) {
+    if (!isResizingBR) return; e.preventDefault();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    floatWin.style.width = Math.max(240, startWidth + (clientX - startX)) + 'px';
+    floatWin.style.height = Math.max(280, startHeight + (clientY - startY)) + 'px';
+}
+function stopResizeBR() {
+    isResizingBR = false; floatWin.classList.remove('dragging');
+    document.removeEventListener('touchmove', doResizeBR); document.removeEventListener('touchend', stopResizeBR);
+    document.removeEventListener('mousemove', doResizeBR); document.removeEventListener('mouseup', stopResizeBR);
+}
+
+// 3. 左上角拉伸
+let isResizingTL = false;
+resizeHandleTL.addEventListener('touchstart', initResizeTL, {passive: false});
+resizeHandleTL.addEventListener('mousedown', initResizeTL);
+
+function initResizeTL(e) {
+    e.preventDefault(); isResizingTL = true;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    startX = clientX; startY = clientY;
+    const rect = floatWin.getBoundingClientRect();
+    startWidth = rect.width; startHeight = rect.height;
+    startLeft = rect.left; startTop = rect.top;
+    floatWin.style.left = startLeft + 'px'; floatWin.style.top = startTop + 'px';
+    floatWin.style.bottom = 'auto'; floatWin.style.right = 'auto';
+    floatWin.classList.add('dragging');
+    document.addEventListener('touchmove', doResizeTL, {passive: false});
+    document.addEventListener('touchend', stopResizeTL);
+    document.addEventListener('mousemove', doResizeTL);
+    document.addEventListener('mouseup', stopResizeTL);
+}
+function doResizeTL(e) {
+    if (!isResizingTL) return; e.preventDefault();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const deltaX = clientX - startX; const deltaY = clientY - startY;
+    let newWidth = startWidth - deltaX; let newHeight = startHeight - deltaY;
+    let newLeft = startLeft + deltaX; let newTop = startTop + deltaY;
+    if (newWidth < 240) { newWidth = 240; newLeft = startLeft + (startWidth - 240); }
+    if (newHeight < 280) { newHeight = 280; newTop = startTop + (startHeight - 280); }
+    floatWin.style.width = newWidth + 'px'; floatWin.style.height = newHeight + 'px';
+    floatWin.style.left = newLeft + 'px'; floatWin.style.top = newTop + 'px';
+}
+function stopResizeTL() {
+    isResizingTL = false; floatWin.classList.remove('dragging');
+    document.removeEventListener('touchmove', doResizeTL); document.removeEventListener('touchend', stopResizeTL);
+    document.removeEventListener('mousemove', doResizeTL); document.removeEventListener('mouseup', stopResizeTL);
+}
+// =========================================
+// === 撤回功能辅助函数 ===
+// =========================================
+
+// 初始化渲染时生成撤回 UI (注意必须带上 msg-row 类名，保证索引不乱)
+function appendRecallUI(text, isRight) {
+    const chatScrollArea = document.getElementById('chatScrollArea');
+    const tipText = isRight ? "你撤回了一条消息" : "对方撤回了一条消息";
+    const sideClass = isRight ? "right" : "left";
+    const recallHtml = `
+        <div class="recall-wrapper msg-row ${sideClass}">
+            <div class="recall-tip">
+                ${tipText} 
+                <span class="recall-action" onclick="showRecallModal('${encodeURIComponent(text)}')">查看</span>
+            </div>
+        </div>
+    `;
+    chatScrollArea.insertAdjacentHTML('beforeend', recallHtml);
+    scrollToChatBottom();
+}
+
+// 显示撤回内容弹窗
+function showRecallModal(encodedText) {
+    const text = decodeURIComponent(encodedText);
+    document.getElementById('recallText').innerText = text;
+    document.getElementById('recallModal').classList.add('active');
+}
+
+// 关闭撤回内容弹窗
+function closeRecallModal() {
+    document.getElementById('recallModal').classList.remove('active');
+}
+// =========================================
+// === 世界书核心逻辑 (真实数据库) ===
+// =========================================
+let currentWbId = null;
+
+function openWorldBookScreen() {
+    const screen = document.getElementById('worldBookScreen');
+    screen.style.display = 'flex';
+    setTimeout(() => screen.classList.add('active'), 10);
+    loadWorldBooksList();
+}
+
+function closeWorldBookScreen() {
+    const screen = document.getElementById('worldBookScreen');
+    screen.classList.remove('active');
+    setTimeout(() => screen.style.display = 'none', 400);
+}
+
+// 加载左侧列表
+function loadWorldBooksList() {
+    if (!db) return;
+    const tx = db.transaction(["worldBooks"], "readonly");
+    const store = tx.objectStore("worldBooks");
+    const req = store.getAll();
+    req.onsuccess = () => {
+        const books = req.result;
+        const sidebarList = document.getElementById('wbSidebarList');
+        sidebarList.innerHTML = '';
+        
+        if (books.length === 0) {
+            currentWbId = null;
+            renderWbContent(null);
+            return;
+        }
+        
+        if (!currentWbId || !books.find(b => b.id === currentWbId)) {
+            currentWbId = books[0].id;
+        }
+
+        books.forEach(book => {
+            const tab = document.createElement('div');
+            tab.className = `wb-tab ${book.id === currentWbId ? 'active' : ''}`;
+            tab.onclick = () => { currentWbId = book.id; loadWorldBooksList(); };
+            tab.innerHTML = `<div class="wb-tab-text">${book.name}</div>`;
+            sidebarList.appendChild(tab);
+        });
+        
+        renderWbContent(books.find(b => b.id === currentWbId));
+    };
+}
+
+// 渲染右侧内容
+function renderWbContent(book) {
+    const list = document.getElementById('wbItemList');
+    list.innerHTML = '<div class="wb-particle-track"></div>';
+    
+    if (!book) {
+        document.getElementById('wbBookNameInput').value = '';
+        list.insertAdjacentHTML('beforeend', '<div style="text-align:center; color:#888; font-size:12px; margin-top:40px;">请先添加世界书</div>');
+        return;
+    }
+
+    document.getElementById('wbBookNameInput').value = book.name;
+
+    if (!book.items || book.items.length === 0) {
+        list.insertAdjacentHTML('beforeend', '<div style="text-align:center; color:#888; font-size:12px; margin-top:40px;">点击右上角星星添加条目</div>');
+        return;
+    }
+
+    book.items.forEach((item, index) => {
+        const row = document.createElement('div');
+        row.className = 'wb-item-row';
+        row.innerHTML = `
+            <div class="wb-card">
+                <div class="wb-card-header">
+                    <div class="wb-title-group">
+                        <div class="wb-title-bar"></div>
+                        <input type="text" class="wb-card-title-input" value="${item.title}" placeholder="标题" onchange="saveWbItem(${index}, 'title', this.value)">
+                    </div>
+                    <div class="wb-card-del" onclick="deleteWbItem(${index})">
+                        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </div>
+                </div>
+                <textarea class="wb-textarea" placeholder="输入内容..." onchange="saveWbItem(${index}, 'content', this.value)">${item.content}</textarea>
+            </div>
+            <div class="wb-connect-line"></div>
+            <div class="wb-particle-node"></div>
+        `;
+        list.appendChild(row);
+    });
+}
+
+// 增删改操作
+function addWorldBook() {
+    const name = prompt("新世界书名称：");
+    if (name && name.trim()) {
+        const newBook = { id: 'wb_' + Date.now(), name: name.trim(), items: [] };
+        const tx = db.transaction(["worldBooks"], "readwrite");
+        tx.objectStore("worldBooks").put(newBook);
+        tx.oncomplete = () => { currentWbId = newBook.id; loadWorldBooksList(); };
+    }
+}
+
+function deleteCurrentWorldBook() {
+    if (!currentWbId) return;
+    if (confirm("确定要删除当前世界书吗？")) {
+        const tx = db.transaction(["worldBooks"], "readwrite");
+        tx.objectStore("worldBooks").delete(currentWbId);
+        tx.oncomplete = () => { currentWbId = null; loadWorldBooksList(); };
+    }
+}
+
+function saveCurrentWorldBookName() {
+    if (!currentWbId) return;
+    const newName = document.getElementById('wbBookNameInput').value.trim();
+    if (!newName) return;
+    const tx = db.transaction(["worldBooks"], "readwrite");
+    const store = tx.objectStore("worldBooks");
+    store.get(currentWbId).onsuccess = (e) => {
+        const book = e.target.result;
+        book.name = newName;
+        store.put(book).onsuccess = () => loadWorldBooksList();
+    };
+}
+
+function addWorldBookItem() {
+    if (!currentWbId) return alert("请先选择或创建世界书");
+    const tx = db.transaction(["worldBooks"], "readwrite");
+    const store = tx.objectStore("worldBooks");
+    store.get(currentWbId).onsuccess = (e) => {
+        const book = e.target.result;
+        if(!book.items) book.items = [];
+        book.items.unshift({ title: "", content: "" });
+        store.put(book).onsuccess = () => loadWorldBooksList();
+    };
+}
+
+function saveWbItem(index, field, value) {
+    if (!currentWbId) return;
+    const tx = db.transaction(["worldBooks"], "readwrite");
+    const store = tx.objectStore("worldBooks");
+    store.get(currentWbId).onsuccess = (e) => {
+        const book = e.target.result;
+        book.items[index][field] = value;
+        store.put(book);
+    };
+}
+
+function deleteWbItem(index) {
+    if (!currentWbId) return;
+    if (confirm("删除此条目？")) {
+        const tx = db.transaction(["worldBooks"], "readwrite");
+        const store = tx.objectStore("worldBooks");
+        store.get(currentWbId).onsuccess = (e) => {
+            const book = e.target.result;
+            book.items.splice(index, 1);
+            store.put(book).onsuccess = () => loadWorldBooksList();
+        };
+    }
+}
+
+// =========================================
+// === 角色添加界面的世界书多选逻辑 ===
+// =========================================
+let tempSelectedWbIds = [];
+
+function openWorldBookSelector() {
+    if (!db) return;
+    const tx = db.transaction(["worldBooks"], "readonly");
+    const store = tx.objectStore("worldBooks");
+    store.getAll().onsuccess = (e) => {
+        const books = e.target.result;
+        const listEl = document.getElementById('wbSelectorList');
+        listEl.innerHTML = '';
+        
+        // 读取当前已选
+        const currentIdsStr = document.getElementById('charWorldIds').value;
+        tempSelectedWbIds = currentIdsStr ? JSON.parse(currentIdsStr) : [];
+
+        if (books.length === 0) {
+            listEl.innerHTML = '<div style="text-align:center; color:#888; font-size:13px;">暂无世界书，请先去主页添加</div>';
+        } else {
+            books.forEach(book => {
+                const isChecked = tempSelectedWbIds.includes(book.id);
+                const item = document.createElement('div');
+                item.className = `wb-select-item ${isChecked ? 'active' : ''}`;
+                item.innerHTML = `
+                    <span>${book.name}</span>
+                    <div class="checkbox" style="width:18px; height:18px; background:${isChecked ? '#333' : 'transparent'}; border:1px solid #888;">
+                        <svg viewBox="0 0 24 24" style="stroke:${isChecked ? '#fff' : 'transparent'}; width:12px; height:12px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    </div>
+                `;
+                item.onclick = () => {
+                    if (tempSelectedWbIds.includes(book.id)) {
+                        tempSelectedWbIds = tempSelectedWbIds.filter(id => id !== book.id);
+                        item.classList.remove('active');
+                        item.querySelector('.checkbox').style.background = 'transparent';
+                        item.querySelector('svg').style.stroke = 'transparent';
+                    } else {
+                        tempSelectedWbIds.push(book.id);
+                        item.classList.add('active');
+                        item.querySelector('.checkbox').style.background = '#333';
+                        item.querySelector('svg').style.stroke = '#fff';
+                    }
+                };
+                listEl.appendChild(item);
+            });
+        }
+
+        const modal = document.getElementById('wbSelectorModal');
+        modal.style.display = 'flex';
+        setTimeout(() => modal.classList.add('active'), 10);
+    };
+}
+
+function confirmWorldBookSelection() {
+    document.getElementById('charWorldIds').value = JSON.stringify(tempSelectedWbIds);
+    const displayEl = document.getElementById('charWorldSelect');
+    if (tempSelectedWbIds.length === 0) {
+        displayEl.innerText = "未选择";
+    } else if (tempSelectedWbIds.length === 1) {
+        displayEl.innerText = "已选 1 个";
+    } else {
+        displayEl.innerText = `已选 ${tempSelectedWbIds.length} 个`;
+    }
+    
+    const modal = document.getElementById('wbSelectorModal');
+    modal.classList.remove('active');
+    setTimeout(() => modal.style.display = 'none', 300);
+}
+// =========================================
+// === 通讯录人设库核心逻辑 (Contacts Browser) ===
+// =========================================
+
+let contactList = [];
+let contactIndex = 0;
+let contactTab = 0; // 0: Char, 1: User
+let contactUploadTarget = null;
+
+// 打开界面
+function openContactsScreen() {
+    const screen = document.getElementById('contactsScreen');
+    screen.style.display = 'flex';
+    setTimeout(() => screen.classList.add('active'), 10);
+    
+    // 默认加载 Char 列表
+    switchContactTab(0);
+}
+
+// 关闭界面
+function closeContactsScreen() {
+    const screen = document.getElementById('contactsScreen');
+    screen.classList.remove('active');
+    setTimeout(() => screen.style.display = 'none', 400);
+}
+
+// 切换 Tab (Char / User)
+function switchContactTab(index) {
+    contactTab = index;
+    const segChar = document.getElementById('seg-char');
+    const segUser = document.getElementById('seg-user');
+    
+    if (index === 0) {
+        segChar.classList.add('active');
+        segUser.classList.remove('active');
+        loadCharData(); // 加载真实角色
+    } else {
+        segChar.classList.remove('active');
+        segUser.classList.add('active');
+        loadUserData(); // 加载 User 人设
+    }
+}
+
+// 1. 加载 Char 数据 (从 IndexedDB)
+function loadCharData() {
+    if (!db) return;
+    const tx = db.transaction(["characters"], "readonly");
+    const store = tx.objectStore("characters");
+    const req = store.getAll();
+    
+    req.onsuccess = () => {
+        // 按时间倒序排列
+        contactList = req.result.sort((a, b) => b.timestamp - a.timestamp);
+        
+        if (contactList.length === 0) {
+            // 如果没有角色，创建一个伪造的“添加”卡片
+            contactList = [{
+                id: 'placeholder',
+                name: '暂无角色',
+                nickname: '点击去微信添加',
+                bgImage: 'https://file.uhsea.com/2603/f06227d622830863b7274640523032e3OQ.jpg', // 默认图
+                avatarImage: ''
+            }];
+        }
+        
+        contactIndex = 0;
+        renderContactCards();
+        updateContactUI();
+    };
+}
+
+// 2. 加载 User 数据 (从 LocalStorage，模拟多个人设)
+function loadUserData() {
+    // 这里演示用 LocalStorage 存 User 数组，如果没有则初始化默认的
+    let users = JSON.parse(localStorage.getItem('hajimi_user_personas') || '[]');
+    
+    if (users.length === 0) {
+        users = [
+            { id: 'user_main', name: 'User', nickname: '主人设', bgImage: '', avatarImage: '' },
+            { id: 'user_2', name: 'User B', nickname: '第二人设', bgImage: '', avatarImage: '' }
+        ];
+        localStorage.setItem('hajimi_user_personas', JSON.stringify(users));
+    }
+    
+    contactList = users;
+    contactIndex = 0;
+    renderContactCards();
+    updateContactUI();
+}
+
+/// 渲染卡片 DOM
+function renderContactCards() {
+    const container = document.getElementById('contactCardContainer');
+    container.innerHTML = '';
+    
+    contactList.forEach((item, index) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        // 核心修改 1：这里改为读取 avatarImage (头像) 作为卡片背景
+        const bg = item.avatarImage ? `url(${item.avatarImage})` : 'linear-gradient(135deg, #e0e0e0, #cccccc)';
+        card.style.backgroundImage = bg;
+        
+        card.onclick = () => {
+            if (index === contactIndex) {
+                // 核心修改 2：点击当前卡片，进入角色编辑界面
+                if (contactTab === 0 && item.id !== 'placeholder') {
+                    editCharacter(item.id);
+                } else if (contactTab === 0 && item.id === 'placeholder') {
+                    resetCharFormWithoutConfirm();
+                    openCharAddScreen();
+                } else {
+                    alert("User 人设编辑功能开发中...");
+                }
+            } else {
+                contactIndex = index;
+                updateContactUI();
+            }
+        };
+        
+        // 纯净版：只有爱心，没有文字
+        card.innerHTML = `
+            <div class="card-heart">
+                <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+// 更新界面 (轮播位置 + 顶部文字 + 头像)
+function updateContactUI() {
+    const cards = document.querySelectorAll('#contactCardContainer .card');
+    const currentData = contactList[contactIndex];
+    
+    // 1. 更新顶部信息
+    const nameEditor = document.getElementById('contactNameEditor');
+    const subEditor = document.getElementById('contactSubEditor');
+    const avatarEl = document.getElementById('contactAvatar');
+    
+    // 避免重置正在编辑的内容 (如果 ID 没变)
+    if (nameEditor.dataset.currentId !== currentData.id) {
+        nameEditor.innerText = currentData.name || currentData.remark || '未命名';
+        nameEditor.dataset.currentId = currentData.id; // 标记当前 ID
+    }
+    
+    if (subEditor.dataset.currentId !== currentData.id) {
+        subEditor.innerText = currentData.nickname || '点击编辑签名';
+        subEditor.dataset.currentId = currentData.id;
+    }
+    
+    // 更新头像
+    if (currentData.avatarImage) {
+        avatarEl.style.backgroundImage = `url(${currentData.avatarImage})`;
+    } else {
+        avatarEl.style.backgroundImage = ''; // 默认灰
+    }
+
+    // 2. 更新轮播 3D 效果
+    cards.forEach((card, index) => {
+        const offset = index - contactIndex;
+        card.classList.remove('active');
+        card.style.zIndex = 0;
+        card.style.filter = 'brightness(0.6)';
+        card.style.pointerEvents = 'none';
+
+        if (offset === 0) {
+            card.style.transform = `translateX(0) scale(1)`;
+            card.style.zIndex = 10;
+            card.style.opacity = 1;
+            card.style.filter = 'brightness(1)';
+            card.classList.add('active');
+            card.style.pointerEvents = 'auto';
+        } else if (Math.abs(offset) === 1) {
+            const tx = offset > 0 ? '65%' : '-65%'; 
+            card.style.transform = `translateX(${tx}) scale(0.85) translateZ(-50px)`;
+            card.style.zIndex = 5;
+            card.style.opacity = 0.9;
+        } else {
+            const tx = offset > 0 ? '150%' : '-150%';
+            card.style.transform = `translateX(${tx}) scale(0.7)`;
+            card.style.opacity = 0;
+        }
+    });
+}
+
+// 左右切换
+function prevContactCard() {
+    if (contactIndex > 0) { contactIndex--; updateContactUI(); if(navigator.vibrate) navigator.vibrate(10); }
+}
+function nextContactCard() {
+    if (contactIndex < contactList.length - 1) { contactIndex++; updateContactUI(); if(navigator.vibrate) navigator.vibrate(10); }
+}
+
+// === 核心：实时编辑与保存 ===
+
+// 1. 编辑名字
+function handleContactNameEdit() {
+    const newName = document.getElementById('contactNameEditor').innerText;
+    const currentItem = contactList[contactIndex];
+    currentItem.name = newName; // 更新内存
+    saveContactChange(currentItem); // 保存到 DB
+}
+
+// 2. 编辑签名/昵称
+function handleContactSubEdit() {
+    const newSub = document.getElementById('contactSubEditor').innerText;
+    const currentItem = contactList[contactIndex];
+    currentItem.nickname = newSub; // 更新内存
+    saveContactChange(currentItem); // 保存到 DB
+}
+
+// 3. 上传图片 (头像/背景/全局背景)
+function triggerContactUpload(type) {
+    contactUploadTarget = type;
+    document.getElementById('contactUploadInput').click();
+}
+
+document.getElementById('contactUploadInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        const base64 = event.target.result;
+        const currentItem = contactList[contactIndex];
+
+        if (contactUploadTarget === 'avatar') {
+            currentItem.avatarImage = base64;
+            document.getElementById('contactAvatar').style.backgroundImage = `url(${base64})`;
+            saveContactChange(currentItem);
+            showContactToast("头像已更新");
+        } else if (contactUploadTarget === 'card') {
+            currentItem.bgImage = base64;
+            updateContactUI(); // 刷新卡片背景
+            saveContactChange(currentItem);
+            showContactToast("人设卡背景已更新");
+        } else if (contactUploadTarget === 'bg') {
+            // 全局背景，存到 localStorage
+            document.getElementById('contactsScreen').style.backgroundImage = `url(${base64})`;
+            localStorage.setItem('hajimi_contacts_bg', base64);
+            showContactToast("背景已更换");
+        }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+});
+
+// 统一保存逻辑
+function saveContactChange(item) {
+    if (contactTab === 0) {
+        // 保存 Char 到 IndexedDB
+        if (item.id === 'placeholder') return; // 占位符不保存
+        const tx = db.transaction(["characters"], "readwrite");
+        const store = tx.objectStore("characters");
+        store.put(item);
+        // 同时刷新微信列表 (静默)
+        renderWxChatList();
+    } else {
+        // 保存 User 到 LocalStorage
+        localStorage.setItem('hajimi_user_personas', JSON.stringify(contactList));
+    }
+}
+
+function showContactToast(msg) {
+    const t = document.getElementById('contactToast');
+    t.innerText = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 1500);
+}
+
+// 初始化时加载背景
+document.addEventListener('DOMContentLoaded', () => {
+    const savedBg = localStorage.getItem('hajimi_contacts_bg');
+    if (savedBg) {
+        document.getElementById('contactsScreen').style.backgroundImage = `url(${savedBg})`;
+    }
+});
+// =========================================
+// === 补充：通讯录删除与 User 初始化逻辑 ===
+// =========================================
+
+// 1. 删除当前卡片逻辑
+function deleteCurrentContactCard() {
+    const currentItem = contactList[contactIndex];
+    if (!currentItem || currentItem.id === 'placeholder') return;
+    
+    if (contactTab === 0) { // Char 模式
+        if (confirm(`确定要删除角色 "${currentItem.name || currentItem.remark}" 吗？\n此操作将同时删除该角色的所有聊天记录！`)) {
+            const tx = db.transaction(["characters"], "readwrite");
+            tx.objectStore("characters").delete(currentItem.id);
+            tx.oncomplete = () => {
+                showContactToast("角色已删除");
+                loadCharData(); // 刷新列表
+                // 同时刷新微信列表
+                renderWxChatList();
+            };
+        }
+    } else { // User 模式
+        if (confirm("确定删除此 User 人设吗？")) {
+            contactList.splice(contactIndex, 1);
+            localStorage.setItem('hajimi_user_personas', JSON.stringify(contactList));
+            loadUserData();
+            showContactToast("User 人设已删除");
+        }
+    }
+}
+
+// 2. 修正 User 加载逻辑 (去掉图片链接)
+function loadUserData() {
+    let users = JSON.parse(localStorage.getItem('hajimi_user_personas') || '[]');
+    
+    if (users.length === 0) {
+        // 初始化默认 User，不带 URL，保持纯净
+        users = [
+            { id: 'user_main', name: 'User', nickname: '主人设', bgImage: '', avatarImage: '' },
+            { id: 'user_2', name: 'User B', nickname: '第二人设', bgImage: '', avatarImage: '' }
+        ];
+        localStorage.setItem('hajimi_user_personas', JSON.stringify(users));
+    }
+    
+    contactList = users;
+    contactIndex = 0;
+    renderContactCards();
+    updateContactUI();
+}
+// =========================================
+// === 视频通话核心逻辑 (分条字幕 + 沉浸模式最终版) ===
+// =========================================
+
+let vcSessionHistory = [];
+let vcCurrentSceneDesc = "";
+let vcIsCamOn = true;
+let vcFacingMode = "user";
+let vcTimerInterval;
+let vcSeconds = 0;
+const vcVideo = document.getElementById('vc-user-video');
+const vcCanvas = document.getElementById('vc-cap-canvas');
+
+// 启动视频通话 (isIncoming: true=AI打来, false=User打去)
+function startVideoCall(isIncoming) {
+    if (!currentChatCharId || !db) return alert("请先进入聊天界面");
+
+    const tx = db.transaction(["characters"], "readonly");
+    const store = tx.objectStore("characters");
+    store.get(currentChatCharId).onsuccess = (e) => {
+        const char = e.target.result;
+        if (!char) return;
+
+        const name = char.remark || char.name || '宝宝';
+        const avatar = char.avatarImage || '';
+        
+        document.getElementById('vc-incoming-name').innerText = name;
+        document.getElementById('vc-active-name').innerText = name;
+        document.getElementById('vc-incoming-avatar').style.backgroundImage = `url(${avatar})`;
+        document.getElementById('vc-incoming-bg').style.backgroundImage = `url(${avatar})`;
+        document.getElementById('vc-layer-char').style.backgroundImage = `url(${avatar})`;
+
+        vcSessionHistory = [];
+        vcCurrentSceneDesc = "";
+        vcSeconds = 0;
+        document.getElementById('vc-timer').innerText = "00:00";
+        document.getElementById('vc-subtitle-el').innerText = "";
+        document.getElementById('vc-h-list').innerHTML = "";
+        document.getElementById('vc-call-container').classList.remove('controls-hidden');
+
+        const screen = document.getElementById('videoCallScreen');
+        screen.style.display = 'flex';
+        setTimeout(() => screen.classList.add('active'), 10);
+
+        if (isIncoming) {
+            document.getElementById('vc-incoming-call').style.display = 'flex';
+            document.getElementById('vc-incoming-call').style.opacity = '1';
+            document.getElementById('vc-call-container').style.display = 'none';
+        } else {
+            document.getElementById('vc-incoming-call').style.display = 'none';
+            document.getElementById('vc-call-container').style.display = 'block';
+            vcStartCamera();
+            vcStartTimer();
+        }
+    };
+}
+
+function acceptVideoCall() {
+    document.getElementById('vc-incoming-call').style.opacity = '0';
+    setTimeout(() => {
+        document.getElementById('vc-incoming-call').style.display = 'none';
+        document.getElementById('vc-call-container').style.display = 'block';
+    }, 600);
+    vcStartCamera();
+    vcStartTimer();
+}
+
+function endVideoCall(wasConnected) {
+    if (vcVideo.srcObject) {
+        vcVideo.srcObject.getTracks().forEach(t => t.stop());
+        vcVideo.srcObject = null;
+    }
+    clearInterval(vcTimerInterval);
+
+    const screen = document.getElementById('videoCallScreen');
+    screen.classList.remove('active');
+    setTimeout(() => screen.style.display = 'none', 400);
+
+    if (wasConnected && vcSessionHistory.length > 0) {
+        let summary = vcSessionHistory.map(m => `${m.role === 'user' ? '我' : 'Char'}: ${typeof m.content === 'string' ? m.content : '[发送了画面]'}`).join('\n');
+        chatHistory.push({ 
+            role: "user", 
+            content: `（系统提示：我们刚刚进行了一次视频通话，通话时长 ${document.getElementById('vc-timer').innerText}。以下是通话内容记录，请记住这些内容继续聊天：\n${summary}）` 
+        });
+        appendMessage(`[视频通话已结束，时长 ${document.getElementById('vc-timer').innerText}]`, true);
+        saveChatHistoryToDB();
+    }
+}
+
+async function vcStartCamera() {
+    try {
+        // 核心修复：必须先停止当前的摄像头轨道，否则手机无法切换前后置
+        if (vcVideo.srcObject) {
+            vcVideo.srcObject.getTracks().forEach(t => t.stop());
+            vcVideo.srcObject = null;
+        }
+        
+        let stream;
+        try {
+            // 优先尝试强制使用指定的前/后置摄像头
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: vcFacingMode } }, audio: false });
+        } catch(e) {
+            // 如果强制失败（比如电脑没有后置），则降级为普通请求
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: vcFacingMode }, audio: false });
+        }
+        
+        vcVideo.srcObject = stream;
+        // 只有前置摄像头才需要镜像翻转，后置不需要
+        vcVideo.style.transform = (vcFacingMode === 'user') ? 'scaleX(-1)' : 'scaleX(1)';
+    } catch (e) { 
+        console.log("Camera failed", e); 
+    }
+}
+
+function vcFlipCamera() {
+    vcFacingMode = (vcFacingMode === 'user') ? 'environment' : 'user';
+    vcStartCamera();
+}
+
+function vcStartTimer() {
+    vcTimerInterval = setInterval(() => {
+        vcSeconds++;
+        let m = Math.floor(vcSeconds/60).toString().padStart(2,'0');
+        let s = (vcSeconds%60).toString().padStart(2,'0');
+        document.getElementById('vc-timer').innerText = `${m}:${s}`;
+    }, 1000);
+}
+
+function vcHandleUserSend() {
+    const input = document.getElementById('vc-chat-input');
+    const text = input.value.trim();
+    if (!text) return;
+    vcSetSubtitle(text);
+    vcAddToLog('Me', text);
+    vcSessionHistory.push({ role: "user", content: text });
+    input.value = '';
+    input.focus();
+}
+
+// --- 核心修改：AI回复与字幕显示 ---
+async function vcHandleAIReply() {
+    if (!currentChatCharId || !db) return;
+    const apiDataStr = localStorage.getItem('hajimi_api_context_main');
+    if (!apiDataStr) return alert("请先在主界面配置API！");
+    const apiData = JSON.parse(apiDataStr);
+
+    document.getElementById('vc-ai-ring').classList.add('active');
+
+    const tx = db.transaction(["characters", "worldBooks"], "readonly");
+    const charStore = tx.objectStore("characters");
+    const wbStore = tx.objectStore("worldBooks");
+
+    charStore.get(currentChatCharId).onsuccess = async (e) => {
+        const char = e.target.result;
+        let worldBookText = "";
+        
+        if (char.worldIds && char.worldIds.length > 0) {
+            const allBooks = await new Promise(res => { wbStore.getAll().onsuccess = ev => res(ev.target.result); });
+            allBooks.forEach(book => {
+                if (char.worldIds.includes(book.id)) {
+                    worldBookText += `\n【世界书：${book.name}】\n`;
+                    if(book.items) book.items.forEach(item => { worldBookText += `- ${item.title}：${item.content}\n`; });
+                }
+            });
+        }
+
+                const systemPrompt = `你正在和User进行视频通话。
+【你的当前人设】：
+姓名：${char.name || char.remark}
+详细设定：${char.persona || '无'}
+${worldBookText}
+【视频通话规则】：
+1. 必须保持极度沉浸，回复要自然流畅，就像真人在视频聊天一样。
+2. 绝对不要使用星号*描写动作，绝对不要使用括号()描写心理。
+3. 如果提示词中给出了“你通过视频画面看到...”，请直接将其作为你亲眼看到的画面进行自然互动，绝对不要说“我看不到”、“你描述的”等破坏沉浸感的话。
+4. 你可以一次说多句话来表达完整的意思，但请用换行来模拟说话时的自然停顿。`;
+
+        let frame = "";
+        if (vcIsCamOn && vcVideo.srcObject && vcVideo.readyState >= 2) {
+            vcCanvas.width = vcVideo.videoWidth; vcCanvas.height = vcVideo.videoHeight;
+            const ctx = vcCanvas.getContext('2d');
+            if (vcFacingMode === 'user') { ctx.translate(vcCanvas.width, 0); ctx.scale(-1, 1); }
+            ctx.drawImage(vcVideo, 0, 0);
+            frame = vcCanvas.toDataURL('image/jpeg', 0.4).split(',')[1];
+        }
+
+        // 核心修复：优化画面描述的逻辑，让 AI 认为自己亲眼看到了
+        let userPrompt = "（正在和你视频通话中）";
+        if (vcCurrentSceneDesc) {
+            userPrompt += `\n（你通过视频画面看到：${vcCurrentSceneDesc}）`;
+        } else if (!vcIsCamOn) {
+            userPrompt += "\n（注意：User 目前关闭了摄像头）";
+        }
+        
+        let userContent = [{ type: "text", text: userPrompt }];
+        if (frame) userContent.push({ type: "image_url", image_url: { url: `data:image/jpeg;base64,${frame}` } });
+
+        const messages = [
+            { role: "system", content: systemPrompt },
+            ...chatHistory.slice(-10).map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : '[图片/特殊消息]' })),
+            ...vcSessionHistory,
+            { role: "user", content: userContent }
+        ];
+
+        let fetchUrl = apiData.url;
+        if (!fetchUrl.endsWith('/chat/completions')) fetchUrl = fetchUrl.replace(/\/+$/, '') + '/chat/completions';
+
+        try {
+            const res = await fetch(fetchUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiData.key}` },
+                body: JSON.stringify({ model: apiData.model, messages: messages, temperature: 0.8 })
+            });
+            const data = await res.json();
+            const aiText = data.choices[0].message.content;
+            
+            // --- 核心修改点 ---
+            const lines = aiText.split('\n').filter(line => line.trim() !== '');
+            vcShowSubtitlesSequentially(lines); // 调用分条显示函数
+            
+            vcAddToLog('Char', aiText); // 日志里仍然记录完整回复
+            vcSessionHistory.push({ role: "assistant", content: aiText });
+        } catch (err) {
+            vcSetSubtitle("网络连接中断...");
+        } finally {
+            document.getElementById('vc-ai-ring').classList.remove('active');
+        }
+    };
+}
+
+// --- 新增：分条显示字幕函数 ---
+function vcShowSubtitlesSequentially(lines) {
+    let i = 0;
+    function showNext() {
+        if (i < lines.length) {
+            vcSetSubtitle(lines[i]);
+            const delay = 1200 + lines[i].length * 80; // 根据文字长度计算延迟
+            i++;
+            setTimeout(showNext, delay);
+        }
+    }
+    showNext();
+}
+
+function vcSetSubtitle(t) {
+    const el = document.getElementById('vc-subtitle-el');
+    el.classList.remove('active');
+    setTimeout(() => { el.innerText = t; el.classList.add('active'); }, 200);
+}
+
+function vcAddToLog(r, t) {
+    const list = document.getElementById('vc-h-list');
+    list.insertAdjacentHTML('beforeend', `<div class="vc-h-item"><div class="vc-h-role">${r}</div>${t}</div>`);
+    list.scrollTop = list.scrollHeight;
+}
+
+function vcToggleMoreMenu() {
+    const m = document.getElementById('vc-more-menu');
+    m.style.display = (m.style.display === 'flex' ? 'none' : 'flex');
+}
+
+function vcHandleMoreAction(act) {
+    if (act === 'camera') {
+        vcIsCamOn = !vcIsCamOn;
+        if (vcVideo.srcObject) vcVideo.srcObject.getVideoTracks().forEach(track => track.enabled = vcIsCamOn);
+        vcVideo.style.opacity = vcIsCamOn ? "1" : "0";
+        document.getElementById('vc-cam-toggle-text').innerText = vcIsCamOn ? "关闭摄像头" : "开启摄像头";
+    }
+    document.getElementById('vc-more-menu').style.display = 'none';
+}
+
+function vcToggleDescribeModal(show) {
+    document.getElementById('vc-describe-modal').style.display = show ? 'flex' : 'none';
+    document.getElementById('vc-more-menu').style.display = 'none';
+}
+
+function vcSaveSceneDesc() {
+    vcCurrentSceneDesc = document.getElementById('vc-scene-desc-input').value.trim();
+    vcToggleDescribeModal(false);
+    if (vcCurrentSceneDesc) vcAddToLog('System', `已更新画面描述: ${vcCurrentSceneDesc}`);
+}
+
+function vcToggleHistory(show) {
+    document.getElementById('vc-history-overlay').classList.toggle('active', show);
+}
+
+// --- 新增：点击屏幕空白处隐藏/显示UI ---
+document.getElementById('vc-call-container').addEventListener('click', (e) => {
+    // 检查点击的是否是背景本身，而不是任何按钮或输入框
+    if (e.target.id === 'vc-call-container' || e.target.id === 'vc-layer-char' || e.target.id === 'vc-layer-user' || e.target.id === 'vc-user-video') {
+        document.getElementById('vc-call-container').classList.toggle('controls-hidden');
+        // 如果“更多”菜单是打开的，顺便关掉它
+        const moreMenu = document.getElementById('vc-more-menu');
+        if (moreMenu.style.display === 'flex') {
+            moreMenu.style.display = 'none';
+        }
+    }
+});
+
+// --- 新增：阻止按钮事件冒泡 ---
+document.querySelectorAll('.vc-top-nav, .vc-bottom-wrap').forEach(el => {
+    el.addEventListener('click', e => e.stopPropagation());
+});
+
+
+// 拖拽与互换逻辑 (保持不变)
+function vcSetupDragAndClick(elId) {
+    const el = document.getElementById(elId);
+    if(!el) return;
+    let startX, startY, initialLeft, initialTop, isDragging = false, isMoved = false;
+
+    el.addEventListener('touchstart', (e) => {
+        if (!el.classList.contains('vc-view-small')) return;
+        isDragging = true; isMoved = false;
+        startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+        const rect = el.getBoundingClientRect();
+        initialLeft = rect.left; initialTop = rect.top;
+        el.style.transition = 'none';
+    }, {passive: false});
+
+    el.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        const dx = e.touches[0].clientX - startX;
+        const dy = e.touches[0].clientY - startY;
+        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) isMoved = true;
+        if (isMoved) {
+            e.preventDefault();
+            let newLeft = initialLeft + dx; let newTop = initialTop + dy;
+            const maxLeft = window.innerWidth - el.offsetWidth;
+            const maxTop = window.innerHeight - el.offsetHeight;
+            el.style.left = Math.max(0, Math.min(newLeft, maxLeft)) + 'px';
+            el.style.top = Math.max(0, Math.min(newTop, maxTop)) + 'px';
+            el.style.right = 'auto';
+        }
+    }, {passive: false});
+
+    el.addEventListener('touchend', (e) => {
+        if (!isDragging) return;
+        isDragging = false;
+        el.style.transition = 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)';
+        if (!isMoved) vcSwapViews(el);
+    });
+}
+
+function vcSwapViews(clickedSmallEl) {
+    const largeEl = document.querySelector('.vc-view-large');
+    if (!largeEl) return;
+    largeEl.style.left = clickedSmallEl.style.left;
+    largeEl.style.top = clickedSmallEl.style.top;
+    largeEl.style.right = clickedSmallEl.style.right;
+    clickedSmallEl.style.left = ''; clickedSmallEl.style.top = ''; clickedSmallEl.style.right = '';
+    clickedSmallEl.classList.replace('vc-view-small', 'vc-view-large');
+    largeEl.classList.replace('vc-view-large', 'vc-view-small');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    vcSetupDragAndClick('vc-layer-user');
+    vcSetupDragAndClick('vc-layer-char');
+});
+// =========================================
+// === 信息 (iMessage) 核心逻辑 ===
+// =========================================
+
+// --- 1. 手机号拦截与弹窗逻辑 ---
+function attemptSaveCharacter() {
+    const phone = document.getElementById('charPhone').value.trim();
+    if (!phone) {
+        document.getElementById('phoneWarningModal').classList.add('active');
+    } else {
+        forceSaveCharacter();
+    }
+}
+
+function focusPhoneInput() {
+    document.getElementById('phoneWarningModal').classList.remove('active');
+    document.getElementById('charPhone').focus();
+}
+
+function generateRandomPhone() {
+    const prefix = ['138', '139', '150', '151', '152', '157', '158', '159', '182', '183', '187', '188', '130', '131', '132', '155', '156', '185', '186', '133', '153', '180', '181', '189'];
+    const randomPrefix = prefix[Math.floor(Math.random() * prefix.length)];
+    const randomSuffix = Math.floor(Math.random() * 100000000).toString().padStart(8, '0');
+    document.getElementById('charPhone').value = randomPrefix + randomSuffix;
+    document.getElementById('phoneWarningModal').classList.remove('active');
+    forceSaveCharacter();
+}
+
+// 原来的 saveCharacter 逻辑改名并被调用
+function forceSaveCharacter() {
+    document.getElementById('phoneWarningModal').classList.remove('active');
+    saveCharacter(); // 调用你原有的保存逻辑
+}
+
+
+// --- 2. 界面开关与列表渲染 ---
+window.isIMScreenOpen = false;
+let currentIMCharId = null;
+
+function openIMMain() {
+    document.getElementById('imMainScreen').classList.add('active');
+    renderIMList();
+}
+
+function closeIMMain() {
+    document.getElementById('imMainScreen').classList.remove('active');
+}
+
+function promptAddIMContact() {
+    const phoneToSearch = prompt("请输入要发信息的手机号码：");
+    if (!phoneToSearch) return;
+
+    const tx = db.transaction(["characters"], "readwrite");
+    const store = tx.objectStore("characters");
+    const req = store.getAll();
+
+    req.onsuccess = () => {
+        const chars = req.result;
+        const targetChar = chars.find(c => c.phone === phoneToSearch.trim());
+        
+        if (targetChar) {
+            targetChar.inIMessage = true; // 标记已添加到信息列表
+            store.put(targetChar);
+            renderIMList();
+            openIMChat(targetChar.id); // 直接打开聊天
+        } else {
+            alert("未找到该手机号对应的角色，请先在通讯录中添加并绑定手机号。");
+        }
+    };
+}
+
+function renderIMList() {
+    if (!db) return;
+    const container = document.getElementById('imListContainer');
+    container.innerHTML = '';
+
+    const tx = db.transaction(["characters"], "readonly");
+    const store = tx.objectStore("characters");
+    const req = store.getAll();
+
+    req.onsuccess = () => {
+        // 只筛选出被添加到 iMessage 的角色
+        const chars = req.result.filter(c => c.inIMessage).sort((a, b) => b.timestamp - a.timestamp);
+
+        if (chars.length === 0) {
+            container.innerHTML = '<div style="text-align:center; padding: 40px; color:#8e8e93; font-size:14px;">暂无信息，点击右上角新建</div>';
+            return;
+        }
+
+        chars.forEach(char => {
+            const avatarStyle = char.avatarImage ? `background-image: url(${char.avatarImage});` : '';
+            
+            // 提取最后一条属于 imessage 的消息作为预览
+            let lastMsg = "点击进入聊天...";
+            if (char.history) {
+                const imHistory = char.history.filter(m => m.app === 'imessage');
+                if (imHistory.length > 0) {
+                    const lastObj = imHistory[imHistory.length - 1];
+                    if (typeof lastObj.content === 'string') lastMsg = lastObj.content;
+                    else lastMsg = '[图片/特殊消息]';
+                }
+            }
+
+            const html = `
+                <div class="chat-item" onclick="openIMChat('${char.id}')">
+                    <div class="im-list-avatar" style="${avatarStyle}"></div>
+                    <div class="chat-info">
+                        <div class="chat-top">
+                            <span class="im-list-name">${char.remark || char.name || '未命名'}</span>
+                            <span class="im-list-time">刚刚</span>
+                        </div>
+                        <div class="chat-bottom">
+                            <span class="im-list-preview">${escapeHTML(lastMsg)}</span>
+                            <svg class="arrow-right" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', html);
+        });
+    };
+}
+
+
+// --- 3. 聊天界面逻辑 ---
+function openIMChat(charId) {
+    if (!db) return;
+    currentIMCharId = charId;
+    window.isIMScreenOpen = true;
+    chatHistory = []; // 重置当前内存数组
+
+    const tx = db.transaction(["characters"], "readonly");
+    const store = tx.objectStore("characters");
+    const req = store.get(charId);
+
+    req.onsuccess = () => {
+        const char = req.result;
+        if (char) {
+            document.getElementById('imHeaderName').innerText = char.remark || char.name || '未命名';
+            const avatarEl = document.getElementById('imHeaderAvatar');
+            if (char.avatarImage) avatarEl.style.backgroundImage = `url(${char.avatarImage})`;
+            else avatarEl.style.backgroundImage = 'none';
+
+            const chatArea = document.getElementById('imChatArea');
+            chatArea.innerHTML = '<div class="im-time-stamp">刚刚</div>';
+
+            if (char.history) {
+                chatHistory = char.history; // 载入完整历史
+                // 仅渲染属于 imessage 的消息
+                const imHistory = char.history.filter(m => m.app === 'imessage');
+                imHistory.forEach(msg => {
+                    if (msg.role === 'user' || msg.role === 'assistant') {
+                        if (typeof msg.content === 'string') {
+                            appendIMMessage(msg.content, msg.role === 'user');
+                        }
+                    }
+                });
+            }
+
+            document.getElementById('imScreen').classList.add('active');
+            setTimeout(() => {
+                chatArea.scrollTo({ top: chatArea.scrollHeight, behavior: 'instant' });
+            }, 50);
+        }
+    };
+}
+
+function closeIMChat() {
+    window.isIMScreenOpen = false;
+    currentIMCharId = null;
+    document.getElementById('imScreen').classList.remove('active');
+    renderIMList(); // 退出时刷新列表预览
+}
+
+// 动态添加气泡并处理小尾巴
+function appendIMMessage(text, isRight) {
+    const chatArea = document.getElementById('imChatArea');
+    const sideClass = isRight ? 'right' : 'left';
+    
+    // 查找上一条，如果是同方向，移除旧尾巴和时间
+    const lastRow = chatArea.lastElementChild;
+    if (lastRow && lastRow.classList.contains(sideClass)) {
+        const oldTail = lastRow.querySelector('.im-tail');
+        if (oldTail) oldTail.remove();
+        const oldStatus = lastRow.querySelector('.im-msg-status');
+        if (oldStatus) oldStatus.remove();
+    }
+
+    const row = document.createElement('div');
+    row.className = `im-msg-row ${sideClass}`;
+    
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const statusText = isRight ? `已读 ${timeStr}` : timeStr;
+
+    row.innerHTML = `
+        <div class="im-msg-group">
+            <div class="im-bubble">
+                ${escapeHTML(text)}
+                <div class="im-tail"></div>
+            </div>
+            <div class="im-msg-status">${statusText}</div>
+        </div>
+    `;
+    
+    chatArea.appendChild(row);
+    chatArea.scrollTo({ top: chatArea.scrollHeight, behavior: 'smooth' });
+}
+
+// 输入框状态机
+const imInputEl = document.getElementById('imInput');
+const imSendBtn = document.getElementById('imSendBtn');
+
+function updateIMBtnState() {
+    const hasText = imInputEl.value.trim().length > 0;
+    const isFocused = document.activeElement === imInputEl;
+
+    imSendBtn.classList.remove('state-voice', 'state-empty', 'state-active');
+
+    if (hasText) {
+        imSendBtn.classList.add('state-active');
+    } else if (isFocused) {
+        imSendBtn.classList.add('state-empty');
+    } else {
+        imSendBtn.classList.add('state-voice');
+    }
+}
+
+imInputEl.addEventListener('input', updateIMBtnState);
+imInputEl.addEventListener('focus', updateIMBtnState);
+imInputEl.addEventListener('blur', () => {
+    updateIMBtnState();
+    // 【修复 Bug】键盘收起时，强制页面回弹并让聊天区域滚到底部
+    setTimeout(() => {
+        window.scrollTo(0, 0); // 修复 iOS 键盘收起后整个页面被顶上去的 Bug
+        const chatArea = document.getElementById('imChatArea');
+        if (chatArea) {
+            chatArea.scrollTo({ top: chatArea.scrollHeight, behavior: 'smooth' });
+        }
+    }, 100);
+});
+
+// 【修复 Bug】监听窗口大小变化（安卓键盘收起时会触发 resize），自动滚到底部
+window.addEventListener('resize', () => {
+    if (window.isIMScreenOpen) {
+        const chatArea = document.getElementById('imChatArea');
+        if (chatArea) {
+            chatArea.scrollTo({ top: chatArea.scrollHeight, behavior: 'instant' });
+        }
+    }
+});
+imInputEl.addEventListener('keydown', (e) => {
+    if (e.isComposing) return;
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        handleIMSendClick();
+    }
+});
+
+// 发送点击逻辑
+function handleIMSendClick() {
+    // 删除了对 state-voice 的拦截，允许点击语音键触发 AI
+    const text = imInputEl.value.trim();
+    if (text) {
+        // 有字：发送用户消息并打上 imessage 标签
+        appendIMMessage(text, true);
+        chatHistory.push({ role: "user", content: text, app: 'imessage' });
+        
+        imInputEl.value = '';
+        updateIMBtnState();
+        
+        // 保存到数据库
+        const tx = db.transaction(["characters"], "readwrite");
+        const store = tx.objectStore("characters");
+        store.get(currentIMCharId).onsuccess = (e) => {
+            const char = e.target.result;
+            char.history = chatHistory;
+            store.put(char);
+        };
+
+        setTimeout(() => imInputEl.focus(), 10);
+    } else {
+        // 没字：请求 AI 回复 (传入 sourceApp = 'imessage')
+        fetchAIResponse(currentIMCharId, false, 'imessage');
+    }
+}
+// --- 信息(iMessage) 下拉菜单控制 ---
+function toggleMsgMenu() {
+    const overlay = document.getElementById('msgDropdownOverlay');
+    if (overlay.classList.contains('active')) {
+        closeMsgMenu();
+    } else {
+        overlay.classList.add('active');
+    }
+}
+
+function closeMsgMenu() {
+    document.getElementById('msgDropdownOverlay').classList.remove('active');
+}
+// 渲染 iMessage 正在输入动画
+function appendIMTypingIndicator(id) {
+    const chatArea = document.getElementById('imChatArea');
+    const row = document.createElement('div');
+    row.className = `im-msg-row left im-typing-row`;
+    row.id = id;
+    row.innerHTML = `
+        <div class="im-msg-group">
+            <div class="im-typing-bubble">
+                <div class="im-typing-dots">
+                    <div class="im-dot"></div><div class="im-dot"></div><div class="im-dot"></div>
+                </div>
+                <div class="im-typing-tail-large"></div>
+                <div class="im-typing-tail-small"></div>
+            </div>
+        </div>
+    `;
+    chatArea.appendChild(row);
+    chatArea.scrollTo({ top: chatArea.scrollHeight, behavior: 'smooth' });
+}
+
+// 移除 iMessage 正在输入动画
+function removeIMTypingIndicator() {
+    const els = document.querySelectorAll('#imChatArea .im-typing-row');
+    els.forEach(el => el.remove());
+}
