@@ -1994,6 +1994,62 @@
         </div>
     </div>
 </div>
+<!-- ========================================= -->
+<!-- === iMessage 长按菜单与表情面板 === -->
+<!-- ========================================= -->
+<div class="im-overlay" id="imOverlay"></div>
+
+<!-- 顶部表情栏 -->
+<div class="im-reaction-bar-wrapper" id="imReactionBar">
+    <div class="im-reaction-tail-large" id="imTailLarge"></div>
+    <div class="im-reaction-tail-small" id="imTailSmall"></div>
+    
+    <div class="im-reaction-bar">
+        <div class="im-reaction-item" onclick="addIMReaction('heart', '<path d=\\\'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z\\\' fill=\\\'none\\\' stroke=\\\'currentColor\\\' stroke-width=\\\'1.5\\\'/>')">
+            <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" fill="none" stroke="#8e8e93" stroke-width="1.5"/></svg>
+        </div>
+        <div class="im-reaction-item" onclick="addIMReaction('like', '<path d=\\\'M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3\\\' stroke=\\\'currentColor\\\' stroke-width=\\\'1.5\\\' fill=\\\'none\\\'/>')">
+            <svg viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" stroke="#8e8e93" stroke-width="1.5" fill="none"/></svg>
+        </div>
+        <div class="im-reaction-item" onclick="addIMReaction('dislike', '<path d=\\\'M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3\\\' stroke=\\\'currentColor\\\' stroke-width=\\\'1.5\\\' fill=\\\'none\\\'/>')">
+            <svg viewBox="0 0 24 24"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3" stroke="#8e8e93" stroke-width="1.5" fill="none"/></svg>
+        </div>
+        <div class="im-reaction-item" onclick="addIMReaction('haha', '<text x=\\\'12\\\' y=\\\'17\\\' font-size=\\\'13\\\' font-weight=\\\'800\\\' text-anchor=\\\'middle\\\' fill=\\\'currentColor\\\' font-family=\\\'Arial\\\'>HA</text>')">
+            <svg viewBox="0 0 24 24"><text x="12" y="17" font-size="13" font-weight="800" text-anchor="middle" fill="#8e8e93" font-family="Arial">HA</text></svg>
+        </div>
+        <div class="im-reaction-item" onclick="addIMReaction('question', '<text x=\\\'12\\\' y=\\\'17\\\' font-size=\\\'16\\\' font-weight=\\\'800\\\' text-anchor=\\\'middle\\\' fill=\\\'currentColor\\\' font-family=\\\'Arial\\\'>?</text>')">
+            <svg viewBox="0 0 24 24"><text x="12" y="17" font-size="16" font-weight="800" text-anchor="middle" fill="#8e8e93" font-family="Arial">?</text></svg>
+        </div>
+        <div class="im-reaction-item emoji-btn" onclick="openIMEmojiPicker()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#8e8e93" stroke-width="1.5">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M8 9.05v-.1M16 9.05v-.1"></path>
+                <path d="M8 14c1.5 2 4.5 2 6 0" stroke-linecap="round"></path>
+            </svg>
+        </div>
+    </div>
+</div>
+
+<!-- 底部操作列表 -->
+<div class="im-action-list" id="imActionList">
+    <div class="im-action-item" onclick="handleIMAction('回复')">
+        回复 <svg viewBox="0 0 24 24"><path d="M10 9L5 14L10 19M5 14H14C17.3137 14 20 11.3137 20 8V6"/></svg>
+    </div>
+    <div class="im-action-item" onclick="handleIMAction('拷贝')">
+        拷贝 <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M18 22H4a2 2 0 0 1-2-2V6" stroke-dasharray="4 4"/></svg>
+    </div>
+    <div class="im-action-item" onclick="handleIMAction('翻译')">
+        翻译 <svg viewBox="0 0 24 24"><path d="M4 5h11v9H4z"/><path d="M9 14v5h11V9h-5"/><path d="M4 14l-2 2v-2"/><path d="M20 19l2 2v-2"/></svg>
+    </div>
+    <div class="im-action-item danger" onclick="handleIMAction('撤回')">
+        撤回 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9 10H13C14.6569 10 16 11.3431 16 13C16 14.6569 14.6569 16 13 16H11"/><path d="M11 8L8 10.5L11 13"/></svg>
+    </div>
+</div>
+
+<!-- Emoji 选择面板 -->
+<div class="im-emoji-picker" id="imEmojiPicker">
+    <div class="im-emoji-grid" id="imEmojiGrid"></div>
+</div>
     <script>
         // --- Wechat 界面控制逻辑 ---
         function openWechat() {
