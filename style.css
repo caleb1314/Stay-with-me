@@ -2734,3 +2734,8 @@ input:-webkit-autofill:active {
     align-self: center; font-size: 12px; font-weight: 600; color: rgba(0,0,0,0.4);
     margin: 10px 0; display: flex; align-items: center; gap: 6px;
 }
+/* 提升被长按消息行的层级，使其突破遮罩层 */
+.im-msg-row.highlight-row {
+    position: relative;
+    z-index: 5502 !important;
+}
