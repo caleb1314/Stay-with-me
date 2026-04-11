@@ -345,7 +345,7 @@
                     </div>
                 </div>
                 <div class="right-apps">
-                    <div class="app-item" data-app-id="p3-app-messages"><div class="app-icon gray-1"></div><span class="app-name">信息</span></div>
+                    <div class="app-item" data-app-id="p3-app-messages" onclick="openIMMain()"><div class="app-icon gray-1"></div><span class="app-name">信息</span></div>
                     <div class="app-item" data-app-id="p3-app-phone"><div class="app-icon gray-2"></div><span class="app-name">电话</span></div>
                     <div class="app-item" data-app-id="p3-app-mail"><div class="app-icon gray-3"></div><span class="app-name">邮件</span></div>
                     <div class="app-item" data-app-id="p3-app-store"><div class="app-icon gray-4"></div><span class="app-name">商城</span></div>
@@ -835,7 +835,7 @@
                     </svg>
                 </div>
                 <!-- 保存按钮 -->
-                <div class="char-icon-btn char-star-btn" id="charSaveBtn" onclick="saveCharacter()"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
+                <div class="char-icon-btn char-star-btn" id="charSaveBtn" onclick="attemptSaveCharacter()"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
             </div>
         </div>
 
@@ -1916,6 +1916,88 @@
     </div>
 
     <canvas id="vc-cap-canvas" style="display:none"></canvas>
+</div>
+<!-- ========================================= -->
+<!-- === 手机号未填写警告弹窗 === -->
+<!-- ========================================= -->
+<div class="modal-overlay" id="phoneWarningModal" style="z-index: 8000;">
+    <div class="modal-content">
+        <div class="modal-title" style="color: #ff3b30;">提示</div>
+        <p style="font-size: 14px; color: #555; margin-bottom: 20px; line-height: 1.5;">还未填写手机号，不可使用“信息(iMessage)”与该角色聊天，是否填写？</p>
+        <div class="upload-options">
+            <button class="opt-btn" onclick="focusPhoneInput()">自己填写</button>
+            <button class="opt-btn" onclick="generateRandomPhone()">AI 生成</button>
+            <button class="opt-btn confirm-btn" style="background: #8e8e93 !important;" onclick="forceSaveCharacter()">不填写 (仅保存)</button>
+        </div>
+    </div>
+</div>
+<!-- ========================================= -->
+<!-- === 信息(iMessage) 导航栏下拉菜单 === -->
+<!-- ========================================= -->
+<div class="dropdown-overlay" id="msgDropdownOverlay" onclick="closeMsgMenu()" style="z-index: 5150;">
+    <div class="ios-dropdown-menu" onclick="event.stopPropagation()">
+        <div class="dropdown-item" onclick="closeMsgMenu()">选择信息</div>
+        <div class="dropdown-item" onclick="closeMsgMenu()">编辑置顶</div>
+        <div class="dropdown-item" onclick="closeMsgMenu()">编辑姓名和照片</div>
+        <div class="dropdown-item" onclick="closeMsgMenu()">已隐藏的信息</div>
+    </div>
+</div>
+<!-- ========================================= -->
+<!-- === 信息(iMessage) 一级列表界面 === -->
+<!-- ========================================= -->
+<div id="imMainScreen" class="app-screen-overlay" style="z-index: 5100; background: #ffffff;">
+    <div class="msg-header-glass">
+        <div class="nav-top-row">
+            <div class="glass-btn" onclick="closeIMMain()"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+            <div class="nav-actions">
+                <!-- 替换成这样： -->
+<div class="glass-btn" onclick="toggleMsgMenu()"><svg viewBox="0 0 24 24"><line x1="5" y1="7" x2="19" y2="7"/><line x1="7.5" y1="12" x2="16.5" y2="12"/><line x1="10" y1="17" x2="14" y2="17"/></svg></div>
+                <div class="glass-btn" onclick="promptAddIMContact()"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
+            </div>
+        </div>
+        <div class="search-row">
+            <div class="search-bar">
+                <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" class="search-input" placeholder="搜索" autocomplete="off">
+                <div class="voice-btn"><svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg></div>
+            </div>
+        </div>
+    </div>
+    <div class="msg-list-content" id="imListContainer">
+        <!-- 动态渲染信息列表 -->
+    </div>
+</div>
+
+<!-- ========================================= -->
+<!-- === 信息(iMessage) 二级聊天界面 === -->
+<!-- ========================================= -->
+<div class="im-screen-chat" id="imScreen" style="z-index: 5200;">
+    <div class="im-header">
+        <div class="im-btn" onclick="closeIMChat()"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+        <div class="im-title-group" onclick="openChatSettings()">
+            <div class="im-avatar" id="imHeaderAvatar"></div>
+            <div class="im-name-row">
+                <span class="im-name" id="imHeaderName">名字</span>
+                <svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+            </div>
+        </div>
+        <div class="im-btn"><svg viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></div>
+    </div>
+
+    <div class="im-chat-area" id="imChatArea">
+        <!-- 动态渲染聊天记录 -->
+    </div>
+
+    <div class="im-bottom-bar">
+        <div class="im-btn"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+        <div class="im-input-wrap">
+            <input type="text" class="im-input" id="imInput" placeholder="iMessage" autocomplete="off">
+            <div class="im-send-btn state-voice" id="imSendBtn" onclick="handleIMSendClick()">
+                <svg class="icon-arrow" viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+                <svg class="icon-voice" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+            </div>
+        </div>
+    </div>
 </div>
     <script>
         // --- Wechat 界面控制逻辑 ---
