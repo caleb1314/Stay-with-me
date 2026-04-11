@@ -5101,17 +5101,21 @@ function openIMChat(charId) {
             const chatArea = document.getElementById('imChatArea');
             chatArea.innerHTML = '<div class="im-time-stamp">刚刚</div>';
 
-            if (char.history) {
-                chatHistory = char.history; 
-                const imHistory = char.history.filter(m => m.app === 'imessage');
-                imHistory.forEach(msg => {
-                    if (msg.role === 'user' || msg.role === 'assistant') {
-                        if (typeof msg.content === 'string') {
-                            appendIMMessage(msg.content, msg.role === 'user');
-                        }
-                    }
-                });
+            // 找到这部分代码并替换
+if (char.history) {
+    chatHistory = char.history; 
+    const imHistory = char.history.filter(m => m.app === 'imessage');
+    imHistory.forEach(msg => {
+        if (msg.role === 'user' || msg.role === 'assistant') {
+            if (msg.type === 'recalled') {
+                // 如果是撤回消息，渲染撤回UI (你需要确保有 appendIMRecallUI 函数，或者直接跳过)
+            } else if (typeof msg.content === 'string') {
+                // 传入 msg.reaction
+                appendIMMessage(msg.content, msg.role === 'user', msg.reaction);
             }
+        }
+    });
+}
 
             document.getElementById('imScreen').classList.add('active');
             setTimeout(() => {
@@ -5129,7 +5133,8 @@ function closeIMChat() {
 }
 
 // 动态添加气泡并处理小尾巴 (已加入长按菜单绑定)
-function appendIMMessage(text, isRight) {
+// 修改参数，增加 reactionObj
+function appendIMMessage(text, isRight, reactionObj = null) {
     const chatArea = document.getElementById('imChatArea');
     const sideClass = isRight ? 'right' : 'left';
     
@@ -5148,6 +5153,7 @@ function appendIMMessage(text, isRight) {
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     const statusText = isRight ? `已读 ${timeStr}` : timeStr;
 
+    // 渲染基础气泡
     row.innerHTML = `
         <div class="im-msg-group">
             <div class="im-bubble">
@@ -5158,10 +5164,21 @@ function appendIMMessage(text, isRight) {
         </div>
     `;
     
+    // 如果数据库里有表情数据，直接挂载上去
+    if (reactionObj) {
+        const badge = document.createElement('div');
+        badge.className = 'im-reaction-badge';
+        badge.setAttribute('data-reaction-type', reactionObj.type);
+        badge.innerHTML = reactionObj.content;
+        // 移除动画，防止初次加载时满屏乱跳
+        badge.style.animation = 'none';
+        row.querySelector('.im-bubble').appendChild(badge);
+    }
+    
     chatArea.appendChild(row);
     chatArea.scrollTo({ top: chatArea.scrollHeight, behavior: 'smooth' });
 
-    // === 绑定长按事件 ===
+    // 绑定长按事件... (保持你原有的长按绑定代码不变)
     const bubble = row.querySelector('.im-bubble');
     if (bubble) {
         bubble.addEventListener('touchstart', (e) => {
@@ -5180,7 +5197,6 @@ function appendIMMessage(text, isRight) {
         bubble.addEventListener('contextmenu', (e) => { e.preventDefault(); showIMContextMenu(bubble); });
     }
 }
-
 // 输入框状态机
 const imInputEl = document.getElementById('imInput');
 const imSendBtn = document.getElementById('imSendBtn');
@@ -5340,6 +5356,7 @@ function showIMContextMenu(bubble) {
     if (navigator.vibrate) navigator.vibrate(50);
     imActiveBubble = bubble;
     imActiveBubble.classList.add('highlight');
+    imActiveBubble.closest('.im-msg-row').classList.add('highlight-row');
     imOverlay.classList.add('active');
     
     const rect = bubble.getBoundingClientRect();
@@ -5378,14 +5395,24 @@ function hideIMContextMenu() {
     closeIMEmojiPicker();
     if (imActiveBubble) {
         imActiveBubble.classList.remove('highlight');
+        imActiveBubble.closest('.im-msg-row').classList.remove('highlight-row');
         imActiveBubble = null;
     }
 }
+const imReactionSVGs = {
+    'heart': '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+    'like': '<path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" stroke="currentColor" stroke-width="1.5" fill="none"/>',
+    'dislike': '<path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3" stroke="currentColor" stroke-width="1.5" fill="none"/>',
+    'haha': '<text x="12" y="17" font-size="13" font-weight="800" text-anchor="middle" fill="currentColor" font-family="Arial">HA</text>',
+    'question': '<text x="12" y="17" font-size="16" font-weight="800" text-anchor="middle" fill="currentColor" font-family="Arial">?</text>'
+};
 
-function addIMReaction(type, content, isEmoji = false) {
+// 修改后的函数
+function addIMReaction(type, emojiText = null, isEmoji = false) {
     if (!imActiveBubble) return;
     
-    const isRight = imActiveBubble.closest('.im-msg-row').classList.contains('right');
+    const row = imActiveBubble.closest('.im-msg-row');
+    const isRight = row.classList.contains('right');
     const oldBadge = imActiveBubble.querySelector('.im-reaction-badge');
 
     if (oldBadge) {
@@ -5393,15 +5420,19 @@ function addIMReaction(type, content, isEmoji = false) {
         oldBadge.remove();
         if (oldType === type) {
             hideIMContextMenu();
+            saveIMReactionToDB(row, null); // 取消表情
             return;
         }
     }
 
-    let finalContent = content;
-    if (!isEmoji) {
-        if (isRight) finalContent = finalContent.replace(/currentColor/g, '#555555');
-        else finalContent = finalContent.replace(/currentColor/g, '#ffffff');
-        finalContent = `<svg viewBox="0 0 24 24">${finalContent}</svg>`;
+    let finalContent = '';
+    if (isEmoji) {
+        finalContent = emojiText;
+    } else {
+        let svgPath = imReactionSVGs[type];
+        if (isRight) svgPath = svgPath.replace(/currentColor/g, '#555555');
+        else svgPath = svgPath.replace(/currentColor/g, '#ffffff');
+        finalContent = `<svg viewBox="0 0 24 24">${svgPath}</svg>`;
     }
 
     const badge = document.createElement('div');
@@ -5411,11 +5442,39 @@ function addIMReaction(type, content, isEmoji = false) {
 
     imActiveBubble.appendChild(badge);
     hideIMContextMenu();
+    
+    // 触发保存
+    saveIMReactionToDB(row, { type: type, content: finalContent });
 }
 
 // --- Emoji 面板逻辑 ---
 const commonEmojis = ['😂','😭','🥺','🤣','❤️','✨','🔥','👍','🙏','🥰','😊','😎','🤔','🙄','🤐','😴','🤤','🤮','🤧','😵'];
-
+function saveIMReactionToDB(rowElement, reactionData) {
+    const allRows = Array.from(document.querySelectorAll('#imChatArea .im-msg-row'));
+    const domIndex = allRows.indexOf(rowElement);
+    
+    if (domIndex !== -1 && currentIMCharId && db) {
+        let imMsgs = chatHistory.filter(m => m.app === 'imessage');
+        if (imMsgs[domIndex]) {
+            let realIndex = chatHistory.indexOf(imMsgs[domIndex]);
+            if (realIndex !== -1) {
+                if (reactionData) {
+                    chatHistory[realIndex].reaction = reactionData;
+                } else {
+                    delete chatHistory[realIndex].reaction;
+                }
+                
+                const tx = db.transaction(["characters"], "readwrite");
+                const store = tx.objectStore("characters");
+                store.get(currentIMCharId).onsuccess = (e) => {
+                    const char = e.target.result;
+                    char.history = chatHistory;
+                    store.put(char);
+                };
+            }
+        }
+    }
+}
 function openIMEmojiPicker() {
     imReactionBar.classList.remove('active');
     imActionList.classList.remove('active');
