@@ -5089,6 +5089,16 @@ function openIMChat(charId) {
             if (char.avatarImage) avatarEl.style.backgroundImage = `url(${char.avatarImage})`;
             else avatarEl.style.backgroundImage = 'none';
 
+            // 【这里就是第四步新增的代码：读取并设置专属聊天背景】
+            const imScreen = document.getElementById('imScreen');
+            if (char.imBgImage) {
+                imScreen.style.backgroundImage = `url(${char.imBgImage})`;
+                imScreen.style.backgroundSize = 'cover';
+                imScreen.style.backgroundPosition = 'center';
+            } else {
+                imScreen.style.backgroundImage = 'none'; // 没有设置就恢复默认白底
+            }
+
             const chatArea = document.getElementById('imChatArea');
             chatArea.innerHTML = '<div class="im-time-stamp">刚刚</div>';
 
@@ -5271,3 +5281,40 @@ function removeIMTypingIndicator() {
     const els = document.querySelectorAll('#imChatArea .im-typing-row');
     els.forEach(el => el.remove());
 }
+// --- iMessage 更换聊天背景逻辑 ---
+function triggerIMBgUpload() {
+    if (!currentIMCharId) {
+        alert("请先进入聊天界面");
+        return;
+    }
+    document.getElementById('imBgUploadInput').click();
+}
+
+document.getElementById('imBgUploadInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file || !currentIMCharId || !db) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        const base64Data = event.target.result;
+        
+        // 1. 立即应用到当前界面
+        const imScreen = document.getElementById('imScreen');
+        imScreen.style.backgroundImage = `url(${base64Data})`;
+        imScreen.style.backgroundSize = 'cover';
+        imScreen.style.backgroundPosition = 'center';
+        
+        // 2. 保存到 IndexedDB 当前角色数据中
+        const tx = db.transaction(["characters"], "readwrite");
+        const store = tx.objectStore("characters");
+        store.get(currentIMCharId).onsuccess = (e) => {
+            const char = e.target.result;
+            if (char) {
+                char.imBgImage = base64Data; // 新增一个字段存背景
+                store.put(char);
+            }
+        };
+    };
+    reader.readAsDataURL(file);
+    e.target.value = ''; // 清空 input，保证下次选同一张图也能触发
+});
