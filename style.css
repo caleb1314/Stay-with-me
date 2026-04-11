@@ -137,6 +137,9 @@ body.dark-mode {
     padding-top: 48px; 
     /* 开启安卓/iOS原生丝滑滚动 */
     -webkit-overflow-scrolling: touch;
+    /* 优化滑动响应速度，拒绝拖泥带水 */
+    scroll-behavior: smooth;
+    overscroll-behavior-x: contain; 
     /* 针对滑动容器单独开启硬件加速，拒绝卡顿 */
     transform: translateZ(0);
     will-change: transform, scroll-position;
@@ -147,8 +150,8 @@ body.dark-mode {
     width: 100vw;
     flex-shrink: 0;
     scroll-snap-align: start;
-    /* 改为 normal，取消强制停顿的生硬感，让滑动更自由 */
-    scroll-snap-stop: normal; 
+    /* 坚决保留强制停顿：保证每次滑动只翻一页，绝不滑过头 */
+    scroll-snap-stop: always; 
     display: flex;
     flex-direction: column;
     padding: 0 20px;
