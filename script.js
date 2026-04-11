@@ -5340,7 +5340,6 @@ function showIMContextMenu(bubble) {
     if (navigator.vibrate) navigator.vibrate(50);
     imActiveBubble = bubble;
     imActiveBubble.classList.add('highlight');
-    imActiveBubble.closest('.im-msg-row').classList.add('highlight-row');
     imOverlay.classList.add('active');
     
     const rect = bubble.getBoundingClientRect();
@@ -5379,7 +5378,6 @@ function hideIMContextMenu() {
     closeIMEmojiPicker();
     if (imActiveBubble) {
         imActiveBubble.classList.remove('highlight');
-        imActiveBubble.closest('.im-msg-row').classList.remove('highlight-row');
         imActiveBubble = null;
     }
 }
