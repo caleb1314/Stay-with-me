@@ -2617,3 +2617,120 @@ input:-webkit-autofill:active {
     position: absolute; bottom: -5px; left: -9px; width: 8px; height: 8px;
     background-color: #F2F2F2; border-radius: 50%; z-index: -1;
 }
+/* ========================================= */
+/* === iMessage 长按菜单与表情回应样式 === */
+/* ========================================= */
+
+/* 核心：禁止气泡长按出现系统菜单 */
+.im-bubble {
+    -webkit-touch-callout: none !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    cursor: pointer;
+}
+.im-bubble.pressing { transform: scale(0.95); }
+.im-bubble.highlight { z-index: 5502 !important; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.15); }
+
+/* 遮罩层 */
+.im-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.15); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+    z-index: 5500; opacity: 0; pointer-events: none;
+    transition: opacity 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.im-overlay.active { opacity: 1; pointer-events: auto; }
+
+/* 顶部表情栏 */
+.im-reaction-bar-wrapper {
+    position: fixed; z-index: 5501;
+    opacity: 0; transform: scale(0.8) translateY(10px); pointer-events: none;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.im-reaction-bar-wrapper.active { opacity: 1; transform: scale(1) translateY(0); pointer-events: auto; }
+
+.im-reaction-bar {
+    background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+    border-radius: 30px; padding: 8px 12px; display: flex; gap: 12px; align-items: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 0.5px solid rgba(255, 255, 255, 0.6); position: relative;
+}
+.im-reaction-tail-large { position: absolute; width: 14px; height: 14px; border-radius: 50%; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(40px); border: 0.5px solid rgba(255, 255, 255, 0.6); z-index: -1; }
+.im-reaction-tail-small { position: absolute; width: 7px; height: 7px; border-radius: 50%; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(40px); border: 0.5px solid rgba(255, 255, 255, 0.6); z-index: -1; }
+
+.im-reaction-item { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
+.im-reaction-item:active { background: rgba(0,0,0,0.08); transform: scale(1.15); }
+.im-reaction-item svg { width: 24px; height: 24px; }
+.im-reaction-item.emoji-btn { background: rgba(0,0,0,0.05); }
+.im-reaction-item.emoji-btn svg { width: 22px; height: 22px; }
+
+/* 底部操作列表 */
+.im-action-list {
+    position: fixed; z-index: 5501; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+    border-radius: 18px; width: 240px; box-shadow: 0 15px 40px rgba(0,0,0,0.12); border: 0.5px solid rgba(255, 255, 255, 0.6);
+    overflow: hidden; opacity: 0; transform: scale(0.8) translateY(-10px); pointer-events: none;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.im-action-list.active { opacity: 1; transform: scale(1) translateY(0); pointer-events: auto; }
+
+.im-action-item {
+    display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; font-size: 16px; font-weight: 500; color: #000;
+    cursor: pointer; position: relative; transition: background 0.2s;
+}
+.im-action-item:active { background: rgba(0,0,0,0.08); }
+.im-action-item:not(:last-child)::after { content: ''; position: absolute; bottom: 0; left: 18px; right: 0; height: 0.5px; background: rgba(0,0,0,0.1); }
+.im-action-item svg { width: 20px; height: 20px; stroke: #000; stroke-width: 1.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.im-action-item.danger { color: #ff3b30; }
+.im-action-item.danger svg { stroke: #ff3b30; }
+
+/* 附着在气泡上的回应徽章 */
+.im-reaction-badge {
+    position: absolute; border-radius: 20px; padding: 4px 6px; min-width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    z-index: 10; animation: imPopIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    font-family: inherit; /* 继承全局字体 */
+    font-size: 16px; line-height: 1;
+}
+.im-reaction-badge svg { width: 18px; height: 18px; }
+.im-reaction-badge::before, .im-reaction-badge::after { content: ''; position: absolute; border-radius: 50%; z-index: -1; }
+.im-reaction-badge::before { width: 14px; height: 14px; }
+.im-reaction-badge::after { width: 7px; height: 7px; }
+
+/* 发送方 (右侧) - 浅灰色气泡 */
+.im-msg-row.right .im-reaction-badge, .im-msg-row.right .im-reaction-badge::before, .im-msg-row.right .im-reaction-badge::after { background: #E5E5EA; color: #555555; }
+.im-msg-row.right .im-reaction-badge { top: -16px; left: -2px; }
+.im-msg-row.right .im-reaction-badge::before { bottom: -4px; left: 2px; clip-path: inset(40% 0 0 0); transform: rotate(25deg); }
+.im-msg-row.right .im-reaction-badge::after { bottom: -9px; left: -4px; }
+
+/* 接收方 (左侧) - 深灰色气泡 */
+.im-msg-row.left .im-reaction-badge, .im-msg-row.left .im-reaction-badge::before, .im-msg-row.left .im-reaction-badge::after { background: #555555; color: #ffffff; }
+.im-msg-row.left .im-reaction-badge { top: -16px; right: -2px; }
+.im-msg-row.left .im-reaction-badge::before { bottom: -4px; right: 2px; clip-path: inset(40% 0 0 0); transform: rotate(-25deg); }
+.im-msg-row.left .im-reaction-badge::after { bottom: -9px; right: -4px; }
+
+@keyframes imPopIn { 0% { opacity: 0; transform: scale(0.5) translateY(10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+
+/* Emoji 选择面板 */
+.im-emoji-picker {
+    position: fixed; bottom: 0; left: 0; width: 100%; height: 300px;
+    background: rgba(242, 242, 247, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-radius: 24px 24px 0 0; box-shadow: 0 -10px 30px rgba(0,0,0,0.1);
+    z-index: 5502; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    padding: 20px 16px; display: flex; flex-direction: column;
+}
+.im-emoji-picker.active { transform: translateY(0); }
+.im-emoji-grid {
+    flex: 1; display: grid; grid-template-columns: repeat(6, 1fr); gap: 15px;
+    overflow-y: auto; scrollbar-width: none; padding-bottom: 20px;
+}
+.im-emoji-grid::-webkit-scrollbar { display: none; }
+.im-emoji-cell {
+    font-size: 28px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: transform 0.1s; font-family: inherit; /* 强制继承全局字体 */
+}
+.im-emoji-cell:active { transform: scale(1.2); }
+
+/* iMessage 撤回提示 UI */
+.im-recall-tip {
+    align-self: center; font-size: 12px; font-weight: 600; color: rgba(0,0,0,0.4);
+    margin: 10px 0; display: flex; align-items: center; gap: 6px;
+}
