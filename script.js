@@ -5188,8 +5188,7 @@ imInputEl.addEventListener('keydown', (e) => {
 
 // 发送点击逻辑
 function handleIMSendClick() {
-    if (imSendBtn.classList.contains('state-voice')) return;
-
+    // 删除了对 state-voice 的拦截，允许点击语音键触发 AI
     const text = imInputEl.value.trim();
     if (text) {
         // 有字：发送用户消息并打上 imessage 标签
@@ -5226,4 +5225,30 @@ function toggleMsgMenu() {
 
 function closeMsgMenu() {
     document.getElementById('msgDropdownOverlay').classList.remove('active');
+}
+// 渲染 iMessage 正在输入动画
+function appendIMTypingIndicator(id) {
+    const chatArea = document.getElementById('imChatArea');
+    const row = document.createElement('div');
+    row.className = `im-msg-row left im-typing-row`;
+    row.id = id;
+    row.innerHTML = `
+        <div class="im-msg-group">
+            <div class="im-typing-bubble">
+                <div class="im-typing-dots">
+                    <div class="im-dot"></div><div class="im-dot"></div><div class="im-dot"></div>
+                </div>
+                <div class="im-typing-tail-large"></div>
+                <div class="im-typing-tail-small"></div>
+            </div>
+        </div>
+    `;
+    chatArea.appendChild(row);
+    chatArea.scrollTo({ top: chatArea.scrollHeight, behavior: 'smooth' });
+}
+
+// 移除 iMessage 正在输入动画
+function removeIMTypingIndicator() {
+    const els = document.querySelectorAll('#imChatArea .im-typing-row');
+    els.forEach(el => el.remove());
 }
