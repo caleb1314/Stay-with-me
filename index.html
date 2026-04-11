@@ -1365,6 +1365,8 @@
 <input type="file" id="csAlbumFileInput" hidden accept="image/*">
 <!-- 新增：用于聊天界面发送图片的隐藏 input -->
 <input type="file" id="chatImageInput" hidden accept="image/*">
+<!-- iMessage 专属背景上传框 -->
+<input type="file" id="imBgUploadInput" hidden accept="image/*">
         </div>
     </div>
     
@@ -1964,7 +1966,7 @@
 <!-- ========================================= -->
 <div class="im-screen-chat" id="imScreen" style="z-index: 5200;">
     <div class="im-header">
-        <div class="im-btn" onclick="closeIMChat()"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+        <div class="im-btn" onclick="triggerIMBgUpload()"><svg viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></div>
         <div class="im-title-group" onclick="openChatSettings()">
             <div class="im-avatar" id="imHeaderAvatar"></div>
             <div class="im-name-row">
